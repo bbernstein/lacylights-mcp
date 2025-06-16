@@ -1,0 +1,1301 @@
+#!/usr/bin/env node
+
+import {
+  Server,
+  StdioServerTransport,
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "./mcp-imports";
+
+import { LacyLightsGraphQLClient } from "./services/graphql-client-simple";
+import { RAGService } from "./services/rag-service-simple";
+import { AILightingService } from "./services/ai-lighting";
+import { FixtureTools } from "./tools/fixture-tools";
+import { SceneTools } from "./tools/scene-tools";
+import { CueTools } from "./tools/cue-tools";
+import { ProjectTools } from "./tools/project-tools";
+
+class LacyLightsMCPServer {
+  private server: Server;
+  private graphqlClient: LacyLightsGraphQLClient;
+  private ragService: RAGService;
+  private aiLightingService: AILightingService;
+  private fixtureTools: FixtureTools;
+  private sceneTools: SceneTools;
+  private cueTools: CueTools;
+  private projectTools: ProjectTools;
+
+  constructor() {
+    this.server = new Server(
+      {
+        name: "lacylights-mcp",
+        version: "1.0.0",
+      },
+      {
+        capabilities: {
+          tools: {},
+        },
+      },
+    );
+
+    // Initialize services
+    const graphqlEndpoint =
+      process.env.LACYLIGHTS_GRAPHQL_ENDPOINT ||
+      "http://localhost:4000/graphql";
+    this.graphqlClient = new LacyLightsGraphQLClient(graphqlEndpoint);
+    this.ragService = new RAGService();
+    this.aiLightingService = new AILightingService(this.ragService);
+
+    // Initialize tools
+    this.fixtureTools = new FixtureTools(this.graphqlClient);
+    this.sceneTools = new SceneTools(
+      this.graphqlClient,
+      this.ragService,
+      this.aiLightingService,
+    );
+    this.cueTools = new CueTools(
+      this.graphqlClient,
+      this.ragService,
+      this.aiLightingService,
+    );
+    this.projectTools = new ProjectTools(this.graphqlClient);
+
+    this.setupHandlers();
+  }
+
+  private setupHandlers() {
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      return {
+        tools: [
+          // Project Tools
+          {
+            name: "list_projects",
+            description: "List all available lighting projects",
+            inputSchema: {
+              type: "object",
+              properties: {
+                includeDetails: {
+                  type: "boolean",
+                  default: false,
+                  description: "Include fixture and scene counts",
+                },
+              },
+            },
+          },
+          {
+            name: "create_project",
+            description: "Create a new lighting project",
+            inputSchema: {
+              type: "object",
+              properties: {
+                name: {
+                  type: "string",
+                  description: "Project name",
+                },
+                description: {
+                  type: "string",
+                  description: "Project description",
+                },
+              },
+              required: ["name"],
+            },
+          },
+          {
+            name: "get_project_details",
+            description: "Get detailed information about a specific project",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to get details for",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "delete_project",
+            description: "Delete a project and all its data",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  default: false,
+                  description: "Confirm deletion of project and all its data",
+                },
+              },
+              required: ["projectId", "confirmDelete"],
+            },
+          },
+          // Fixture Tools
+          {
+            name: "get_fixture_inventory",
+            description:
+              "Get available lighting fixtures and their capabilities for a project or globally",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Optional project ID to filter fixtures",
+                },
+                fixtureType: {
+                  type: "string",
+                  enum: ["LED_PAR", "MOVING_HEAD", "STROBE", "DIMMER", "OTHER"],
+                  description: "Optional fixture type filter",
+                },
+                includeDefinitions: {
+                  type: "boolean",
+                  default: true,
+                  description: "Include available fixture definitions",
+                },
+              },
+            },
+          },
+          {
+            name: "analyze_fixture_capabilities",
+            description:
+              "Analyze specific fixtures to understand their lighting capabilities",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fixtureId: {
+                  type: "string",
+                  description: "Single fixture ID to analyze",
+                },
+                fixtureIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Multiple fixture IDs to analyze",
+                },
+                analysisType: {
+                  type: "string",
+                  enum: ["color_mixing", "positioning", "effects", "general"],
+                  default: "general",
+                  description: "Type of capability analysis",
+                },
+              },
+            },
+          },
+          {
+            name: "create_fixture_instance",
+            description:
+              "Create a new fixture instance in a project with manufacturer/model details",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to add fixture to",
+                },
+                name: {
+                  type: "string",
+                  description: "Name for this fixture instance",
+                },
+                description: {
+                  type: "string",
+                  description:
+                    "Description of where this fixture is placed or its purpose",
+                },
+                manufacturer: {
+                  type: "string",
+                  description:
+                    'Fixture manufacturer (e.g., "Chauvet", "Martin", "ETC")',
+                },
+                model: {
+                  type: "string",
+                  description: "Fixture model name",
+                },
+                mode: {
+                  type: "string",
+                  description:
+                    "Specific mode if the fixture has multiple modes",
+                },
+                universe: {
+                  type: "number",
+                  default: 1,
+                  description: "DMX universe number (typically 1-4)",
+                },
+                startChannel: {
+                  type: "number",
+                  description:
+                    "Starting DMX channel (1-512). If not provided, will auto-assign",
+                },
+                tags: {
+                  type: "array",
+                  items: { type: "string" },
+                  default: [],
+                  description:
+                    'Tags for organization (e.g., ["front", "wash", "blue"])',
+                },
+                channelAssignment: {
+                  type: "string",
+                  enum: ["auto", "manual", "suggest"],
+                  default: "auto",
+                  description:
+                    "How to assign channels: auto=find next available, manual=use provided startChannel, suggest=recommend placement",
+                },
+              },
+              required: ["projectId", "name", "manufacturer", "model"],
+            },
+          },
+          {
+            name: "get_channel_map",
+            description: "Get the DMX channel usage map for a project",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to analyze",
+                },
+                universe: {
+                  type: "number",
+                  description:
+                    "Specific universe to analyze (if not provided, shows all)",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "suggest_channel_assignment",
+            description:
+              "Suggest optimal channel assignments for multiple fixtures",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID",
+                },
+                fixtureSpecs: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      manufacturer: { type: "string" },
+                      model: { type: "string" },
+                      mode: { type: "string" },
+                      channelCount: {
+                        type: "number",
+                        description: "Number of channels (if known)",
+                      },
+                    },
+                    required: ["name", "manufacturer", "model"],
+                  },
+                  description: "List of fixtures to assign channels for",
+                },
+                universe: {
+                  type: "number",
+                  default: 1,
+                  description: "Universe to assign channels in",
+                },
+                startingChannel: {
+                  type: "number",
+                  default: 1,
+                  description: "Channel to start assignments from",
+                },
+                groupingStrategy: {
+                  type: "string",
+                  enum: ["sequential", "by_type", "by_function"],
+                  default: "sequential",
+                  description: "How to group fixture assignments",
+                },
+              },
+              required: ["projectId", "fixtureSpecs"],
+            },
+          },
+          {
+            name: "update_fixture_instance",
+            description:
+              "Update an existing fixture instance with new properties",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fixtureId: {
+                  type: "string",
+                  description: "ID of the fixture instance to update",
+                },
+                name: {
+                  type: "string",
+                  description: "New name for the fixture",
+                },
+                description: {
+                  type: "string",
+                  description: "New description for the fixture",
+                },
+                manufacturer: {
+                  type: "string",
+                  description:
+                    "New manufacturer (will find/create new definition if changed)",
+                },
+                model: {
+                  type: "string",
+                  description:
+                    "New model (will find/create new definition if changed)",
+                },
+                mode: {
+                  type: "string",
+                  description: "New mode name",
+                },
+                universe: {
+                  type: "number",
+                  description: "New DMX universe number",
+                },
+                startChannel: {
+                  type: "number",
+                  description: "New starting DMX channel",
+                },
+                tags: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "New tags array",
+                },
+              },
+              required: ["fixtureId"],
+            },
+          },
+          // Scene Tools
+          {
+            name: "generate_scene",
+            description:
+              "Generate a lighting scene based on script context and design preferences",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to create scene in",
+                },
+                sceneDescription: {
+                  type: "string",
+                  description: "Description of the scene to light",
+                },
+                scriptContext: {
+                  type: "string",
+                  description: "Optional script context for the scene",
+                },
+                designPreferences: {
+                  type: "object",
+                  properties: {
+                    colorPalette: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Preferred colors for the scene",
+                    },
+                    mood: {
+                      type: "string",
+                      description: "Mood or atmosphere for the scene",
+                    },
+                    intensity: {
+                      type: "string",
+                      enum: ["subtle", "moderate", "dramatic"],
+                      description: "Overall intensity level",
+                    },
+                    focusAreas: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Stage areas to emphasize",
+                    },
+                  },
+                },
+                fixtureFilter: {
+                  type: "object",
+                  properties: {
+                    includeTypes: {
+                      type: "array",
+                      items: {
+                        type: "string",
+                        enum: [
+                          "LED_PAR",
+                          "MOVING_HEAD",
+                          "STROBE",
+                          "DIMMER",
+                          "OTHER",
+                        ],
+                      },
+                    },
+                    excludeTypes: {
+                      type: "array",
+                      items: {
+                        type: "string",
+                        enum: [
+                          "LED_PAR",
+                          "MOVING_HEAD",
+                          "STROBE",
+                          "DIMMER",
+                          "OTHER",
+                        ],
+                      },
+                    },
+                    includeTags: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                  },
+                },
+              },
+              required: ["projectId", "sceneDescription"],
+            },
+          },
+          {
+            name: "analyze_script",
+            description:
+              "Analyze a theatrical script to extract lighting-relevant information",
+            inputSchema: {
+              type: "object",
+              properties: {
+                scriptText: {
+                  type: "string",
+                  description: "The theatrical script text to analyze",
+                },
+                extractLightingCues: {
+                  type: "boolean",
+                  default: true,
+                  description: "Extract specific lighting cues from the script",
+                },
+                suggestScenes: {
+                  type: "boolean",
+                  default: true,
+                  description: "Generate scene suggestions based on analysis",
+                },
+              },
+              required: ["scriptText"],
+            },
+          },
+          {
+            name: "optimize_scene",
+            description: "Optimize an existing scene for specific goals",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to optimize",
+                },
+                projectId: {
+                  type: "string",
+                  description: "Project ID containing the scene",
+                },
+                optimizationGoals: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                    enum: [
+                      "energy_efficiency",
+                      "color_accuracy",
+                      "dramatic_impact",
+                      "technical_simplicity",
+                    ],
+                  },
+                  default: ["dramatic_impact"],
+                  description: "Goals for optimization",
+                },
+              },
+              required: ["sceneId", "projectId"],
+            },
+          },
+          {
+            name: "update_scene",
+            description: "Update an existing scene with new values",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to update",
+                },
+                name: {
+                  type: "string",
+                  description: "Optional new name for the scene",
+                },
+                description: {
+                  type: "string",
+                  description: "Optional new description for the scene",
+                },
+                fixtureValues: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      fixtureId: {
+                        type: "string",
+                        description: "Fixture ID to update",
+                      },
+                      channelValues: {
+                        type: "array",
+                        items: {
+                          type: "number",
+                          minimum: 0,
+                          maximum: 255,
+                        },
+                        description: "Array of channel values (0-255)",
+                      },
+                    },
+                    required: ["fixtureId", "channelValues"],
+                  },
+                  description: "Optional fixture values to update",
+                },
+              },
+              required: ["sceneId"],
+            },
+          },
+          // Cue Tools
+          {
+            name: "create_cue_sequence",
+            description:
+              "Create a sequence of lighting cues from existing scenes",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to create cue sequence in",
+                },
+                scriptContext: {
+                  type: "string",
+                  description: "Script context for the cue sequence",
+                },
+                sceneIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Scene IDs to include in sequence",
+                },
+                sequenceName: {
+                  type: "string",
+                  description: "Name for the cue sequence",
+                },
+                transitionPreferences: {
+                  type: "object",
+                  properties: {
+                    defaultFadeIn: { type: "number", default: 3 },
+                    defaultFadeOut: { type: "number", default: 3 },
+                    followCues: { type: "boolean", default: false },
+                    autoAdvance: { type: "boolean", default: false },
+                  },
+                },
+              },
+              required: [
+                "projectId",
+                "scriptContext",
+                "sceneIds",
+                "sequenceName",
+              ],
+            },
+          },
+          {
+            name: "generate_act_cues",
+            description:
+              "Generate cue suggestions for an entire act based on script analysis",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to work with",
+                },
+                actNumber: {
+                  type: "number",
+                  description: "Act number to generate cues for",
+                },
+                scriptText: {
+                  type: "string",
+                  description: "Script text for the act",
+                },
+                existingScenes: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Optional existing scene IDs to reference",
+                },
+                cueListName: {
+                  type: "string",
+                  description: "Optional name for the cue list",
+                },
+              },
+              required: ["projectId", "actNumber", "scriptText"],
+            },
+          },
+          {
+            name: "optimize_cue_timing",
+            description: "Optimize the timing of cues in a cue list",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListId: {
+                  type: "string",
+                  description: "Cue list ID to optimize",
+                },
+                projectId: {
+                  type: "string",
+                  description: "Project ID containing the cue list",
+                },
+                optimizationStrategy: {
+                  type: "string",
+                  enum: [
+                    "smooth_transitions",
+                    "dramatic_timing",
+                    "technical_precision",
+                    "energy_conscious",
+                  ],
+                  default: "smooth_transitions",
+                  description: "Optimization strategy to apply",
+                },
+              },
+              required: ["cueListId", "projectId"],
+            },
+          },
+          {
+            name: "analyze_cue_structure",
+            description: "Analyze the structure and timing of a cue list",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListId: {
+                  type: "string",
+                  description: "Cue list ID to analyze",
+                },
+                projectId: {
+                  type: "string",
+                  description: "Project ID containing the cue list",
+                },
+                includeRecommendations: {
+                  type: "boolean",
+                  default: true,
+                  description: "Include improvement recommendations",
+                },
+              },
+              required: ["cueListId", "projectId"],
+            },
+          },
+          // Cue List Management Tools
+          {
+            name: "update_cue_list",
+            description: "Update cue list name or description",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListId: {
+                  type: "string",
+                  description: "Cue list ID to update",
+                },
+                name: {
+                  type: "string",
+                  description: "New name for the cue list",
+                },
+                description: {
+                  type: "string",
+                  description: "New description for the cue list",
+                },
+              },
+              required: ["cueListId"],
+            },
+          },
+          {
+            name: "add_cue_to_list",
+            description: "Add a new cue to an existing cue list",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListId: {
+                  type: "string",
+                  description: "Cue list ID to add cue to",
+                },
+                name: {
+                  type: "string",
+                  description: "Name for the new cue",
+                },
+                cueNumber: {
+                  type: "number",
+                  description: "Cue number (e.g., 1.5, 2.0)",
+                },
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to use for this cue",
+                },
+                fadeInTime: {
+                  type: "number",
+                  default: 3,
+                  description: "Fade in time in seconds",
+                },
+                fadeOutTime: {
+                  type: "number",
+                  default: 3,
+                  description: "Fade out time in seconds",
+                },
+                followTime: {
+                  type: "number",
+                  description: "Auto-follow time in seconds (null for manual)",
+                },
+                notes: {
+                  type: "string",
+                  description: "Notes or description for the cue",
+                },
+                position: {
+                  type: "string",
+                  enum: ["before", "after"],
+                  description: "Position relative to reference cue",
+                },
+                referenceCueNumber: {
+                  type: "number",
+                  description: "Cue number to insert before/after",
+                },
+              },
+              required: ["cueListId", "name", "cueNumber", "sceneId"],
+            },
+          },
+          {
+            name: "remove_cue_from_list",
+            description: "Remove a cue from a cue list",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueId: {
+                  type: "string",
+                  description: "ID of the cue to remove",
+                },
+              },
+              required: ["cueId"],
+            },
+          },
+          {
+            name: "update_cue",
+            description: "Update properties of an existing cue",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueId: {
+                  type: "string",
+                  description: "ID of the cue to update",
+                },
+                name: {
+                  type: "string",
+                  description: "New name for the cue",
+                },
+                cueNumber: {
+                  type: "number",
+                  description: "New cue number",
+                },
+                sceneId: {
+                  type: "string",
+                  description: "New scene ID",
+                },
+                fadeInTime: {
+                  type: "number",
+                  description: "New fade in time in seconds",
+                },
+                fadeOutTime: {
+                  type: "number",
+                  description: "New fade out time in seconds",
+                },
+                followTime: {
+                  type: "number",
+                  description: "New follow time (null to remove auto-follow)",
+                },
+                notes: {
+                  type: "string",
+                  description: "New notes or description",
+                },
+              },
+              required: ["cueId"],
+            },
+          },
+          {
+            name: "reorder_cues",
+            description: "Reorder multiple cues by assigning new cue numbers",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListId: {
+                  type: "string",
+                  description: "Cue list ID containing the cues",
+                },
+                cueReordering: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      cueId: {
+                        type: "string",
+                        description: "ID of the cue to reorder",
+                      },
+                      newCueNumber: {
+                        type: "number",
+                        description: "New cue number for this cue",
+                      },
+                    },
+                    required: ["cueId", "newCueNumber"],
+                  },
+                  description: "Array of cue ID and new number pairs",
+                },
+              },
+              required: ["cueListId", "cueReordering"],
+            },
+          },
+          {
+            name: "get_cue_list_details",
+            description:
+              "Query and analyze cues in a cue list with filtering, sorting, and lookup tables",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListId: {
+                  type: "string",
+                  description: "Cue list ID to query",
+                },
+                includeSceneDetails: {
+                  type: "boolean",
+                  default: true,
+                  description:
+                    "Include detailed scene information for each cue",
+                },
+                sortBy: {
+                  type: "string",
+                  enum: ["cueNumber", "name", "sceneName"],
+                  default: "cueNumber",
+                  description: "Sort cues by cue number, name, or scene name",
+                },
+                filterBy: {
+                  type: "object",
+                  properties: {
+                    cueNumberRange: {
+                      type: "object",
+                      properties: {
+                        min: { type: "number" },
+                        max: { type: "number" },
+                      },
+                      description: "Filter by cue number range",
+                    },
+                    nameContains: {
+                      type: "string",
+                      description:
+                        "Filter cues where name contains this text (case-insensitive)",
+                    },
+                    sceneNameContains: {
+                      type: "string",
+                      description:
+                        "Filter cues where scene name contains this text (case-insensitive)",
+                    },
+                    hasFollowTime: {
+                      type: "boolean",
+                      description:
+                        "Filter cues that have (true) or don't have (false) follow times",
+                    },
+                    fadeTimeRange: {
+                      type: "object",
+                      properties: {
+                        min: { type: "number" },
+                        max: { type: "number" },
+                      },
+                      description: "Filter by fade in time range",
+                    },
+                  },
+                  description: "Optional filters to apply to the cue list",
+                },
+              },
+              required: ["cueListId"],
+            },
+          },
+        ],
+      };
+    });
+
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+
+      try {
+        switch (name) {
+          // Project Tools
+          case "list_projects":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.projectTools.listProjects(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "create_project":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.projectTools.createProject(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_project_details":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.projectTools.getProjectDetails(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "delete_project":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.projectTools.deleteProject(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Fixture Tools
+          case "get_fixture_inventory":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.getFixtureInventory(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "analyze_fixture_capabilities":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.analyzeFixtureCapabilities(
+                      args as any,
+                    ),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "create_fixture_instance":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.createFixtureInstance(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_channel_map":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.getChannelMap(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "suggest_channel_assignment":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.suggestChannelAssignment(
+                      args as any,
+                    ),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "update_fixture_instance":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.updateFixtureInstance(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Scene Tools
+          case "generate_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.generateScene(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "analyze_script":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.analyzeScript(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "optimize_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.optimizeScene(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "update_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.updateScene(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Cue Tools
+          case "create_cue_sequence":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.createCueSequence(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "generate_act_cues":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.generateActCues(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "optimize_cue_timing":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.optimizeCueTiming(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "analyze_cue_structure":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.analyzeCueStructure(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Cue List Management
+          case "update_cue_list":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.updateCueList(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "add_cue_to_list":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.addCueToCueList(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "remove_cue_from_list":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.removeCueFromList(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "update_cue":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.updateCue(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "reorder_cues":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.reorderCues(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_cue_list_details":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.getCueListDetails(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          default:
+            throw new Error(`Unknown tool: ${name}`);
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    });
+  }
+
+  async run() {
+    // Initialize RAG service
+    try {
+      await this.ragService.initializeCollection();
+      // Don't log to stderr as it interferes with MCP protocol
+    } catch (error) {
+      // Silently continue - RAG service is optional
+    }
+
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    // Server is ready - no need to log
+  }
+}
+
+async function main() {
+  const server = new LacyLightsMCPServer();
+  await server.run();
+}
+
+// Run the server
+main().catch((error) => {
+  // Exit with error code but don't log to stderr
+  process.exit(1);
+});
