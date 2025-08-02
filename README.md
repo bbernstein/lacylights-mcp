@@ -2,6 +2,10 @@
 
 An MCP (Model Context Protocol) server that provides AI-powered theatrical lighting design capabilities for the LacyLights system.
 
+<a href="https://glama.ai/mcp/servers/@bbernstein/lacylights-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@bbernstein/lacylights-mcp/badge" alt="LacyLights Server MCP server" />
+</a>
+
 ## Features
 
 ### Fixture Management
@@ -136,7 +140,6 @@ which node
 ```
 
 **Note**: Use the absolute path to `run-mcp.js` in your configuration. This wrapper ensures proper CommonJS module loading.
-```
 
 ## Example Usage
 
