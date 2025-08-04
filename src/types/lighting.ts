@@ -161,6 +161,8 @@ export interface LightingDesignRequest {
   scriptContext: string;
   sceneDescription: string;
   availableFixtures: FixtureInstance[];
+  sceneType?: 'full' | 'additive';
+  allFixtures?: FixtureInstance[]; // For additive scenes, context of all fixtures
   designPreferences?: {
     colorPalette?: string[];
     mood?: string;

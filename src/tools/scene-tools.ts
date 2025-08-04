@@ -8,6 +8,7 @@ const GenerateSceneSchema = z.object({
   projectId: z.string(),
   sceneDescription: z.string(),
   scriptContext: z.string().optional(),
+  sceneType: z.enum(['full', 'additive']).default('full'),
   designPreferences: z.object({
     colorPalette: z.array(z.string()).optional(),
     mood: z.string().optional(),
@@ -55,6 +56,7 @@ export class SceneTools {
       projectId, 
       sceneDescription, 
       scriptContext, 
+      sceneType,
       designPreferences, 
       fixtureFilter 
     } = GenerateSceneSchema.parse(args);
@@ -66,8 +68,14 @@ export class SceneTools {
         throw new Error(`Project with ID ${projectId} not found`);
       }
 
-      // Filter fixtures based on criteria
+      // Get all fixtures for context, then filter based on scene type and criteria
       let availableFixtures = project.fixtures;
+      let allFixtures = project.fixtures; // Keep reference to all fixtures
+      
+      // For additive scenes, we need fixtureFilter to specify which fixtures to modify
+      if (sceneType === 'additive' && !fixtureFilter) {
+        throw new Error('Additive scenes require fixtureFilter to specify which fixtures to modify');
+      }
       
       if (fixtureFilter) {
         if (fixtureFilter.includeTypes) {
@@ -96,6 +104,8 @@ export class SceneTools {
         scriptContext: scriptContext || sceneDescription,
         sceneDescription,
         availableFixtures,
+        sceneType,
+        allFixtures: sceneType === 'additive' ? allFixtures : undefined,
         designPreferences
       };
 

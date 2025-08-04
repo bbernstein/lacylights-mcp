@@ -50,3 +50,6 @@ coverage/
 # Temporary folders
 tmp/
 temp/
+
+# Secrets
+mcpconfig.json

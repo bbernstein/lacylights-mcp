@@ -188,13 +188,50 @@ Consider:
     const fixtureWarning = fixtureDetails.length > maxFixtures ? 
       `\n(Showing first ${maxFixtures} of ${fixtureDetails.length} fixtures)` : '';
 
-    return `Scene: ${request.sceneDescription}
+    const sceneType = request.sceneType || 'full';
+    const isAdditive = sceneType === 'additive';
+    
+    let prompt = `Scene: ${request.sceneDescription}
 Mood: ${recommendations.reasoning || 'Standard'}
 Colors: ${recommendations.colorSuggestions?.join(',') || 'Default'}
+
+`;
+
+    if (isAdditive) {
+      // For additive scenes, provide context about other fixtures but only modify specific ones
+      const allFixtureDetails = request.allFixtures
+        ?.filter(fixture => fixture.channels && fixture.channels.length > 0)
+        .map(fixture => {
+          const channels = fixture.channels.map(ch => `${ch.type}`);
+          return {
+            id: fixture.id,
+            name: fixture.name,
+            type: fixture.type,
+            included: limitedFixtures.some(lf => lf.id === fixture.id)
+          };
+        }) || [];
+
+      prompt += `ADDITIVE SCENE: Only modify the specified fixtures below. Other fixtures will remain unchanged.
+
+Fixtures to modify (${limitedFixtures.length} of ${allFixtureDetails.length} total)${fixtureWarning}:
+${limitedFixtures.map(f => `${f.id}: ${f.name} (${f.type}, ${f.mode}) - Channels: ${f.channels}`).join('\n')}
+
+Other fixtures in project (will remain unchanged):
+${allFixtureDetails.filter(f => !f.included).slice(0, 5).map(f => `${f.id}: ${f.name} (${f.type}) - NOT MODIFIED`).join('\n')}${allFixtureDetails.filter(f => !f.included).length > 5 ? '\n... and more' : ''}
+
+IMPORTANT: Only include fixtureValues for the ${limitedFixtures.length} fixtures listed above to modify.
+`;
+    } else {
+      prompt += `FULL SCENE: Use ALL fixtures to create a complete lighting state.
 
 Fixtures (use ALL ${limitedFixtures.length} fixtures)${fixtureWarning}:
 ${limitedFixtures.map(f => `${f.id}: ${f.name} (${f.type}, ${f.mode}) - Channels: ${f.channels}`).join('\n')}
 
+IMPORTANT: Include values for ALL ${limitedFixtures.length} fixtures above.
+`;
+    }
+
+    prompt += `
 Return JSON:
 {
   "name": "Scene name",
@@ -206,8 +243,9 @@ Return JSON:
 
 For each fixture, provide channel values as an array of integers (0-255) where:
 - The array index corresponds to the channel offset (0, 1, 2, ...)
-- The array length should match the fixture's channel count
-- Include values for ALL ${limitedFixtures.length} fixtures above.`;
+- The array length should match the fixture's channel count`;
+
+    return prompt;
   }
 
   async optimizeSceneForFixtures(
