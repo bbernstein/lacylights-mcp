@@ -120,7 +120,7 @@ Add this server to your Claude configuration:
   "mcpServers": {
     "lacylights": {
       "command": "/usr/local/bin/node",
-      "args": ["/Users/bernard/src/lacylights/lacylights-mcp/run-mcp.js"],
+      "args": ["/path/to/lacylights-mcp/run-mcp.js"],
       "env": {
         "OPENAI_API_KEY": "your_openai_api_key_here",
         "LACYLIGHTS_GRAPHQL_ENDPOINT": "http://localhost:4000/graphql"
