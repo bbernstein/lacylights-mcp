@@ -383,6 +383,12 @@ class LacyLightsMCPServer {
                   type: "string",
                   description: "Optional script context for the scene",
                 },
+                sceneType: {
+                  type: "string",
+                  enum: ["full", "additive"],
+                  default: "full",
+                  description: "Type of scene: 'full' uses all fixtures (default), 'additive' only modifies specified fixtures",
+                },
                 designPreferences: {
                   type: "object",
                   properties: {
