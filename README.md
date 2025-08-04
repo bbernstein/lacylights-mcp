@@ -136,7 +136,6 @@ which node
 ```
 
 **Note**: Use the absolute path to `run-mcp.js` in your configuration. This wrapper ensures proper CommonJS module loading.
-```
 
 ## Example Usage
 
