@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
-import { FixtureDefinition, FixtureInstance, Project } from "../types/lighting";
+import { FixtureDefinition, FixtureInstance, Project, Scene, FixtureValue } from "../types/lighting";
 
 const GetFixtureInventorySchema = z.object({
   projectId: z.string().optional(),
@@ -976,11 +976,11 @@ export class FixtureTools {
     try {
       // First, get the current fixture to understand what we're updating
       const projects = await this.graphqlClient.getProjects();
-      let currentFixture: any = null;
+      let currentFixture: FixtureInstance | null = null;
       let projectId: string = '';
       
       for (const project of projects) {
-        const fixture = project.fixtures.find((f: any) => f.id === fixtureId);
+        const fixture = project.fixtures.find((f: FixtureInstance) => f.id === fixtureId);
         if (fixture) {
           currentFixture = fixture;
           projectId = project.id;
@@ -1106,12 +1106,12 @@ export class FixtureTools {
     try {
       // First, get information about the fixture to be deleted
       const projects = await this.graphqlClient.getProjects();
-      let fixtureToDelete: any = null;
+      let fixtureToDelete: FixtureInstance | null = null;
       let projectId: string = '';
       let projectName: string = '';
       
       for (const project of projects) {
-        const fixture = project.fixtures.find((f: any) => f.id === fixtureId);
+        const fixture = project.fixtures.find((f: FixtureInstance) => f.id === fixtureId);
         if (fixture) {
           fixtureToDelete = fixture;
           projectId = project.id;
@@ -1126,8 +1126,8 @@ export class FixtureTools {
 
       // Check if fixture is used in any scenes
       const project = await this.graphqlClient.getProject(projectId);
-      const scenesUsingFixture = project?.scenes.filter((scene: any) => 
-        scene.fixtureValues?.some((fv: any) => fv.fixture.id === fixtureId)
+      const scenesUsingFixture = project?.scenes.filter((scene: Scene) => 
+        scene.fixtureValues?.some((fv: FixtureValue) => fv.fixture.id === fixtureId)
       ) || [];
 
       // Delete the fixture
@@ -1149,7 +1149,7 @@ export class FixtureTools {
           projectId,
           projectName,
         },
-        affectedScenes: scenesUsingFixture.map((scene: any) => ({
+        affectedScenes: scenesUsingFixture.map((scene: Scene) => ({
           id: scene.id,
           name: scene.name,
           description: scene.description,
