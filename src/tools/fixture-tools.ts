@@ -581,6 +581,21 @@ export class FixtureTools {
         throw new Error("Failed to create or find fixture definition");
       }
 
+      // Check if mode is required when multiple modes are available
+      if (fixtureDefinition.modes.length > 1 && !mode) {
+        const availableModes = fixtureDefinition.modes.map(m => ({
+          name: m.name,
+          channelCount: m.channelCount,
+          shortName: m.shortName
+        }));
+        
+        throw new Error(
+          `Mode selection required. This fixture (${manufacturer} ${model}) has ${fixtureDefinition.modes.length} available modes. ` +
+          `Please specify a mode from: ${availableModes.map(m => `"${m.name}" (${m.channelCount} channels)`).join(', ')}. ` +
+          `Available modes: ${JSON.stringify(availableModes, null, 2)}`
+        );
+      }
+
       // Find the specific mode if requested
       let selectedMode: any = null;
       if (mode && fixtureDefinition.modes.length > 0) {
@@ -598,6 +613,21 @@ export class FixtureTools {
               (m) => m.channelCount === modeChannelCount,
             );
           }
+        }
+
+        // If mode was specified but no match found, provide helpful error
+        if (!selectedMode && fixtureDefinition.modes.length > 0) {
+          const availableModes = fixtureDefinition.modes.map(m => ({
+            name: m.name,
+            channelCount: m.channelCount,
+            shortName: m.shortName
+          }));
+          
+          throw new Error(
+            `Invalid mode "${mode}" for fixture ${manufacturer} ${model}. ` +
+            `Available modes: ${availableModes.map(m => `"${m.name}" (${m.channelCount} channels)`).join(', ')}. ` +
+            `Mode details: ${JSON.stringify(availableModes, null, 2)}`
+          );
         }
       }
 
@@ -1017,16 +1047,14 @@ export class FixtureTools {
 
         if (!fixtureDefinition) {
           // Create a basic fixture definition
+          // Use intelligent fixture creation for new definitions
+          const { channels, fixtureType } = this.createIntelligentFixtureChannels(mode, newModel, newManufacturer);
+          
           fixtureDefinition = await this.graphqlClient.createFixtureDefinition({
             manufacturer: newManufacturer,
             model: newModel,
-            type: 'OTHER', // Default type
-            channels: [
-              { name: 'Intensity', type: 'INTENSITY' },
-              { name: 'Red', type: 'RED' },
-              { name: 'Green', type: 'GREEN' },
-              { name: 'Blue', type: 'BLUE' }
-            ],
+            type: fixtureType,
+            channels,
             modes: []
           });
         }
