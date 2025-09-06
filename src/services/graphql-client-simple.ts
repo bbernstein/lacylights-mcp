@@ -633,4 +633,15 @@ export class LacyLightsGraphQLClient {
     const data = await this.query(mutation, { id, input });
     return data.updateFixtureInstance;
   }
+
+  async deleteFixtureInstance(id: string): Promise<boolean> {
+    const mutation = `
+      mutation DeleteFixtureInstance($id: ID!) {
+        deleteFixtureInstance(id: $id)
+      }
+    `;
+
+    const data = await this.query(mutation, { id });
+    return data.deleteFixtureInstance;
+  }
 }
