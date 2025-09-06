@@ -102,6 +102,11 @@ const UpdateFixtureInstanceSchema = z.object({
   tags: z.array(z.string()).optional().describe("New tags array"),
 });
 
+const DeleteFixtureInstanceSchema = z.object({
+  fixtureId: z.string().describe("ID of the fixture instance to delete"),
+  confirmDelete: z.boolean().describe("Confirm deletion (required to be true for safety)"),
+});
+
 export class FixtureTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
 
@@ -1096,8 +1101,8 @@ export class FixtureTools {
     }
   }
 
-  async deleteFixtureInstance(args: { fixtureId: string; confirmDelete?: boolean }) {
-    const { fixtureId, confirmDelete = false } = args;
+  async deleteFixtureInstance(args: z.infer<typeof DeleteFixtureInstanceSchema>) {
+    const { fixtureId, confirmDelete } = DeleteFixtureInstanceSchema.parse(args);
 
     if (!confirmDelete) {
       throw new Error('Delete operation requires confirmDelete: true for safety');

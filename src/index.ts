@@ -376,7 +376,6 @@ class LacyLightsMCPServer {
                 },
                 confirmDelete: {
                   type: "boolean",
-                  default: false,
                   description: "Confirm deletion (required to be true for safety)",
                 },
               },
