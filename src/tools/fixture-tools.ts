@@ -1095,4 +1095,72 @@ export class FixtureTools {
       throw new Error(`Failed to update fixture instance: ${error}`);
     }
   }
+
+  async deleteFixtureInstance(args: { fixtureId: string; confirmDelete?: boolean }) {
+    const { fixtureId, confirmDelete = false } = args;
+
+    if (!confirmDelete) {
+      throw new Error('Delete operation requires confirmDelete: true for safety');
+    }
+
+    try {
+      // First, get information about the fixture to be deleted
+      const projects = await this.graphqlClient.getProjects();
+      let fixtureToDelete: any = null;
+      let projectId: string = '';
+      let projectName: string = '';
+      
+      for (const project of projects) {
+        const fixture = project.fixtures.find((f: any) => f.id === fixtureId);
+        if (fixture) {
+          fixtureToDelete = fixture;
+          projectId = project.id;
+          projectName = project.name;
+          break;
+        }
+      }
+
+      if (!fixtureToDelete) {
+        throw new Error(`Fixture with ID ${fixtureId} not found`);
+      }
+
+      // Check if fixture is used in any scenes
+      const project = await this.graphqlClient.getProject(projectId);
+      const scenesUsingFixture = project?.scenes.filter((scene: any) => 
+        scene.fixtureValues?.some((fv: any) => fv.fixture.id === fixtureId)
+      ) || [];
+
+      // Delete the fixture
+      const deleted = await this.graphqlClient.deleteFixtureInstance(fixtureId);
+
+      if (!deleted) {
+        throw new Error('Failed to delete fixture instance');
+      }
+
+      return {
+        success: true,
+        deletedFixture: {
+          id: fixtureToDelete.id,
+          name: fixtureToDelete.name,
+          manufacturer: fixtureToDelete.manufacturer,
+          model: fixtureToDelete.model,
+          universe: fixtureToDelete.universe,
+          startChannel: fixtureToDelete.startChannel,
+          projectId,
+          projectName,
+        },
+        affectedScenes: scenesUsingFixture.map((scene: any) => ({
+          id: scene.id,
+          name: scene.name,
+          description: scene.description,
+        })),
+        message: `Successfully deleted fixture "${fixtureToDelete.name}" from project "${projectName}"`,
+        warnings: scenesUsingFixture.length > 0 
+          ? [`Fixture was removed from ${scenesUsingFixture.length} scene(s)`]
+          : [],
+      };
+    } catch (error) {
+      throw new Error(`Failed to delete fixture instance: ${error}`);
+    }
+  }
 }

@@ -363,6 +363,26 @@ class LacyLightsMCPServer {
               required: ["fixtureId"],
             },
           },
+          {
+            name: "delete_fixture_instance",
+            description:
+              "Delete a fixture instance from a project (will remove it from all scenes)",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fixtureId: {
+                  type: "string",
+                  description: "ID of the fixture instance to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  default: false,
+                  description: "Confirm deletion (required to be true for safety)",
+                },
+              },
+              required: ["fixtureId", "confirmDelete"],
+            },
+          },
           // Scene Tools
           {
             name: "generate_scene",
@@ -1057,6 +1077,20 @@ class LacyLightsMCPServer {
                   type: "text",
                   text: JSON.stringify(
                     await this.fixtureTools.updateFixtureInstance(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "delete_fixture_instance":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.deleteFixtureInstance(args as any),
                     null,
                     2,
                   ),
