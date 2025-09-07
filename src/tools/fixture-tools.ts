@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
-import { FixtureDefinition, FixtureInstance, Project, Scene, FixtureValue } from "../types/lighting";
+import { FixtureDefinition, FixtureInstance, Project, Scene, FixtureValue, FixtureType } from "../types/lighting";
 
 const GetFixtureInventorySchema = z.object({
   projectId: z.string().optional(),
@@ -565,23 +565,35 @@ export class FixtureTools {
       );
 
       if (!fixtureDefinition) {
-        // Create a basic fixture definition
+        // Create fixture definition based on intelligent analysis
+        const { channels, fixtureType } = this.createIntelligentFixtureChannels(mode, model, manufacturer);
+        
         fixtureDefinition = await this.graphqlClient.createFixtureDefinition({
           manufacturer,
           model,
-          type: "OTHER", // Default type
-          channels: [
-            { name: "Intensity", type: "INTENSITY" },
-            { name: "Red", type: "RED" },
-            { name: "Green", type: "GREEN" },
-            { name: "Blue", type: "BLUE" },
-          ],
-          modes: mode ? [{ name: mode, channelCount: 4 }] : [],
+          type: fixtureType,
+          channels,
+          modes: mode ? [{ name: mode, channelCount: channels.length }] : [],
         });
       }
 
       if (!fixtureDefinition) {
         throw new Error("Failed to create or find fixture definition");
+      }
+
+      // Check if mode is required when multiple modes are available
+      if (fixtureDefinition.modes.length > 1 && !mode) {
+        const availableModes = fixtureDefinition.modes.map(m => ({
+          name: m.name,
+          channelCount: m.channelCount,
+          shortName: m.shortName
+        }));
+        
+        throw new Error(
+          `Mode selection required. This fixture (${manufacturer} ${model}) has ${fixtureDefinition.modes.length} available modes. ` +
+          `Please specify a mode from: ${availableModes.map(m => `"${m.name}" (${m.channelCount} channels)`).join(', ')}. ` +
+          `Available modes: ${JSON.stringify(availableModes, null, 2)}`
+        );
       }
 
       // Find the specific mode if requested
@@ -601,6 +613,21 @@ export class FixtureTools {
               (m) => m.channelCount === modeChannelCount,
             );
           }
+        }
+
+        // If mode was specified but no match found, provide helpful error
+        if (!selectedMode && fixtureDefinition.modes.length > 0) {
+          const availableModes = fixtureDefinition.modes.map(m => ({
+            name: m.name,
+            channelCount: m.channelCount,
+            shortName: m.shortName
+          }));
+          
+          throw new Error(
+            `Invalid mode "${mode}" for fixture ${manufacturer} ${model}. ` +
+            `Available modes: ${availableModes.map(m => `"${m.name}" (${m.channelCount} channels)`).join(', ')}. ` +
+            `Mode details: ${JSON.stringify(availableModes, null, 2)}`
+          );
         }
       }
 
@@ -1020,16 +1047,14 @@ export class FixtureTools {
 
         if (!fixtureDefinition) {
           // Create a basic fixture definition
+          // Use intelligent fixture creation for new definitions
+          const { channels, fixtureType } = this.createIntelligentFixtureChannels(mode, newModel, newManufacturer);
+          
           fixtureDefinition = await this.graphqlClient.createFixtureDefinition({
             manufacturer: newManufacturer,
             model: newModel,
-            type: 'OTHER', // Default type
-            channels: [
-              { name: 'Intensity', type: 'INTENSITY' },
-              { name: 'Red', type: 'RED' },
-              { name: 'Green', type: 'GREEN' },
-              { name: 'Blue', type: 'BLUE' }
-            ],
+            type: fixtureType,
+            channels,
             modes: []
           });
         }
@@ -1167,5 +1192,331 @@ export class FixtureTools {
     } catch (error) {
       throw new Error(`Failed to delete fixture instance: ${error}`);
     }
+  }
+
+  /**
+   * Create intelligent fixture channels based on mode, model, and manufacturer analysis
+   */
+  private createIntelligentFixtureChannels(mode?: string, model?: string, manufacturer?: string) {
+    const modeStr = (mode || "").toLowerCase();
+    const modelStr = (model || "").toLowerCase();
+    const manufacturerStr = (manufacturer || "").toLowerCase();
+    
+    // Extract channel count from mode if present (e.g., "4-channel", "8-channel", "RGBA", "RGB")
+    const channelCountMatch = modeStr.match(/(\d+)[-_]?ch|(\d+)[-_]?channel/);
+    const suggestedChannelCount = channelCountMatch ? parseInt(channelCountMatch[1] || channelCountMatch[2]) : null;
+    
+    // Determine fixture type based on keywords
+    let fixtureType = FixtureType.OTHER;
+    if (modelStr.includes("par") || modelStr.includes("wash")) {
+      fixtureType = FixtureType.LED_PAR;
+    } else if (modelStr.includes("moving") || modelStr.includes("head") || modelStr.includes("spot")) {
+      fixtureType = FixtureType.MOVING_HEAD;
+    } else if (modelStr.includes("strobe") || modelStr.includes("flash")) {
+      fixtureType = FixtureType.STROBE;
+    } else if (modelStr.includes("dimmer")) {
+      fixtureType = FixtureType.DIMMER;
+    }
+    
+    // Analyze what type of intensity control this fixture likely uses
+    const channels = [];
+    let channelOffset = 0;
+    
+    // Check for color mode indicators using mutually exclusive detection
+    // Order matters: Check from most specific (RGBAW) to least specific (RGB)
+    let hasRGBAW = false, hasRGBW = false, hasRGBA = false, hasRGB = false;
+    
+    // Use word boundaries to ensure accurate matching
+    if (/\brgbaw\b/i.test(modeStr)) {
+      hasRGBAW = true;
+    } else if (/\brgbw\b/i.test(modeStr)) {
+      hasRGBW = true;
+    } else if (/\brgba\b/i.test(modeStr)) {
+      hasRGBA = true;
+    } else if (/\brgb\b/i.test(modeStr)) {
+      hasRGB = true;
+    }
+    const hasIntensityMode = modeStr.includes("intensity") || modeStr.includes("dimmer") || 
+                            suggestedChannelCount === 1 || fixtureType === FixtureType.DIMMER;
+    
+    // Determine channel configuration based on mode analysis
+    if (hasIntensityMode && suggestedChannelCount === 1) {
+      // Single channel dimmer
+      channels.push({
+        name: "Intensity",
+        type: "INTENSITY",
+        offset: channelOffset++,
+        minValue: 0,
+        maxValue: 255,
+        defaultValue: 0
+      });
+    } else if (hasRGBAW) {
+      // RGBAW fixture
+      channels.push(
+        {
+          name: "Red",
+          type: "RED",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Green", 
+          type: "GREEN",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Blue",
+          type: "BLUE", 
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Amber",
+          type: "AMBER",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "White",
+          type: "WHITE",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        }
+      );
+    } else if (hasRGBW) {
+      // RGBW fixture (RGB + White)
+      channels.push(
+        {
+          name: "Red",
+          type: "RED",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Green",
+          type: "GREEN",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Blue",
+          type: "BLUE",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "White",
+          type: "WHITE",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        }
+      );
+    } else if (hasRGBA) {
+      // RGBA fixture (RGB + Amber)
+      channels.push(
+        {
+          name: "Red",
+          type: "RED",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Green",
+          type: "GREEN",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Blue",
+          type: "BLUE",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Amber",
+          type: "AMBER",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        }
+      );
+    } else if (hasRGB) {
+      // RGB fixture  
+      channels.push(
+        {
+          name: "Red",
+          type: "RED",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Green",
+          type: "GREEN",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Blue",
+          type: "BLUE",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        }
+      );
+    } else {
+      // Default: assume it's a fixture that has both intensity and color mixing
+      // This covers fixtures that have intensity + RGB, or more complex fixtures
+      const hasComplexMode = suggestedChannelCount && suggestedChannelCount > 4;
+      
+      if (hasComplexMode) {
+        // Complex fixture - add intensity + RGB + common controls
+        channels.push(
+          {
+            name: "Intensity",
+            type: "INTENSITY",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          },
+          {
+            name: "Red",
+            type: "RED",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          },
+          {
+            name: "Green",
+            type: "GREEN",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          },
+          {
+            name: "Blue",
+            type: "BLUE",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          }
+        );
+        
+        // Add additional channels based on fixture type
+        if (fixtureType === FixtureType.MOVING_HEAD) {
+          channels.push(
+            {
+              name: "Pan",
+              type: "PAN",
+              offset: channelOffset++,
+              minValue: 0,
+              maxValue: 255,
+              defaultValue: 128
+            },
+            {
+              name: "Tilt",
+              type: "TILT",
+              offset: channelOffset++,
+              minValue: 0,
+              maxValue: 255,
+              defaultValue: 128
+            }
+          );
+        }
+        
+        // Fill remaining channels with OTHER type
+        while (channels.length < suggestedChannelCount) {
+          channels.push({
+            name: `Channel ${channels.length + 1}`,
+            type: "OTHER",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          });
+        }
+      } else {
+        // Simple fixture - just RGB
+        channels.push(
+          {
+            name: "Red",
+            type: "RED",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          },
+          {
+            name: "Green",
+            type: "GREEN",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          },
+          {
+            name: "Blue",
+            type: "BLUE",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          }
+        );
+        
+        // Add white channel if it seems like a 4-channel fixture
+        // Use word boundaries to avoid false positives with manufacturer names like "Whitestone"
+        // Case-insensitive to match "White", "WHITE", or "white"
+        if (suggestedChannelCount === 4 || /\bwhite\b/i.test(modelStr) || /\bwhite\b/i.test(manufacturerStr)) {
+          channels.push({
+            name: "White",
+            type: "WHITE",
+            offset: channelOffset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0
+          });
+        }
+      }
+    }
+    
+    return {
+      channels,
+      fixtureType
+    };
   }
 }

@@ -928,6 +928,25 @@ class LacyLightsMCPServer {
               required: ["cueListId"],
             },
           },
+          {
+            name: "delete_cue_list",
+            description: "Delete a cue list and all its cues",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListId: {
+                  type: "string",
+                  description: "Cue list ID to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  default: false,
+                  description: "Confirm deletion of cue list and all its cues (required to be true for safety)",
+                },
+              },
+              required: ["cueListId", "confirmDelete"],
+            },
+          },
         ],
       };
     });
@@ -1289,6 +1308,20 @@ class LacyLightsMCPServer {
                   type: "text",
                   text: JSON.stringify(
                     await this.cueTools.getCueListDetails(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "delete_cue_list":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.deleteCueList(args as any),
                     null,
                     2,
                   ),

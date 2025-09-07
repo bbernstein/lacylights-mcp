@@ -530,6 +530,10 @@ export class LacyLightsGraphQLClient {
     channels: Array<{
       name: string;
       type: string;
+      offset: number;
+      minValue?: number;
+      maxValue?: number;
+      defaultValue?: number;
     }>;
     modes?: Array<{
       name: string;
