@@ -1222,12 +1222,20 @@ export class FixtureTools {
     const channels = [];
     let channelOffset = 0;
     
-    // Check for color mode indicators
-    // Important: Check RGBW before RGBA to avoid false positives
-    const hasRGBW = modeStr.includes("rgbw");
-    const hasRGBA = modeStr.includes("rgba") && !hasRGBW;  // RGBA but not RGBW
-    const hasRGB = modeStr.includes("rgb") && !hasRGBA && !hasRGBW;  // RGB but not RGBA or RGBW
-    const hasRGBAW = modeStr.includes("rgbaw") || (modeStr.includes("rgba") && modeStr.includes("w"));
+    // Check for color mode indicators using mutually exclusive detection
+    // Order matters: Check from most specific (RGBAW) to least specific (RGB)
+    let hasRGBAW = false, hasRGBW = false, hasRGBA = false, hasRGB = false;
+    
+    // Use word boundaries to ensure accurate matching
+    if (/\brgbaw\b/i.test(modeStr)) {
+      hasRGBAW = true;
+    } else if (/\brgbw\b/i.test(modeStr)) {
+      hasRGBW = true;
+    } else if (/\brgba\b/i.test(modeStr)) {
+      hasRGBA = true;
+    } else if (/\brgb\b/i.test(modeStr)) {
+      hasRGB = true;
+    }
     const hasIntensityMode = modeStr.includes("intensity") || modeStr.includes("dimmer") || 
                             suggestedChannelCount === 1 || fixtureType === FixtureType.DIMMER;
     
@@ -1492,7 +1500,8 @@ export class FixtureTools {
         
         // Add white channel if it seems like a 4-channel fixture
         // Use word boundaries to avoid false positives with manufacturer names like "Whitestone"
-        if (suggestedChannelCount === 4 || /\bwhite\b/.test(modelStr) || /\bwhite\b/.test(manufacturerStr)) {
+        // Case-insensitive to match "White", "WHITE", or "white"
+        if (suggestedChannelCount === 4 || /\bwhite\b/i.test(modelStr) || /\bwhite\b/i.test(manufacturerStr)) {
           channels.push({
             name: "White",
             type: "WHITE",
