@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
-import { FixtureDefinition, FixtureInstance, Project, Scene, FixtureValue } from "../types/lighting";
+import { FixtureDefinition, FixtureInstance, Project, Scene, FixtureValue, FixtureType } from "../types/lighting";
 
 const GetFixtureInventorySchema = z.object({
   projectId: z.string().optional(),
@@ -1207,15 +1207,15 @@ export class FixtureTools {
     const suggestedChannelCount = channelCountMatch ? parseInt(channelCountMatch[1] || channelCountMatch[2]) : null;
     
     // Determine fixture type based on keywords
-    let fixtureType = "OTHER";
+    let fixtureType = FixtureType.OTHER;
     if (modelStr.includes("par") || modelStr.includes("wash")) {
-      fixtureType = "LED_PAR";
+      fixtureType = FixtureType.LED_PAR;
     } else if (modelStr.includes("moving") || modelStr.includes("head") || modelStr.includes("spot")) {
-      fixtureType = "MOVING_HEAD";
+      fixtureType = FixtureType.MOVING_HEAD;
     } else if (modelStr.includes("strobe") || modelStr.includes("flash")) {
-      fixtureType = "STROBE";
+      fixtureType = FixtureType.STROBE;
     } else if (modelStr.includes("dimmer")) {
-      fixtureType = "DIMMER";
+      fixtureType = FixtureType.DIMMER;
     }
     
     // Analyze what type of intensity control this fixture likely uses
@@ -1229,7 +1229,7 @@ export class FixtureTools {
     const hasRGB = modeStr.includes("rgb") && !hasRGBA && !hasRGBW;  // RGB but not RGBA or RGBW
     const hasRGBAW = modeStr.includes("rgbaw") || (modeStr.includes("rgba") && modeStr.includes("w"));
     const hasIntensityMode = modeStr.includes("intensity") || modeStr.includes("dimmer") || 
-                            suggestedChannelCount === 1 || fixtureType === "DIMMER";
+                            suggestedChannelCount === 1 || fixtureType === FixtureType.DIMMER;
     
     // Determine channel configuration based on mode analysis
     if (hasIntensityMode && suggestedChannelCount === 1) {
@@ -1429,7 +1429,7 @@ export class FixtureTools {
         );
         
         // Add additional channels based on fixture type
-        if (fixtureType === "MOVING_HEAD") {
+        if (fixtureType === FixtureType.MOVING_HEAD) {
           channels.push(
             {
               name: "Pan",
@@ -1491,7 +1491,8 @@ export class FixtureTools {
         );
         
         // Add white channel if it seems like a 4-channel fixture
-        if (suggestedChannelCount === 4 || modelStr.includes("white") || manufacturerStr.includes("white")) {
+        // Use word boundaries to avoid false positives with manufacturer names like "Whitestone"
+        if (suggestedChannelCount === 4 || /\bwhite\b/.test(modelStr) || /\bwhite\b/.test(manufacturerStr)) {
           channels.push({
             name: "White",
             type: "WHITE",
@@ -1506,7 +1507,7 @@ export class FixtureTools {
     
     return {
       channels,
-      fixtureType: fixtureType as any
+      fixtureType
     };
   }
 }
