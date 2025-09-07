@@ -993,4 +993,39 @@ export class CueTools {
       throw new Error(`Failed to get cue list details: ${error}`);
     }
   }
+
+  async deleteCueList(args: { cueListId: string; confirmDelete: boolean }) {
+    const { cueListId, confirmDelete } = args;
+    
+    try {
+      if (!confirmDelete) {
+        throw new Error('confirmDelete must be true to delete a cue list');
+      }
+
+      // Get the cue list details before deleting for the response
+      const cueList = await this.graphqlClient.getCueList(cueListId);
+      
+      if (!cueList) {
+        throw new Error(`Cue list with ID ${cueListId} not found`);
+      }
+
+      const cueListInfo = {
+        id: cueList.id,
+        name: cueList.name,
+        description: cueList.description,
+        totalCues: cueList.cues.length
+      };
+
+      const success = await this.graphqlClient.deleteCueList(cueListId);
+
+      return {
+        cueListId,
+        deletedCueList: cueListInfo,
+        success,
+        message: success ? 'Cue list deleted successfully' : 'Failed to delete cue list'
+      };
+    } catch (error) {
+      throw new Error(`Failed to delete cue list: ${error}`);
+    }
+  }
 }

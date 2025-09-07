@@ -523,6 +523,69 @@ describe('CueTools', () => {
     });
   });
 
+  describe('deleteCueList', () => {
+    it('should delete cue list successfully', async () => {
+      const mockCueList = {
+        id: 'cuelist-1',
+        name: 'Test Cue List',
+        description: 'Test description',
+        cues: [{ id: 'cue-1' }, { id: 'cue-2' }]
+      };
+      mockGraphQLClient.getCueList.mockResolvedValue(mockCueList as any);
+      mockGraphQLClient.deleteCueList.mockResolvedValue(true);
+
+      const result = await cueTools.deleteCueList({
+        cueListId: 'cuelist-1',
+        confirmDelete: true
+      });
+
+      expect(mockGraphQLClient.getCueList).toHaveBeenCalledWith('cuelist-1');
+      expect(mockGraphQLClient.deleteCueList).toHaveBeenCalledWith('cuelist-1');
+      expect(result.success).toBe(true);
+      expect(result.cueListId).toBe('cuelist-1');
+      expect(result.deletedCueList.name).toBe('Test Cue List');
+      expect(result.deletedCueList.totalCues).toBe(2);
+      expect(result.message).toBe('Cue list deleted successfully');
+    });
+
+    it('should require confirmDelete to be true', async () => {
+      await expect(cueTools.deleteCueList({
+        cueListId: 'cuelist-1',
+        confirmDelete: false
+      })).rejects.toThrow('confirmDelete must be true to delete a cue list');
+
+      expect(mockGraphQLClient.getCueList).not.toHaveBeenCalled();
+      expect(mockGraphQLClient.deleteCueList).not.toHaveBeenCalled();
+    });
+
+    it('should handle cue list not found', async () => {
+      mockGraphQLClient.getCueList.mockResolvedValue(null);
+
+      await expect(cueTools.deleteCueList({
+        cueListId: 'cuelist-nonexistent',
+        confirmDelete: true
+      })).rejects.toThrow('Cue list with ID cuelist-nonexistent not found');
+
+      expect(mockGraphQLClient.deleteCueList).not.toHaveBeenCalled();
+    });
+
+    it('should handle deletion errors', async () => {
+      const mockCueList = {
+        id: 'cuelist-1',
+        name: 'Test Cue List',
+        description: 'Test description',
+        cues: []
+      };
+      mockGraphQLClient.getCueList.mockResolvedValue(mockCueList as any);
+      mockGraphQLClient.deleteCueList.mockRejectedValue(new Error('Deletion error'));
+
+      await expect(cueTools.deleteCueList({
+        cueListId: 'cuelist-1',
+        confirmDelete: true
+      })).rejects.toThrow('Failed to delete cue list: Error: Deletion error');
+    });
+  });
+
   describe('addCueToCueList', () => {
     it('should add cue to cue list', async () => {
       const newCue = {
