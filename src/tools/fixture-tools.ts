@@ -1223,9 +1223,10 @@ export class FixtureTools {
     let channelOffset = 0;
     
     // Check for color mode indicators
-    const hasRGBA = modeStr.includes("rgba") || modeStr.includes("rgbw");
-    const hasRGB = modeStr.includes("rgb") && !hasRGBA;
+    // Important: Check RGBW before RGBA to avoid false positives
     const hasRGBW = modeStr.includes("rgbw");
+    const hasRGBA = modeStr.includes("rgba") && !hasRGBW;  // RGBA but not RGBW
+    const hasRGB = modeStr.includes("rgb") && !hasRGBA && !hasRGBW;  // RGB but not RGBA or RGBW
     const hasRGBAW = modeStr.includes("rgbaw") || (modeStr.includes("rgba") && modeStr.includes("w"));
     const hasIntensityMode = modeStr.includes("intensity") || modeStr.includes("dimmer") || 
                             suggestedChannelCount === 1 || fixtureType === "DIMMER";
@@ -1285,8 +1286,8 @@ export class FixtureTools {
           defaultValue: 0
         }
       );
-    } else if (hasRGBA || hasRGBW) {
-      // RGBA or RGBW fixture
+    } else if (hasRGBW) {
+      // RGBW fixture (RGB + White)
       channels.push(
         {
           name: "Red",
@@ -1311,28 +1312,52 @@ export class FixtureTools {
           minValue: 0,
           maxValue: 255,
           defaultValue: 0
-        }
-      );
-      
-      if (hasRGBA) {
-        channels.push({
-          name: "Amber",
-          type: "AMBER",
-          offset: channelOffset++,
-          minValue: 0,
-          maxValue: 255,
-          defaultValue: 0
-        });
-      } else {
-        channels.push({
+        },
+        {
           name: "White",
           type: "WHITE",
           offset: channelOffset++,
           minValue: 0,
           maxValue: 255,
           defaultValue: 0
-        });
-      }
+        }
+      );
+    } else if (hasRGBA) {
+      // RGBA fixture (RGB + Amber)
+      channels.push(
+        {
+          name: "Red",
+          type: "RED",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Green",
+          type: "GREEN",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Blue",
+          type: "BLUE",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        },
+        {
+          name: "Amber",
+          type: "AMBER",
+          offset: channelOffset++,
+          minValue: 0,
+          maxValue: 255,
+          defaultValue: 0
+        }
+      );
     } else if (hasRGB) {
       // RGB fixture  
       channels.push(
