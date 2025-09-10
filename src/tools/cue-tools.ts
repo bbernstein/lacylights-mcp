@@ -1168,7 +1168,7 @@ export class CueTools {
 
       // Play the first cue
       const firstCue = this.playbackState.cues[startIndex];
-      await this.graphqlClient.playCue(firstCue.id);
+      await this.graphqlClient.playCue(firstCue.id, firstCue.fadeInTime);
 
       return {
         success: true,
@@ -1295,9 +1295,10 @@ export class CueTools {
       throw new Error('Either cueNumber or cueName must be provided');
     }
 
-    try {
-      let targetIndex = -1;
+    let targetIndex = -1;
+    let oldIndex = this.playbackState.currentCueIndex;
 
+    try {
       if (cueNumber !== undefined) {
         targetIndex = this.playbackState.cues.findIndex(cue => cue.cueNumber === cueNumber);
       } else if (cueName) {
@@ -1311,8 +1312,6 @@ export class CueTools {
         const searchTerm = cueNumber !== undefined ? `number ${cueNumber}` : `name "${cueName}"`;
         throw new Error(`Cue with ${searchTerm} not found in current cue list`);
       }
-
-      const oldIndex = this.playbackState.currentCueIndex;
       this.playbackState.currentCueIndex = targetIndex;
       const targetCue = this.playbackState.cues[targetIndex];
       
@@ -1337,6 +1336,8 @@ export class CueTools {
         message: `Jumped to cue ${targetCue.cueNumber} - "${targetCue.name}"`
       };
     } catch (error) {
+      // Revert the index change if the cue failed to play
+      this.playbackState.currentCueIndex = oldIndex;
       throw new Error(`Failed to go to cue: ${error}`);
     }
   }

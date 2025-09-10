@@ -515,15 +515,19 @@ export class SceneTools {
       // Get scene details for response
       const scene = await this.graphqlClient.getScene(resolvedSceneId);
       
+      if (!scene) {
+        throw new Error('Scene could not be retrieved after activation');
+      }
+      
       return {
         success: true,
         scene: {
-          id: scene!.id,
-          name: scene!.name,
-          description: scene!.description
+          id: scene.id,
+          name: scene.name,
+          description: scene.description
         },
-        message: `Scene "${scene!.name}" is now active`,
-        fixturesActive: scene!.fixtureValues.length,
+        message: `Scene "${scene.name}" is now active`,
+        fixturesActive: scene.fixtureValues.length,
         hint: 'Use fade_to_black to turn off all lights'
       };
     } catch (error) {
