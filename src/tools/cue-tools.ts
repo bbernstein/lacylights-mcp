@@ -85,6 +85,11 @@ interface CueListPlaybackState {
 }
 
 export class CueTools {
+  // KNOWN LIMITATION: This instance-level playback state could cause issues in concurrent 
+  // environments where multiple cue list operations might interfere with each other.
+  // TODO: Future improvement should use a static map with cueListId as key:
+  // private static playbackStates: Map<string, CueListPlaybackState> = new Map();
+  // This would allow multiple concurrent cue list playback sessions.
   private playbackState: CueListPlaybackState | null = null;
 
   constructor(

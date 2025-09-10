@@ -4,6 +4,58 @@ import { RAGService } from '../services/rag-service-simple';
 import { AILightingService } from '../services/ai-lighting';
 import { GeneratedScene, LightingDesignRequest } from '../types/lighting';
 
+// Type definitions for better type safety
+interface SceneActivationResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+interface FixtureInfo {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface FixtureValueInfo {
+  fixture: FixtureInfo;
+  channelValues: number[];
+}
+
+interface SceneInfo {
+  name: string;
+  description: string | null;
+  fixtureValues: FixtureValueInfo[];
+}
+
+interface GenerateSceneResult {
+  sceneId?: string;
+  scene?: SceneInfo;
+  designReasoning?: string;
+  fixturesUsed?: number;
+  channelsSet?: number;
+  activation?: SceneActivationResult;
+  analysis?: any;
+  lightingCues?: any[];
+  totalCues?: number;
+  sceneTemplates?: any[];
+  characters?: any[];
+  overallMood?: string;
+  themes?: any[];
+}
+
+// Extended Scene interface to include optional project
+interface SceneWithProject {
+  id: string;
+  name: string;
+  description: string | null;
+  fixtureValues: any[];
+  project?: {
+    id: string;
+    name: string;
+  };
+}
+
 const GenerateSceneSchema = z.object({
   projectId: z.string(),
   sceneDescription: z.string(),
@@ -138,11 +190,11 @@ export class SceneTools {
         fixtureValues: optimizedScene.fixtureValues
       });
 
-      const result: any = {
+      const result: GenerateSceneResult = {
         sceneId: createdScene.id,
         scene: {
           name: createdScene.name,
-          description: createdScene.description,
+          description: createdScene.description || null,
           fixtureValues: createdScene.fixtureValues.map(fv => ({
             fixture: {
               id: fv.fixture.id,
@@ -189,9 +241,9 @@ export class SceneTools {
       // Analyze script using RAG service
       const scriptAnalysis = await this.ragService.analyzeScript(scriptText);
 
-      const result: any = {
+      const result: GenerateSceneResult = {
         analysis: scriptAnalysis,
-        totalScenes: scriptAnalysis.scenes.length,
+        totalCues: scriptAnalysis.scenes.length,
         characters: scriptAnalysis.characters,
         overallMood: scriptAnalysis.overallMood,
         themes: scriptAnalysis.themes
@@ -564,19 +616,21 @@ export class SceneTools {
         };
       }
 
+      const sceneWithProject = activeScene as SceneWithProject;
+      
       return {
         hasActiveScene: true,
         scene: {
-          id: activeScene.id,
-          name: activeScene.name,
-          description: activeScene.description,
-          project: (activeScene as any).project ? {
-            id: (activeScene as any).project.id,
-            name: (activeScene as any).project.name
+          id: sceneWithProject.id,
+          name: sceneWithProject.name,
+          description: sceneWithProject.description,
+          project: sceneWithProject.project ? {
+            id: sceneWithProject.project.id,
+            name: sceneWithProject.project.name
           } : null
         },
-        fixturesActive: activeScene.fixtureValues.length,
-        message: `Scene "${activeScene.name}" is currently active`
+        fixturesActive: sceneWithProject.fixtureValues.length,
+        message: `Scene "${sceneWithProject.name}" is currently active`
       };
     } catch (error) {
       throw new Error(`Failed to get current active scene: ${error}`);
