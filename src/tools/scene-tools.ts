@@ -500,15 +500,20 @@ export class SceneTools {
         throw new Error('Either sceneId or sceneName must be provided');
       }
 
+      // Ensure resolvedSceneId is defined before using it
+      if (!resolvedSceneId) {
+        throw new Error('Resolved scene ID is undefined');
+      }
+
       // Activate the scene
-      const success = await this.graphqlClient.setSceneLive(resolvedSceneId!);
+      const success = await this.graphqlClient.setSceneLive(resolvedSceneId);
       
       if (!success) {
         throw new Error('Failed to activate scene');
       }
 
       // Get scene details for response
-      const scene = await this.graphqlClient.getScene(resolvedSceneId!);
+      const scene = await this.graphqlClient.getScene(resolvedSceneId);
       
       return {
         success: true,
