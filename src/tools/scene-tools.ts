@@ -4,6 +4,58 @@ import { RAGService } from '../services/rag-service-simple';
 import { AILightingService } from '../services/ai-lighting';
 import { GeneratedScene, LightingDesignRequest } from '../types/lighting';
 
+// Type definitions for better type safety
+interface SceneActivationResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+interface FixtureInfo {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface FixtureValueInfo {
+  fixture: FixtureInfo;
+  channelValues: number[];
+}
+
+interface SceneInfo {
+  name: string;
+  description: string | null;
+  fixtureValues: FixtureValueInfo[];
+}
+
+interface GenerateSceneResult {
+  sceneId?: string;
+  scene?: SceneInfo;
+  designReasoning?: string;
+  fixturesUsed?: number;
+  channelsSet?: number;
+  activation?: SceneActivationResult;
+  analysis?: any;
+  lightingCues?: any[];
+  totalCues?: number;
+  sceneTemplates?: any[];
+  characters?: any[];
+  overallMood?: string;
+  themes?: any[];
+}
+
+// Extended Scene interface to include optional project
+interface SceneWithProject {
+  id: string;
+  name: string;
+  description: string | null;
+  fixtureValues: any[];
+  project?: {
+    id: string;
+    name: string;
+  };
+}
+
 const GenerateSceneSchema = z.object({
   projectId: z.string(),
   sceneDescription: z.string(),
@@ -19,7 +71,8 @@ const GenerateSceneSchema = z.object({
     includeTypes: z.array(z.enum(['LED_PAR', 'MOVING_HEAD', 'STROBE', 'DIMMER', 'OTHER'])).optional(),
     excludeTypes: z.array(z.enum(['LED_PAR', 'MOVING_HEAD', 'STROBE', 'DIMMER', 'OTHER'])).optional(),
     includeTags: z.array(z.string()).optional()
-  }).optional()
+  }).optional(),
+  activate: z.boolean().optional()
 });
 
 const AnalyzeScriptSchema = z.object({
@@ -44,6 +97,16 @@ const UpdateSceneSchema = z.object({
   })).optional()
 });
 
+const ActivateSceneSchema = z.object({
+  projectId: z.string().optional(),
+  sceneId: z.string().optional(),
+  sceneName: z.string().optional()
+});
+
+const FadeToBlackSchema = z.object({
+  fadeOutTime: z.number().default(3.0)
+});
+
 export class SceneTools {
   constructor(
     private graphqlClient: LacyLightsGraphQLClient,
@@ -58,7 +121,8 @@ export class SceneTools {
       scriptContext, 
       sceneType,
       designPreferences, 
-      fixtureFilter 
+      fixtureFilter,
+      activate 
     } = GenerateSceneSchema.parse(args);
 
     try {
@@ -126,11 +190,11 @@ export class SceneTools {
         fixtureValues: optimizedScene.fixtureValues
       });
 
-      return {
+      const result: GenerateSceneResult = {
         sceneId: createdScene.id,
         scene: {
           name: createdScene.name,
-          description: createdScene.description,
+          description: createdScene.description || null,
           fixtureValues: createdScene.fixtureValues.map(fv => ({
             fixture: {
               id: fv.fixture.id,
@@ -144,6 +208,27 @@ export class SceneTools {
         fixturesUsed: availableFixtures.length,
         channelsSet: optimizedScene.fixtureValues.reduce((total, fv) => total + (fv.channelValues?.length || 0), 0)
       };
+
+      // Activate the scene if requested
+      if (activate) {
+        try {
+          const success = await this.graphqlClient.setSceneLive(createdScene.id);
+          result.activation = {
+            success,
+            message: success 
+              ? `Scene "${createdScene.name}" is now active` 
+              : 'Scene created but activation failed'
+          };
+        } catch (activationError) {
+          // Include activation error but don't fail the entire operation
+          result.activation = {
+            success: false,
+            error: `Scene created but activation failed: ${activationError}`
+          };
+        }
+      }
+
+      return result;
     } catch (error) {
       throw new Error(`Failed to generate scene: ${error}`);
     }
@@ -156,9 +241,9 @@ export class SceneTools {
       // Analyze script using RAG service
       const scriptAnalysis = await this.ragService.analyzeScript(scriptText);
 
-      const result: any = {
+      const result: GenerateSceneResult = {
         analysis: scriptAnalysis,
-        totalScenes: scriptAnalysis.scenes.length,
+        totalCues: scriptAnalysis.scenes.length,
         characters: scriptAnalysis.characters,
         overallMood: scriptAnalysis.overallMood,
         themes: scriptAnalysis.themes
@@ -415,5 +500,140 @@ export class SceneTools {
         'Minimize moving head positioning changes'
       ]
     };
+  }
+
+  async activateScene(args: z.infer<typeof ActivateSceneSchema>) {
+    const { projectId, sceneId, sceneName } = ActivateSceneSchema.parse(args);
+
+    try {
+      let resolvedSceneId = sceneId;
+
+      // If scene name is provided, find the scene by name
+      if (sceneName) {
+        if (!projectId) {
+          // Get all projects to search for the scene
+          const projects = await this.graphqlClient.getProjects();
+          
+          // Search for a scene with this name across all projects
+          for (const project of projects) {
+            const scene = project.scenes.find(s => 
+              s.name.toLowerCase() === sceneName.toLowerCase() ||
+              s.name.toLowerCase().includes(sceneName.toLowerCase())
+            );
+            
+            if (scene) {
+              resolvedSceneId = scene.id;
+              break;
+            }
+          }
+          
+          if (!resolvedSceneId) {
+            throw new Error(`Scene with name "${sceneName}" not found in any project`);
+          }
+        } else {
+          // Search in specific project
+          const project = await this.graphqlClient.getProject(projectId);
+          if (!project) {
+            throw new Error(`Project with ID ${projectId} not found`);
+          }
+          
+          const scene = project.scenes.find(s => 
+            s.name.toLowerCase() === sceneName.toLowerCase() ||
+            s.name.toLowerCase().includes(sceneName.toLowerCase())
+          );
+          
+          if (!scene) {
+            throw new Error(`Scene with name "${sceneName}" not found in project ${project.name}`);
+          }
+          
+          resolvedSceneId = scene.id;
+        }
+      } else if (!sceneId) {
+        throw new Error('Either sceneId or sceneName must be provided');
+      }
+
+      // Ensure resolvedSceneId is defined before using it
+      if (!resolvedSceneId) {
+        throw new Error('Resolved scene ID is undefined');
+      }
+
+      // Activate the scene
+      const success = await this.graphqlClient.setSceneLive(resolvedSceneId);
+      
+      if (!success) {
+        throw new Error('Failed to activate scene');
+      }
+
+      // Get scene details for response
+      const scene = await this.graphqlClient.getScene(resolvedSceneId);
+      
+      if (!scene) {
+        throw new Error('Scene could not be retrieved after activation');
+      }
+      
+      return {
+        success: true,
+        scene: {
+          id: scene.id,
+          name: scene.name,
+          description: scene.description
+        },
+        message: `Scene "${scene.name}" is now active`,
+        fixturesActive: scene.fixtureValues.length,
+        hint: 'Use fade_to_black to turn off all lights'
+      };
+    } catch (error) {
+      throw new Error(`Failed to activate scene: ${error}`);
+    }
+  }
+
+  async fadeToBlack(args: z.infer<typeof FadeToBlackSchema>) {
+    const { fadeOutTime } = FadeToBlackSchema.parse(args);
+
+    try {
+      const success = await this.graphqlClient.fadeToBlack(fadeOutTime);
+      
+      return {
+        success,
+        message: success 
+          ? `Lights faded to black over ${fadeOutTime} seconds` 
+          : 'Failed to fade to black',
+        fadeOutTime
+      };
+    } catch (error) {
+      throw new Error(`Failed to fade to black: ${error}`);
+    }
+  }
+
+  async getCurrentActiveScene() {
+    try {
+      const activeScene = await this.graphqlClient.getCurrentActiveScene();
+      
+      if (!activeScene) {
+        return {
+          hasActiveScene: false,
+          message: 'No scene is currently active'
+        };
+      }
+
+      const sceneWithProject = activeScene as SceneWithProject;
+      
+      return {
+        hasActiveScene: true,
+        scene: {
+          id: sceneWithProject.id,
+          name: sceneWithProject.name,
+          description: sceneWithProject.description,
+          project: sceneWithProject.project ? {
+            id: sceneWithProject.project.id,
+            name: sceneWithProject.project.name
+          } : null
+        },
+        fixturesActive: sceneWithProject.fixtureValues.length,
+        message: `Scene "${sceneWithProject.name}" is currently active`
+      };
+    } catch (error) {
+      throw new Error(`Failed to get current active scene: ${error}`);
+    }
   }
 }
