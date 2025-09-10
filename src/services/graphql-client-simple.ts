@@ -761,4 +761,65 @@ export class LacyLightsGraphQLClient {
     const data = await this.query(mutation, { cueId, fadeInTime });
     return data.playCue;
   }
+
+  async importProjectFromQLC(xmlContent: string, originalFileName: string): Promise<any> {
+    const mutation = `
+      query ImportProjectFromQLC($xmlContent: String!, $originalFileName: String!) {
+        importProjectFromQLC(xmlContent: $xmlContent, originalFileName: $originalFileName) {
+          project {
+            id
+            name
+            description
+            createdAt
+            updatedAt
+            fixtures {
+              id
+              name
+              manufacturer
+              model
+              universe
+              startChannel
+              channelCount
+            }
+            scenes {
+              id
+              name
+              description
+              fixtureValues {
+                fixture {
+                  id
+                  name
+                }
+                channelValues
+              }
+            }
+            cueLists {
+              id
+              name
+              description
+              cues {
+                id
+                name
+                cueNumber
+                fadeInTime
+                fadeOutTime
+                scene {
+                  id
+                  name
+                }
+              }
+            }
+          }
+          originalFileName
+          fixtureCount
+          sceneCount
+          cueListCount
+          warnings
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { xmlContent, originalFileName });
+    return data.importProjectFromQLC;
+  }
 }

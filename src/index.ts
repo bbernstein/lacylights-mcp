@@ -133,6 +133,24 @@ class LacyLightsMCPServer {
               required: ["projectId", "confirmDelete"],
             },
           },
+          {
+            name: "import_project_from_qlc",
+            description: "Import a QLC+ (.qxw) file into LacyLights as a new project",
+            inputSchema: {
+              type: "object",
+              properties: {
+                xmlContent: {
+                  type: "string",
+                  description: "QLC+ XML file content as string",
+                },
+                originalFileName: {
+                  type: "string",
+                  description: "Original filename of the .qxw file for naming purposes",
+                },
+              },
+              required: ["xmlContent", "originalFileName"],
+            },
+          },
           // Fixture Tools
           {
             name: "get_fixture_inventory",
@@ -1142,6 +1160,20 @@ class LacyLightsMCPServer {
                   type: "text",
                   text: JSON.stringify(
                     await this.projectTools.deleteProject(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "import_project_from_qlc":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.projectTools.importProjectFromQLC(args as any),
                     null,
                     2,
                   ),

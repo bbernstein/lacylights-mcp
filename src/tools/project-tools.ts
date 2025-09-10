@@ -20,6 +20,11 @@ const DeleteProjectSchema = z.object({
   confirmDelete: z.boolean().default(false).describe('Confirm deletion of project and all its data')
 });
 
+const ImportProjectFromQLCSchema = z.object({
+  xmlContent: z.string().describe('QLC+ XML file content as string'),
+  originalFileName: z.string().describe('Original filename of the .qxw file for naming purposes')
+});
+
 export class ProjectTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
 
@@ -201,5 +206,56 @@ export class ProjectTools {
     });
     
     return ranges.map(r => r.start === r.end ? `${r.start}` : `${r.start}-${r.end}`).join(', ');
+  }
+
+  async importProjectFromQLC(args: z.infer<typeof ImportProjectFromQLCSchema>) {
+    const { xmlContent, originalFileName } = ImportProjectFromQLCSchema.parse(args);
+
+    try {
+      const result = await this.graphqlClient.importProjectFromQLC(xmlContent, originalFileName);
+      
+      return {
+        success: true,
+        project: {
+          id: result.project.id,
+          name: result.project.name,
+          description: result.project.description,
+          createdAt: result.project.createdAt,
+          updatedAt: result.project.updatedAt
+        },
+        importStats: {
+          originalFileName: result.originalFileName,
+          fixtureCount: result.fixtureCount,
+          sceneCount: result.sceneCount,
+          cueListCount: result.cueListCount,
+        },
+        fixtures: result.project.fixtures.map((fixture: any) => ({
+          id: fixture.id,
+          name: fixture.name,
+          manufacturer: fixture.manufacturer,
+          model: fixture.model,
+          universe: fixture.universe,
+          startChannel: fixture.startChannel,
+          channelCount: fixture.channelCount
+        })),
+        scenes: result.project.scenes.map((scene: any) => ({
+          id: scene.id,
+          name: scene.name,
+          description: scene.description,
+          fixtureCount: scene.fixtureValues.length
+        })),
+        cueLists: result.project.cueLists.map((cueList: any) => ({
+          id: cueList.id,
+          name: cueList.name,
+          description: cueList.description,
+          cueCount: cueList.cues.length
+        })),
+        warnings: result.warnings,
+        message: `Successfully imported QLC+ project "${result.originalFileName}" as "${result.project.name}"`
+      };
+
+    } catch (error) {
+      throw new Error(`Failed to import QLC+ project: ${error}`);
+    }
   }
 }
