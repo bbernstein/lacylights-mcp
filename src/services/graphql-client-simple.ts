@@ -648,4 +648,117 @@ export class LacyLightsGraphQLClient {
     const data = await this.query(mutation, { id });
     return data.deleteFixtureInstance;
   }
+
+  async setSceneLive(sceneId: string): Promise<boolean> {
+    const mutation = `
+      mutation ActivateScene($sceneId: ID!) {
+        setSceneLive(sceneId: $sceneId)
+      }
+    `;
+
+    const data = await this.query(mutation, { sceneId });
+    return data.setSceneLive;
+  }
+
+  async fadeToBlack(fadeOutTime: number): Promise<boolean> {
+    const mutation = `
+      mutation FadeToBlack($fadeOutTime: Float!) {
+        fadeToBlack(fadeOutTime: $fadeOutTime)
+      }
+    `;
+
+    const data = await this.query(mutation, { fadeOutTime });
+    return data.fadeToBlack;
+  }
+
+  async getScene(id: string): Promise<Scene | null> {
+    const query = `
+      query GetScene($id: ID!) {
+        scene(id: $id) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureValues {
+            fixture {
+              id
+              name
+            }
+            channelValues
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { id });
+    return data.scene;
+  }
+
+  async getCurrentActiveScene(): Promise<Scene | null> {
+    const query = `
+      query GetCurrentActiveScene {
+        currentActiveScene {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          project {
+            id
+            name
+          }
+          fixtureValues {
+            fixture {
+              id
+              name
+            }
+            channelValues
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query);
+    return data.currentActiveScene;
+  }
+
+  async getCue(id: string): Promise<Cue | null> {
+    const query = `
+      query GetCue($id: ID!) {
+        cue(id: $id) {
+          id
+          name
+          cueNumber
+          fadeInTime
+          fadeOutTime
+          followTime
+          notes
+          cueList {
+            id
+            name
+          }
+          scene {
+            id
+            name
+            description
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { id });
+    return data.cue;
+  }
+
+  async playCue(cueId: string, fadeInTime?: number): Promise<boolean> {
+    const mutation = `
+      mutation PlayCue($cueId: ID!, $fadeInTime: Float) {
+        playCue(cueId: $cueId, fadeInTime: $fadeInTime)
+      }
+    `;
+
+    const data = await this.query(mutation, { cueId, fadeInTime });
+    return data.playCue;
+  }
 }

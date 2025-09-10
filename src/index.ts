@@ -467,6 +467,10 @@ class LacyLightsMCPServer {
                     },
                   },
                 },
+                activate: {
+                  type: "boolean",
+                  description: "Automatically activate the scene after creation",
+                },
               },
               required: ["projectId", "sceneDescription"],
             },
@@ -571,6 +575,49 @@ class LacyLightsMCPServer {
                 },
               },
               required: ["sceneId"],
+            },
+          },
+          {
+            name: "activate_scene",
+            description: "Activate a lighting scene by name or ID",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Optional project ID to search within",
+                },
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to activate",
+                },
+                sceneName: {
+                  type: "string",
+                  description: "Scene name to activate (searches across projects if projectId not provided)",
+                },
+              },
+            },
+          },
+          {
+            name: "fade_to_black",
+            description: "Fade all lights to black (turn off)",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fadeOutTime: {
+                  type: "number",
+                  default: 3.0,
+                  description: "Time in seconds to fade out (default: 3.0)",
+                },
+              },
+            },
+          },
+          {
+            name: "get_current_active_scene",
+            description: "Get the currently active scene if any",
+            inputSchema: {
+              type: "object",
+              properties: {},
             },
           },
           // Cue Tools
@@ -947,6 +994,95 @@ class LacyLightsMCPServer {
               required: ["cueListId", "confirmDelete"],
             },
           },
+          // Cue List Playback Tools
+          {
+            name: "start_cue_list",
+            description: "Start playing a cue list from the beginning or a specific cue",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListId: {
+                  type: "string",
+                  description: "Cue list ID to play",
+                },
+                cueListName: {
+                  type: "string",
+                  description: "Cue list name to search for (alternative to ID)",
+                },
+                projectId: {
+                  type: "string",
+                  description: "Project ID to search within (optional when using cueListName)",
+                },
+                startFromCue: {
+                  type: "number",
+                  description: "Cue number to start from (optional, defaults to first cue)",
+                },
+              },
+            },
+          },
+          {
+            name: "next_cue",
+            description: "Advance to the next cue in the currently playing cue list",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fadeInTime: {
+                  type: "number",
+                  description: "Override fade in time in seconds (optional)",
+                },
+              },
+            },
+          },
+          {
+            name: "previous_cue",
+            description: "Go back to the previous cue in the currently playing cue list",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fadeInTime: {
+                  type: "number",
+                  description: "Override fade in time in seconds (optional)",
+                },
+              },
+            },
+          },
+          {
+            name: "go_to_cue",
+            description: "Jump to a specific cue by number or name in the currently playing cue list",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueNumber: {
+                  type: "number",
+                  description: "Cue number to jump to",
+                },
+                cueName: {
+                  type: "string",
+                  description: "Cue name to search for (alternative to cueNumber)",
+                },
+                fadeInTime: {
+                  type: "number",
+                  description: "Override fade in time in seconds (optional)",
+                },
+              },
+            },
+          },
+          {
+            name: "stop_cue_list",
+            description: "Stop the currently playing cue list",
+            inputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
+          {
+            name: "get_cue_list_status",
+            description: "Get information about the currently playing cue list and navigation options",
+            inputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
         ],
       };
     });
@@ -1173,6 +1309,48 @@ class LacyLightsMCPServer {
               ],
             };
 
+          case "activate_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.activateScene(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "fade_to_black":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.fadeToBlack(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_current_active_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.getCurrentActiveScene(),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
           // Cue Tools
           case "create_cue_sequence":
             return {
@@ -1322,6 +1500,91 @@ class LacyLightsMCPServer {
                   type: "text",
                   text: JSON.stringify(
                     await this.cueTools.deleteCueList(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Cue List Playback Tools
+          case "start_cue_list":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.startCueList(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "next_cue":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.nextCue(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "previous_cue":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.previousCue(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "go_to_cue":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.goToCue(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "stop_cue_list":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.stopCueList(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_cue_list_status":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.getCueListStatus(args as any),
                     null,
                     2,
                   ),
