@@ -135,7 +135,7 @@ describe('SceneTools', () => {
       expect(mockAILightingService.generateScene).toHaveBeenCalled();
       expect(mockGraphQLClient.createScene).toHaveBeenCalled();
       expect(result.sceneId).toBe('scene-id');
-      expect(result.scene.name).toBe('Romantic Scene');
+      expect(result.scene?.name).toBe('Romantic Scene');
     });
 
     it('should generate an additive scene', async () => {
@@ -164,7 +164,7 @@ describe('SceneTools', () => {
       });
 
       expect(result.sceneId).toBe('scene-id');
-      expect(result.scene.name).toBe('Romantic Scene');
+      expect(result.scene?.name).toBe('Romantic Scene');
     });
 
     it('should filter fixtures by include types', async () => {

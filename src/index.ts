@@ -133,6 +133,14 @@ class LacyLightsMCPServer {
               required: ["projectId", "confirmDelete"],
             },
           },
+          {
+            name: "qlc_import_guidance",
+            description: "Get information about importing QLC+ (.qxw) files into LacyLights",
+            inputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
           // Fixture Tools
           {
             name: "get_fixture_inventory",
@@ -1145,6 +1153,27 @@ class LacyLightsMCPServer {
                     null,
                     2,
                   ),
+                },
+              ],
+            };
+
+          case "qlc_import_guidance":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    guidance: "QLC+ Import via Web Interface",
+                    message: "QLC+ file import is available in the LacyLights web interface due to file size constraints that make it impractical for AI chat interfaces.",
+                    instructions: [
+                      "1. Open the LacyLights web application",
+                      "2. Click 'Manage Projects' in the main interface",
+                      "3. Use the 'Import QLC+ Project' feature to upload .qxw files directly",
+                      "4. The web interface supports drag-and-drop file upload and provides detailed import feedback"
+                    ],
+                    why_not_here: "QLC+ files are typically 10-100KB+ of XML content, which exceeds practical limits for AI chat context windows. The web UI is optimized for file handling.",
+                    export_available: "QLC+ export is still available via this MCP interface and can generate .qxw files for download."
+                  }, null, 2),
                 },
               ],
             };

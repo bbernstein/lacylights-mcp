@@ -20,6 +20,8 @@ const DeleteProjectSchema = z.object({
   confirmDelete: z.boolean().default(false).describe('Confirm deletion of project and all its data')
 });
 
+// Removed ImportProjectFromQLCSchema - import functionality moved to web UI due to file size constraints
+
 export class ProjectTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
 
@@ -202,4 +204,7 @@ export class ProjectTools {
     
     return ranges.map(r => r.start === r.end ? `${r.start}` : `${r.start}-${r.end}`).join(', ');
   }
+
+  // importProjectFromQLC method removed - import functionality moved to web UI due to file size constraints
+  // Users should use the LacyLights web interface to import QLC+ files
 }
