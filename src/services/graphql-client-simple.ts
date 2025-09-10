@@ -762,8 +762,9 @@ export class LacyLightsGraphQLClient {
     return data.playCue;
   }
 
-  async importProjectFromQLC(xmlContent: string, originalFileName: string): Promise<any> {
-    const mutation = `
+  // importProjectFromQLC method removed - import functionality moved to web UI due to file size constraints
+  // async importProjectFromQLC(xmlContent: string, originalFileName: string): Promise<any> {
+    /*const mutation = `
       mutation ImportProjectFromQLC($xmlContent: String!, $originalFileName: String!) {
         importProjectFromQLC(xmlContent: $xmlContent, originalFileName: $originalFileName) {
           project {
@@ -821,5 +822,5 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(mutation, { xmlContent, originalFileName });
     return data.importProjectFromQLC;
-  }
+  }*/
 }

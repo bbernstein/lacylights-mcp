@@ -257,7 +257,7 @@ describe('LacyLightsGraphQLClient', () => {
         model: 'New Model',
         type: 'LED_PAR',
         channels: [
-          { name: 'Red', type: 'RED' }
+          { name: 'Red', type: 'RED', offset: 0 }
         ]
       });
 
