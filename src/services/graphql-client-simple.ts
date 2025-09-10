@@ -764,7 +764,7 @@ export class LacyLightsGraphQLClient {
 
   async importProjectFromQLC(xmlContent: string, originalFileName: string): Promise<any> {
     const mutation = `
-      query ImportProjectFromQLC($xmlContent: String!, $originalFileName: String!) {
+      mutation ImportProjectFromQLC($xmlContent: String!, $originalFileName: String!) {
         importProjectFromQLC(xmlContent: $xmlContent, originalFileName: $originalFileName) {
           project {
             id
