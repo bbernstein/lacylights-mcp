@@ -20,6 +20,7 @@ interface FixtureInfo {
 interface FixtureValueInfo {
   fixture: FixtureInfo;
   channelValues: number[];
+  sceneOrder?: number;
 }
 
 interface SceneInfo {
@@ -704,7 +705,7 @@ export class SceneTools {
               name: fv.fixture.name
             },
             channelValues: fv.channelValues,
-            sceneOrder: (fv as any).sceneOrder
+            sceneOrder: (fv as FixtureValueInfo).sceneOrder
           }))
         },
         fixturesAdded: fixtureValues.length,
@@ -766,7 +767,7 @@ export class SceneTools {
           fixtureId: fv.fixture.id,
           fixtureName: includeFixtureDetails ? fv.fixture.name : undefined,
           channelValues: fv.channelValues,
-          sceneOrder: (fv as any).sceneOrder,
+          sceneOrder: (fv as FixtureValueInfo).sceneOrder,
           channelCount: fv.channelValues.length
         })),
         message: `Retrieved fixture values for ${scene.fixtureValues.length} fixtures in scene "${scene.name}"`

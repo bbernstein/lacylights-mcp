@@ -345,7 +345,7 @@ export class LacyLightsGraphQLClient {
       name: updates.name,
       description: updates.description,
       fixtureValues: updates.fixtureValues,
-      mergeFixtures: updates.mergeFixtures ?? true
+      mergeFixtures: updates.mergeFixtures
     });
     return data.updateScenePartial;
   }
