@@ -244,7 +244,8 @@ export class SceneTools {
               name: fv.fixture.name,
               type: fv.fixture.type || 'UNKNOWN'
             },
-            channelValues: fv.channelValues
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
           }))
         },
         designReasoning: optimizedScene.reasoning,
@@ -420,7 +421,8 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
           }))
         },
         fixturesUpdated: fixtureValues ? fixtureValues.length : 0,
@@ -735,7 +737,8 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
           }))
         },
         fixturesRemoved: fixtureIds.length,
@@ -826,7 +829,8 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
           }))
         },
         updateType: mergeFixtures ? 'merged' : 'replaced',
