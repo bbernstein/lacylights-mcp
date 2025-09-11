@@ -560,4 +560,485 @@ describe('SceneTools', () => {
       })).rejects.toThrow();
     });
   });
+
+  // ✨ SAFE SCENE MANAGEMENT TESTS
+  describe('Safe Scene Management Functions', () => {
+    const mockScene = {
+      id: 'scene-1',
+      name: 'Test Scene',
+      description: 'Test scene description',
+      updatedAt: '2023-01-01T00:00:00Z',
+      fixtureValues: [
+        {
+          fixture: { id: 'fixture-1', name: 'LED Par 1' },
+          channelValues: [255, 128, 64],
+          sceneOrder: 1
+        },
+        {
+          fixture: { id: 'fixture-2', name: 'LED Par 2' },
+          channelValues: [128, 255, 32],
+          sceneOrder: 2
+        }
+      ]
+    };
+
+    beforeEach(() => {
+      // Add new methods to mock GraphQL client
+      mockGraphQLClient.addFixturesToScene = jest.fn();
+      mockGraphQLClient.removeFixturesFromScene = jest.fn();
+      mockGraphQLClient.updateScenePartial = jest.fn();
+      mockGraphQLClient.getScene = jest.fn();
+    });
+
+    describe('addFixturesToScene', () => {
+      it('should add fixtures to scene with overwrite disabled', async () => {
+        mockGraphQLClient.addFixturesToScene.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.addFixturesToScene({
+          sceneId: 'scene-1',
+          fixtureValues: [
+            {
+              fixtureId: 'fixture-3',
+              channelValues: [200, 100, 50],
+              sceneOrder: 3
+            }
+          ],
+          overwriteExisting: false
+        });
+
+        expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
+          'scene-1',
+          [{ fixtureId: 'fixture-3', channelValues: [200, 100, 50], sceneOrder: 3 }],
+          false
+        );
+        expect(result.sceneId).toBe('scene-1');
+        expect(result.scene.name).toBe('Test Scene');
+        expect(result.fixturesAdded).toBe(1);
+        expect(result.overwriteMode).toBe(false);
+        expect(result.scene.fixtureValues).toHaveLength(2);
+        expect(result.scene.fixtureValues[0].sceneOrder).toBe(1);
+        expect(result.message).toContain('(preserving existing)');
+      });
+
+      it('should add fixtures to scene with overwrite enabled', async () => {
+        mockGraphQLClient.addFixturesToScene.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.addFixturesToScene({
+          sceneId: 'scene-1',
+          fixtureValues: [
+            {
+              fixtureId: 'fixture-1',
+              channelValues: [100, 200, 150]
+            }
+          ],
+          overwriteExisting: true
+        });
+
+        expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
+          'scene-1',
+          [{ fixtureId: 'fixture-1', channelValues: [100, 200, 150] }],
+          true
+        );
+        expect(result.overwriteMode).toBe(true);
+        expect(result.message).toContain('(overwriting existing)');
+      });
+
+      it('should add multiple fixtures to scene', async () => {
+        mockGraphQLClient.addFixturesToScene.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.addFixturesToScene({
+          sceneId: 'scene-1',
+          fixtureValues: [
+            { fixtureId: 'fixture-3', channelValues: [200, 100, 50] },
+            { fixtureId: 'fixture-4', channelValues: [150, 200, 100] }
+          ],
+          overwriteExisting: false
+        });
+
+        expect(result.fixturesAdded).toBe(2);
+        expect(result.scene.totalFixtures).toBe(2);
+      });
+
+      it('should handle addFixturesToScene errors', async () => {
+        mockGraphQLClient.addFixturesToScene.mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.addFixturesToScene({
+          sceneId: 'scene-1',
+          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          overwriteExisting: false
+        })).rejects.toThrow('Failed to add fixtures to scene: Error: GraphQL error');
+      });
+
+      it('should validate channel values in addFixturesToScene', async () => {
+        await expect(sceneTools.addFixturesToScene({
+          sceneId: 'scene-1',
+          fixtureValues: [
+            { fixtureId: 'fixture-1', channelValues: [300] }
+          ],
+          overwriteExisting: false
+        })).rejects.toThrow();
+      });
+
+      it('should validate required parameters in addFixturesToScene', async () => {
+        await expect(sceneTools.addFixturesToScene({} as any)).rejects.toThrow();
+        
+        await expect(sceneTools.addFixturesToScene({
+          sceneId: 'scene-1'
+        } as any)).rejects.toThrow();
+      });
+    });
+
+    describe('removeFixturesFromScene', () => {
+      it('should remove fixtures from scene', async () => {
+        const sceneAfterRemoval = {
+          ...mockScene,
+          fixtureValues: [mockScene.fixtureValues[0]] // Only first fixture remains
+        };
+        mockGraphQLClient.removeFixturesFromScene.mockResolvedValue(sceneAfterRemoval as any);
+
+        const result = await sceneTools.removeFixturesFromScene({
+          sceneId: 'scene-1',
+          fixtureIds: ['fixture-2']
+        });
+
+        expect(mockGraphQLClient.removeFixturesFromScene).toHaveBeenCalledWith('scene-1', ['fixture-2']);
+        expect(result.sceneId).toBe('scene-1');
+        expect(result.fixturesRemoved).toBe(1);
+        expect(result.scene.totalFixtures).toBe(1);
+        expect(result.scene.fixtureValues[0].sceneOrder).toBe(1);
+        expect(result.message).toContain('Successfully removed 1 fixtures');
+      });
+
+      it('should remove multiple fixtures from scene', async () => {
+        const sceneAfterRemoval = {
+          ...mockScene,
+          fixtureValues: [] // All fixtures removed
+        };
+        mockGraphQLClient.removeFixturesFromScene.mockResolvedValue(sceneAfterRemoval as any);
+
+        const result = await sceneTools.removeFixturesFromScene({
+          sceneId: 'scene-1',
+          fixtureIds: ['fixture-1', 'fixture-2']
+        });
+
+        expect(result.fixturesRemoved).toBe(2);
+        expect(result.scene.totalFixtures).toBe(0);
+      });
+
+      it('should handle removeFixturesFromScene errors', async () => {
+        mockGraphQLClient.removeFixturesFromScene.mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.removeFixturesFromScene({
+          sceneId: 'scene-1',
+          fixtureIds: ['fixture-1']
+        })).rejects.toThrow('Failed to remove fixtures from scene: Error: GraphQL error');
+      });
+
+      it('should validate required parameters in removeFixturesFromScene', async () => {
+        await expect(sceneTools.removeFixturesFromScene({} as any)).rejects.toThrow();
+        
+        await expect(sceneTools.removeFixturesFromScene({
+          sceneId: 'scene-1'
+        } as any)).rejects.toThrow();
+      });
+    });
+
+    describe('getSceneFixtureValues', () => {
+      it('should get scene fixture values with details', async () => {
+        mockGraphQLClient.getScene.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.getSceneFixtureValues({
+          sceneId: 'scene-1',
+          includeFixtureDetails: true
+        });
+
+        expect(mockGraphQLClient.getScene).toHaveBeenCalledWith('scene-1');
+        expect(result.sceneId).toBe('scene-1');
+        expect(result.scene.name).toBe('Test Scene');
+        expect(result.scene.totalFixtures).toBe(2);
+        expect(result.fixtureValues).toHaveLength(2);
+        expect(result.fixtureValues[0].fixtureId).toBe('fixture-1');
+        expect(result.fixtureValues[0].fixtureName).toBe('LED Par 1');
+        expect(result.fixtureValues[0].channelValues).toEqual([255, 128, 64]);
+        expect(result.fixtureValues[0].sceneOrder).toBe(1);
+        expect(result.fixtureValues[0].channelCount).toBe(3);
+      });
+
+      it('should get scene fixture values without details', async () => {
+        mockGraphQLClient.getScene.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.getSceneFixtureValues({
+          sceneId: 'scene-1',
+          includeFixtureDetails: false
+        });
+
+        expect(result.fixtureValues[0].fixtureName).toBeUndefined();
+      });
+
+      it('should handle scene not found in getSceneFixtureValues', async () => {
+        mockGraphQLClient.getScene.mockResolvedValue(null);
+
+        await expect(sceneTools.getSceneFixtureValues({
+          sceneId: 'non-existent',
+          includeFixtureDetails: true
+        })).rejects.toThrow('Scene with ID non-existent not found');
+      });
+
+      it('should handle getSceneFixtureValues errors', async () => {
+        mockGraphQLClient.getScene.mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.getSceneFixtureValues({
+          sceneId: 'scene-1',
+          includeFixtureDetails: true
+        })).rejects.toThrow('Failed to get scene fixture values: Error: GraphQL error');
+      });
+
+      it('should validate required parameters in getSceneFixtureValues', async () => {
+        await expect(sceneTools.getSceneFixtureValues({} as any)).rejects.toThrow();
+      });
+    });
+
+    describe('ensureFixturesInScene', () => {
+      it('should ensure fixtures exist in scene (safe add)', async () => {
+        mockGraphQLClient.addFixturesToScene.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.ensureFixturesInScene({
+          sceneId: 'scene-1',
+          fixtureValues: [
+            { fixtureId: 'fixture-3', channelValues: [200, 100, 50] }
+          ]
+        });
+
+        expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
+          'scene-1',
+          [{ fixtureId: 'fixture-3', channelValues: [200, 100, 50] }],
+          false // Always safe mode
+        );
+        expect(result.sceneId).toBe('scene-1');
+        expect(result.fixturesAdded).toBe(1);
+        expect(result.message).toContain('(only if missing)');
+      });
+
+      it('should handle ensureFixturesInScene errors', async () => {
+        mockGraphQLClient.addFixturesToScene.mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.ensureFixturesInScene({
+          sceneId: 'scene-1',
+          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }]
+        })).rejects.toThrow('Failed to ensure fixtures in scene: Error: GraphQL error');
+      });
+
+      it('should validate required parameters in ensureFixturesInScene', async () => {
+        await expect(sceneTools.ensureFixturesInScene({} as any)).rejects.toThrow();
+      });
+    });
+
+    describe('updateScenePartial', () => {
+      it('should update scene metadata only', async () => {
+        const updatedScene = {
+          ...mockScene,
+          name: 'Updated Scene Name',
+          description: 'Updated description'
+        };
+        mockGraphQLClient.updateScenePartial.mockResolvedValue(updatedScene as any);
+
+        const result = await sceneTools.updateScenePartial({
+          sceneId: 'scene-1',
+          name: 'Updated Scene Name',
+          description: 'Updated description',
+          mergeFixtures: true
+        });
+
+        expect(mockGraphQLClient.updateScenePartial).toHaveBeenCalledWith('scene-1', {
+          name: 'Updated Scene Name',
+          description: 'Updated description',
+          fixtureValues: undefined,
+          mergeFixtures: true
+        });
+        expect(result.sceneId).toBe('scene-1');
+        expect(result.scene.name).toBe('Updated Scene Name');
+        expect(result.updateType).toBe('merged');
+        expect(result.fixturesUpdated).toBe(0);
+        expect(result.message).toContain('(safe merge)');
+      });
+
+      it('should update scene with fixture values (merge mode)', async () => {
+        mockGraphQLClient.updateScenePartial.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.updateScenePartial({
+          sceneId: 'scene-1',
+          name: 'Updated Scene',
+          fixtureValues: [
+            { fixtureId: 'fixture-3', channelValues: [200, 100, 50] }
+          ],
+          mergeFixtures: true
+        });
+
+        expect(mockGraphQLClient.updateScenePartial).toHaveBeenCalledWith('scene-1', {
+          name: 'Updated Scene',
+          description: undefined,
+          fixtureValues: [{ fixtureId: 'fixture-3', channelValues: [200, 100, 50] }],
+          mergeFixtures: true
+        });
+        expect(result.updateType).toBe('merged');
+        expect(result.fixturesUpdated).toBe(1);
+        expect(result.message).toContain('(safe merge)');
+      });
+
+      it('should update scene with fixture values (replace mode)', async () => {
+        mockGraphQLClient.updateScenePartial.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.updateScenePartial({
+          sceneId: 'scene-1',
+          fixtureValues: [
+            { fixtureId: 'fixture-1', channelValues: [100, 200, 150] }
+          ],
+          mergeFixtures: false
+        });
+
+        expect(result.updateType).toBe('replaced');
+        expect(result.message).toContain('(full replace)');
+      });
+
+      it('should update scene with sceneOrder values', async () => {
+        mockGraphQLClient.updateScenePartial.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.updateScenePartial({
+          sceneId: 'scene-1',
+          fixtureValues: [
+            { 
+              fixtureId: 'fixture-1', 
+              channelValues: [255, 128, 64], 
+              sceneOrder: 10 
+            }
+          ],
+          mergeFixtures: true
+        });
+
+        expect(result.scene.fixtureValues[0].sceneOrder).toBe(1); // From mock response
+      });
+
+      it('should handle updateScenePartial errors', async () => {
+        mockGraphQLClient.updateScenePartial.mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.updateScenePartial({
+          sceneId: 'scene-1',
+          name: 'Updated Scene',
+          mergeFixtures: true
+        })).rejects.toThrow('Failed to update scene partially: Error: GraphQL error');
+      });
+
+      it('should validate required parameters in updateScenePartial', async () => {
+        await expect(sceneTools.updateScenePartial({} as any)).rejects.toThrow();
+      });
+
+      it('should validate channel values in updateScenePartial', async () => {
+        await expect(sceneTools.updateScenePartial({
+          sceneId: 'scene-1',
+          fixtureValues: [
+            { fixtureId: 'fixture-1', channelValues: [500] }
+          ],
+          mergeFixtures: true
+        })).rejects.toThrow();
+      });
+    });
+
+    describe('API Consistency', () => {
+      it('should return consistent fixture value structure across all methods', async () => {
+        mockGraphQLClient.addFixturesToScene.mockResolvedValue(mockScene as any);
+        mockGraphQLClient.removeFixturesFromScene.mockResolvedValue(mockScene as any);
+        mockGraphQLClient.updateScenePartial.mockResolvedValue(mockScene as any);
+        mockGraphQLClient.getScene.mockResolvedValue(mockScene as any);
+
+        const addResult = await sceneTools.addFixturesToScene({
+          sceneId: 'scene-1',
+          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          overwriteExisting: false
+        });
+
+        const removeResult = await sceneTools.removeFixturesFromScene({
+          sceneId: 'scene-1',
+          fixtureIds: ['fixture-1']
+        });
+
+        const updateResult = await sceneTools.updateScenePartial({
+          sceneId: 'scene-1',
+          name: 'Updated',
+          mergeFixtures: true
+        });
+
+        // Verify all methods return sceneOrder field
+        expect(addResult.scene.fixtureValues[0]).toHaveProperty('sceneOrder');
+        expect(removeResult.scene.fixtureValues[0]).toHaveProperty('sceneOrder');
+        expect(updateResult.scene.fixtureValues[0]).toHaveProperty('sceneOrder');
+
+        // Verify consistent structure
+        const expectedFixtureStructure = {
+          fixture: expect.objectContaining({
+            id: expect.any(String),
+            name: expect.any(String)
+          }),
+          channelValues: expect.any(Array),
+          sceneOrder: expect.any(Number)
+        };
+
+        expect(addResult.scene.fixtureValues[0]).toMatchObject(expectedFixtureStructure);
+        expect(removeResult.scene.fixtureValues[0]).toMatchObject(expectedFixtureStructure);
+        expect(updateResult.scene.fixtureValues[0]).toMatchObject(expectedFixtureStructure);
+      });
+    });
+
+    describe('Data Safety', () => {
+      it('should prevent accidental data loss with safe defaults', async () => {
+        mockGraphQLClient.addFixturesToScene.mockResolvedValue(mockScene as any);
+
+        // Test that default is safe (non-overwriting)
+        const result = await sceneTools.addFixturesToScene({
+          sceneId: 'scene-1',
+          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          overwriteExisting: false
+        });
+
+        expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
+          'scene-1',
+          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          false
+        );
+        expect(result.overwriteMode).toBe(false);
+      });
+
+      it('should use safe merge mode by default in updateScenePartial', async () => {
+        mockGraphQLClient.updateScenePartial.mockResolvedValue(mockScene as any);
+
+        const result = await sceneTools.updateScenePartial({
+          sceneId: 'scene-1',
+          name: 'Updated',
+          mergeFixtures: true
+        });
+
+        expect(mockGraphQLClient.updateScenePartial).toHaveBeenCalledWith('scene-1', {
+          name: 'Updated',
+          description: undefined,
+          fixtureValues: undefined,
+          mergeFixtures: true
+        });
+        expect(result.updateType).toBe('merged');
+      });
+
+      it('should always use safe mode in ensureFixturesInScene', async () => {
+        mockGraphQLClient.addFixturesToScene.mockResolvedValue(mockScene as any);
+
+        await sceneTools.ensureFixturesInScene({
+          sceneId: 'scene-1',
+          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }]
+        });
+
+        expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
+          'scene-1',
+          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          false // Always safe mode, cannot be overridden
+        );
+      });
+    });
+  });
 });
