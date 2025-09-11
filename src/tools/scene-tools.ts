@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
 import { RAGService } from '../services/rag-service-simple';
 import { AILightingService } from '../services/ai-lighting';
-import { GeneratedScene, LightingDesignRequest } from '../types/lighting';
+import { LightingDesignRequest } from '../types/lighting';
 
 // Type definitions for better type safety
 interface SceneActivationResult {
@@ -177,7 +177,7 @@ export class SceneTools {
 
       // Get all fixtures for context, then filter based on scene type and criteria
       let availableFixtures = project.fixtures;
-      let allFixtures = project.fixtures; // Keep reference to all fixtures
+      const allFixtures = project.fixtures; // Keep reference to all fixtures
       
       // For additive scenes, we need fixtureFilter to specify which fixtures to modify
       if (sceneType === 'additive' && !fixtureFilter) {
@@ -295,7 +295,7 @@ export class SceneTools {
 
       if (extractLightingCues) {
         // Extract specific lighting cues from the analysis
-        const lightingCues = scriptAnalysis.scenes.flatMap((scene, index) => 
+        const lightingCues = scriptAnalysis.scenes.flatMap((scene, _index) => 
           scene.lightingCues.map(cue => ({
             sceneNumber: scene.sceneNumber,
             cue,
@@ -311,7 +311,7 @@ export class SceneTools {
       if (suggestScenes) {
         // Generate scene suggestions based on script analysis
         const sceneTemplates = await Promise.all(
-          scriptAnalysis.scenes.slice(0, 5).map(async (scene, index) => {
+          scriptAnalysis.scenes.slice(0, 5).map(async (scene, _index) => {
             const recommendations = await this.ragService.generateLightingRecommendations(
               scene.content,
               scene.mood,
@@ -496,7 +496,7 @@ export class SceneTools {
     };
   }
 
-  private async optimizeForColorAccuracy(scene: any, availableFixtures: any[]) {
+  private async optimizeForColorAccuracy(_scene: any, _availableFixtures: any[]) {
     return {
       type: 'color_accuracy',
       description: 'Optimized color mixing and white balance for accurate reproduction',
@@ -513,7 +513,7 @@ export class SceneTools {
     };
   }
 
-  private async optimizeForDramaticImpact(scene: any, availableFixtures: any[]) {
+  private async optimizeForDramaticImpact(_scene: any, _availableFixtures: any[]) {
     return {
       type: 'dramatic_impact',
       description: 'Enhanced contrast and focus to maximize dramatic effect',
@@ -530,7 +530,7 @@ export class SceneTools {
     };
   }
 
-  private async optimizeForTechnicalSimplicity(scene: any, availableFixtures: any[]) {
+  private async optimizeForTechnicalSimplicity(_scene: any, _availableFixtures: any[]) {
     return {
       type: 'technical_simplicity',
       description: 'Simplified setup with fewer fixtures and standardized settings',

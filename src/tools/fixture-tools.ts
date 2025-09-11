@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
-import { FixtureDefinition, FixtureInstance, Project, Scene, FixtureValue, FixtureType } from "../types/lighting";
+import { FixtureDefinition, FixtureInstance, Scene, FixtureValue, FixtureType } from "../types/lighting";
 
 const GetFixtureInventorySchema = z.object({
   projectId: z.string().optional(),
@@ -938,7 +938,7 @@ export class FixtureTools {
 
   private generateChannelRecommendations(
     assignments: any[],
-    universeData: any,
+    _universeData: any,
   ): string[] {
     const recommendations = [];
 
@@ -1008,13 +1008,11 @@ export class FixtureTools {
       // First, get the current fixture to understand what we're updating
       const projects = await this.graphqlClient.getProjects();
       let currentFixture: FixtureInstance | null = null;
-      let projectId: string = '';
       
       for (const project of projects) {
         const fixture = project.fixtures.find((f: FixtureInstance) => f.id === fixtureId);
         if (fixture) {
           currentFixture = fixture;
-          projectId = project.id;
           break;
         }
       }
