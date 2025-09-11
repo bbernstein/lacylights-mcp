@@ -770,7 +770,7 @@ export class SceneTools {
           fixtureId: fv.fixture.id,
           fixtureName: includeFixtureDetails ? fv.fixture.name : undefined,
           channelValues: fv.channelValues,
-          sceneOrder: (fv as FixtureValueInfo).sceneOrder,
+          sceneOrder: fv.sceneOrder,
           channelCount: fv.channelValues.length
         })),
         message: `Retrieved fixture values for ${scene.fixtureValues.length} fixtures in scene "${scene.name}"`
