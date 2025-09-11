@@ -507,7 +507,7 @@ export class FixtureTools {
     const totalFixtures = analysis.length;
 
     switch (analysisType) {
-      case "color_mixing":
+      case "color_mixing": {
         const rgbCount = analysis.filter((a) => a.canMixColors).length;
         return {
           totalFixtures,
@@ -519,7 +519,8 @@ export class FixtureTools {
             (a) => a.whiteBalance === "Dedicated White Channel",
           ).length,
         };
-      case "positioning":
+      }
+      case "positioning": {
         const movingHeads = analysis.filter(
           (a) => a.movementType === "Moving Head",
         ).length;
@@ -528,6 +529,7 @@ export class FixtureTools {
           movingHeads,
           fixedPositions: totalFixtures - movingHeads,
         };
+      }
       default:
         return { totalFixtures, analysisComplete: true };
     }
@@ -730,9 +732,6 @@ export class FixtureTools {
               
               // Use mode-specific channels if available
               if (fixture.channels && fixture.channels.length > channelIndex) {
-                channelType = fixture.channels[channelIndex].type;
-              } else if (fixture.channels && fixture.channels.length > channelIndex) {
-                // Fallback to fixture channels
                 channelType = fixture.channels[channelIndex].type;
               }
               
