@@ -87,6 +87,7 @@ export interface Scene {
 export interface FixtureValue {
   fixture: FixtureInstance;
   channelValues: number[]; // Array of 0-255 values, index = channel offset
+  sceneOrder?: number; // Optional ordering within the scene
 }
 
 export interface CueList {

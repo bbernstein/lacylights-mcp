@@ -705,7 +705,7 @@ export class SceneTools {
               name: fv.fixture.name
             },
             channelValues: fv.channelValues,
-            sceneOrder: (fv as FixtureValueInfo).sceneOrder
+            sceneOrder: fv.sceneOrder
           }))
         },
         fixturesAdded: fixtureValues.length,
