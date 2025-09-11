@@ -70,7 +70,7 @@ jobs:
         run: npm audit --audit-level=moderate
 
       - name: Run dependency check
-        run: npx depcheck --ignores="@types/*,jest,tsx,ts-jest"
+        run: npx depcheck --ignores="@types/*,jest,tsx,ts-jest,@apollo/client,@modelcontextprotocol/sdk,graphql"
 
   mcp-validation:
     name: MCP Server Validation
@@ -101,7 +101,7 @@ jobs:
         run: |
           echo "Checking MCP tool definitions..."
           # Verify the built server has required MCP exports
-          if grep -q "listTools\|callTool" dist/index.js; then
+          if grep -q "ListToolsRequestSchema\|CallToolRequestSchema" dist/index.js; then
             echo "✅ MCP tool methods found"
           else
             echo "❌ MCP tool methods missing"

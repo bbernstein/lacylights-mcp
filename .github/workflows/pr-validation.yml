@@ -72,15 +72,19 @@ jobs:
           npm run test:coverage
           
           # Check if new files have corresponding tests
-          NEW_FILES=$(git diff --name-only --diff-filter=A ${{ github.event.pull_request.base.sha }}..HEAD | grep "src/.*\.ts$" | grep -v "\.test\.ts$")
-          for file in $NEW_FILES; do
-            TEST_FILE="${file%.ts}.test.ts"
-            if [ -f "tests/${TEST_FILE#src/}" ] || [ -f "${TEST_FILE}" ]; then
-              echo "✅ $file has tests"
-            else
-              echo "⚠️ $file might need tests"
-            fi
-          done
+          NEW_FILES=$(git diff --name-only --diff-filter=A ${{ github.event.pull_request.base.sha }}..HEAD | grep "src/.*\.ts$" | grep -v "\.test\.ts$" || true)
+          if [ -n "$NEW_FILES" ]; then
+            for file in $NEW_FILES; do
+              TEST_FILE="${file%.ts}.test.ts"
+              if [ -f "tests/${TEST_FILE#src/}" ] || [ -f "${TEST_FILE}" ]; then
+                echo "✅ $file has tests"
+              else
+                echo "⚠️ $file might need tests"
+              fi
+            done
+          else
+            echo "✅ No new source files detected"
+          fi
 
       - name: Validate commit messages
         run: |
@@ -104,11 +108,15 @@ jobs:
           # Check for common security issues
           if grep -r "console.log\|console.error" src/ --include="*.ts" | grep -v test; then
             echo "⚠️ Console statements found - consider using proper logging"
+          else
+            echo "✅ No console statements found"
           fi
           
           # Check for hardcoded secrets/tokens
           if grep -r "password\|secret\|token\|key" src/ --include="*.ts" | grep -v test | grep -i "=" | grep -v "process.env"; then
             echo "⚠️ Potential hardcoded secrets found - review carefully"
+          else
+            echo "✅ No hardcoded secrets detected"
           fi
 
       - name: PR Validation Summary
