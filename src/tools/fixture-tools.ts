@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
-import { FixtureDefinition, FixtureInstance, Project, Scene, FixtureValue, FixtureType } from "../types/lighting";
+import { FixtureDefinition, FixtureInstance, Scene, FixtureValue, FixtureType } from "../types/lighting";
 
 const GetFixtureInventorySchema = z.object({
   projectId: z.string().optional(),
@@ -507,7 +507,7 @@ export class FixtureTools {
     const totalFixtures = analysis.length;
 
     switch (analysisType) {
-      case "color_mixing":
+      case "color_mixing": {
         const rgbCount = analysis.filter((a) => a.canMixColors).length;
         return {
           totalFixtures,
@@ -519,7 +519,8 @@ export class FixtureTools {
             (a) => a.whiteBalance === "Dedicated White Channel",
           ).length,
         };
-      case "positioning":
+      }
+      case "positioning": {
         const movingHeads = analysis.filter(
           (a) => a.movementType === "Moving Head",
         ).length;
@@ -528,6 +529,7 @@ export class FixtureTools {
           movingHeads,
           fixedPositions: totalFixtures - movingHeads,
         };
+      }
       default:
         return { totalFixtures, analysisComplete: true };
     }
@@ -730,9 +732,6 @@ export class FixtureTools {
               
               // Use mode-specific channels if available
               if (fixture.channels && fixture.channels.length > channelIndex) {
-                channelType = fixture.channels[channelIndex].type;
-              } else if (fixture.channels && fixture.channels.length > channelIndex) {
-                // Fallback to fixture channels
                 channelType = fixture.channels[channelIndex].type;
               }
               
@@ -939,7 +938,7 @@ export class FixtureTools {
 
   private generateChannelRecommendations(
     assignments: any[],
-    universeData: any,
+    _universeData: any,
   ): string[] {
     const recommendations = [];
 
@@ -1009,13 +1008,11 @@ export class FixtureTools {
       // First, get the current fixture to understand what we're updating
       const projects = await this.graphqlClient.getProjects();
       let currentFixture: FixtureInstance | null = null;
-      let projectId: string = '';
       
       for (const project of projects) {
         const fixture = project.fixtures.find((f: FixtureInstance) => f.id === fixtureId);
         if (fixture) {
           currentFixture = fixture;
-          projectId = project.id;
           break;
         }
       }

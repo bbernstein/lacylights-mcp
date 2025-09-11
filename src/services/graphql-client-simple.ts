@@ -254,6 +254,102 @@ export class LacyLightsGraphQLClient {
     return data.updateScene;
   }
 
+  // 🛡️ SAFE SCENE UPDATE METHODS
+  async addFixturesToScene(sceneId: string, fixtureValues: Array<{
+    fixtureId: string;
+    channelValues: number[];
+    sceneOrder?: number;
+  }>, overwriteExisting: boolean = false): Promise<Scene> {
+    const mutation = `
+      mutation AddFixturesToScene($sceneId: ID!, $fixtureValues: [FixtureValueInput!]!, $overwriteExisting: Boolean) {
+        addFixturesToScene(sceneId: $sceneId, fixtureValues: $fixtureValues, overwriteExisting: $overwriteExisting) {
+          id
+          name
+          description
+          updatedAt
+          fixtureValues {
+            fixture {
+              id
+              name
+            }
+            channelValues
+            sceneOrder
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { 
+      sceneId, 
+      fixtureValues, 
+      overwriteExisting 
+    });
+    return data.addFixturesToScene;
+  }
+
+  async removeFixturesFromScene(sceneId: string, fixtureIds: string[]): Promise<Scene> {
+    const mutation = `
+      mutation RemoveFixturesFromScene($sceneId: ID!, $fixtureIds: [ID!]!) {
+        removeFixturesFromScene(sceneId: $sceneId, fixtureIds: $fixtureIds) {
+          id
+          name
+          description
+          updatedAt
+          fixtureValues {
+            fixture {
+              id
+              name
+            }
+            channelValues
+            sceneOrder
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { sceneId, fixtureIds });
+    return data.removeFixturesFromScene;
+  }
+
+  async updateScenePartial(sceneId: string, updates: {
+    name?: string;
+    description?: string;
+    fixtureValues?: Array<{
+      fixtureId: string;
+      channelValues: number[];
+      sceneOrder?: number;
+    }>;
+    mergeFixtures?: boolean;
+  }): Promise<Scene> {
+    const mutation = `
+      mutation UpdateScenePartial($sceneId: ID!, $name: String, $description: String, $fixtureValues: [FixtureValueInput!], $mergeFixtures: Boolean) {
+        updateScenePartial(sceneId: $sceneId, name: $name, description: $description, fixtureValues: $fixtureValues, mergeFixtures: $mergeFixtures) {
+          id
+          name
+          description
+          updatedAt
+          fixtureValues {
+            fixture {
+              id
+              name
+            }
+            channelValues
+            sceneOrder
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { 
+      sceneId,
+      name: updates.name,
+      description: updates.description,
+      fixtureValues: updates.fixtureValues,
+      mergeFixtures: updates.mergeFixtures
+    });
+    return data.updateScenePartial;
+  }
+
   async getCueList(id: string): Promise<CueList | null> {
     const query = `
       query GetCueList($id: ID!) {

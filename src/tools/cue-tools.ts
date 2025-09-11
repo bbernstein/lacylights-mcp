@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
 import { RAGService } from '../services/rag-service-simple';
 import { AILightingService } from '../services/ai-lighting';
-import { CueSequence, GeneratedScene } from '../types/lighting';
+import { GeneratedScene } from '../types/lighting';
 
 const CreateCueSequenceSchema = z.object({
   projectId: z.string(),
@@ -212,10 +212,10 @@ export class CueTools {
 
   async generateActCues(args: z.infer<typeof GenerateActCuesSchema>) {
     const { 
-      projectId, 
+      projectId: _projectId, 
       actNumber, 
       scriptText, 
-      existingScenes, 
+      existingScenes: _existingScenes, 
       cueListName 
     } = GenerateActCuesSchema.parse(args);
 
@@ -235,7 +235,7 @@ export class CueTools {
 
       // Generate cue suggestions for each scene in the act
       const cueTemplates = await Promise.all(
-        actScenes.map(async (scene, index) => {
+        actScenes.map(async (scene, _index) => {
           const recommendations = await this.ragService.generateLightingRecommendations(
             scene.content,
             scene.mood,
@@ -444,7 +444,7 @@ export class CueTools {
     }, 0);
   }
 
-  private generatePreShowChecklist(cueTemplates: any[]): string[] {
+  private generatePreShowChecklist(_cueTemplates: any[]): string[] {
     return [
       'Test all moving head positions',
       'Verify color mixing on LED fixtures',
@@ -460,7 +460,7 @@ export class CueTools {
       .map(template => `Cue ${template.sceneNumber}: ${template.description}`);
   }
 
-  private suggestBackupPlans(cueTemplates: any[]): string[] {
+  private suggestBackupPlans(_cueTemplates: any[]): string[] {
     return [
       'Manual override available for all automated cues',
       'Simplified lighting states for technical failures',
@@ -564,7 +564,7 @@ export class CueTools {
       .sort((a, b) => a - b);
   }
 
-  private identifyTimingPatterns(cues: any[]): string[] {
+  private identifyTimingPatterns(_cues: any[]): string[] {
     // Simplified pattern identification
     return ['Standard 3-second fades', 'Quick blackouts at 1 second', 'Slow mood transitions at 5+ seconds'];
   }
@@ -658,19 +658,19 @@ export class CueTools {
     return chains;
   }
 
-  private recommendNumberingImprovements(cues: any[]): string[] {
+  private recommendNumberingImprovements(_cues: any[]): string[] {
     return ['Consider using decimal increments (1.0, 1.5, 2.0) for easier insertion of new cues'];
   }
 
-  private recommendTimingImprovements(cues: any[]): string[] {
+  private recommendTimingImprovements(_cues: any[]): string[] {
     return ['Standardize common fade times to reduce operator confusion'];
   }
 
-  private recommendStructureImprovements(cues: any[]): string[] {
+  private recommendStructureImprovements(_cues: any[]): string[] {
     return ['Group related cues with consistent numbering patterns'];
   }
 
-  private recommendSafetyConsiderations(cues: any[]): string[] {
+  private recommendSafetyConsiderations(_cues: any[]): string[] {
     return ['Ensure all blackout cues can be executed manually in emergency'];
   }
 
@@ -1301,7 +1301,7 @@ export class CueTools {
     }
 
     let targetIndex = -1;
-    let oldIndex = this.playbackState.currentCueIndex;
+    const oldIndex = this.playbackState.currentCueIndex;
 
     try {
       if (cueNumber !== undefined) {
@@ -1347,7 +1347,7 @@ export class CueTools {
     }
   }
 
-  async stopCueList(args: z.infer<typeof StopCueListSchema>) {
+  async stopCueList(_args: z.infer<typeof StopCueListSchema>) {
     if (!this.playbackState) {
       return {
         success: true,
@@ -1377,7 +1377,7 @@ export class CueTools {
     };
   }
 
-  async getCueListStatus(args: z.infer<typeof GetCueListStatusSchema>) {
+  async getCueListStatus(_args: z.infer<typeof GetCueListStatusSchema>) {
     if (!this.playbackState || !this.playbackState.isPlaying) {
       return {
         isPlaying: false,

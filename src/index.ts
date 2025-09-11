@@ -628,6 +628,181 @@ class LacyLightsMCPServer {
               properties: {},
             },
           },
+          // Safe Scene Management Tools
+          {
+            name: "add_fixtures_to_scene",
+            description: "Safely add fixtures to a scene without affecting existing fixtures",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to add fixtures to",
+                },
+                fixtureValues: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      fixtureId: {
+                        type: "string",
+                        description: "Fixture ID to add",
+                      },
+                      channelValues: {
+                        type: "array",
+                        items: {
+                          type: "number",
+                          minimum: 0,
+                          maximum: 255,
+                        },
+                        description: "Array of channel values (0-255)",
+                      },
+                      sceneOrder: {
+                        type: "number",
+                        description: "Optional order in scene",
+                      },
+                    },
+                    required: ["fixtureId", "channelValues"],
+                  },
+                  description: "Fixtures to add to the scene",
+                },
+                overwriteExisting: {
+                  type: "boolean",
+                  default: false,
+                  description: "Whether to overwrite existing fixture values",
+                },
+              },
+              required: ["sceneId", "fixtureValues"],
+            },
+          },
+          {
+            name: "remove_fixtures_from_scene",
+            description: "Safely remove specific fixtures from a scene",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to remove fixtures from",
+                },
+                fixtureIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Array of fixture IDs to remove",
+                },
+              },
+              required: ["sceneId", "fixtureIds"],
+            },
+          },
+          {
+            name: "get_scene_fixture_values",
+            description: "Get current fixture values for a scene (read-only)",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to get fixture values for",
+                },
+              },
+              required: ["sceneId"],
+            },
+          },
+          {
+            name: "ensure_fixtures_in_scene",
+            description: "Ensure specific fixtures exist in a scene with given values, adding only if missing",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to ensure fixtures in",
+                },
+                fixtureValues: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      fixtureId: {
+                        type: "string",
+                        description: "Fixture ID to ensure",
+                      },
+                      channelValues: {
+                        type: "array",
+                        items: {
+                          type: "number",
+                          minimum: 0,
+                          maximum: 255,
+                        },
+                        description: "Array of channel values (0-255)",
+                      },
+                      sceneOrder: {
+                        type: "number",
+                        description: "Optional order in scene",
+                      },
+                    },
+                    required: ["fixtureId", "channelValues"],
+                  },
+                  description: "Fixtures to ensure exist in the scene",
+                },
+              },
+              required: ["sceneId", "fixtureValues"],
+            },
+          },
+          {
+            name: "update_scene_partial",
+            description: "Safely update scene metadata and optionally merge fixture values",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to update",
+                },
+                name: {
+                  type: "string",
+                  description: "Optional new name for the scene",
+                },
+                description: {
+                  type: "string",
+                  description: "Optional new description for the scene",
+                },
+                fixtureValues: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      fixtureId: {
+                        type: "string",
+                        description: "Fixture ID to update",
+                      },
+                      channelValues: {
+                        type: "array",
+                        items: {
+                          type: "number",
+                          minimum: 0,
+                          maximum: 255,
+                        },
+                        description: "Array of channel values (0-255)",
+                      },
+                      sceneOrder: {
+                        type: "number",
+                        description: "Optional order in scene",
+                      },
+                    },
+                    required: ["fixtureId", "channelValues"],
+                  },
+                  description: "Optional fixture values to merge/update",
+                },
+                mergeFixtures: {
+                  type: "boolean",
+                  default: true,
+                  description: "Whether to merge fixtures (true) or replace all (false)",
+                },
+              },
+              required: ["sceneId"],
+            },
+          },
           // Cue Tools
           {
             name: "create_cue_sequence",
@@ -1373,6 +1548,77 @@ class LacyLightsMCPServer {
                   type: "text",
                   text: JSON.stringify(
                     await this.sceneTools.getCurrentActiveScene(),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Safe Scene Management Tools
+          case "add_fixtures_to_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.addFixturesToScene(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "remove_fixtures_from_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.removeFixturesFromScene(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_scene_fixture_values":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.getSceneFixtureValues(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "ensure_fixtures_in_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.ensureFixturesInScene(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "update_scene_partial":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.updateScenePartial(args as any),
                     null,
                     2,
                   ),

@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { ScriptAnalysis, ScriptScene } from '../types/lighting';
+import { ScriptAnalysis } from '../types/lighting';
 
 export class RAGService {
   private openai: OpenAI;
@@ -138,7 +138,7 @@ Focus on:
     reasoning: string;
   }> {
     // Find similar patterns
-    const similarPatterns = await this.findSimilarLightingPatterns(sceneContext, mood);
+    const _similarPatterns = await this.findSimilarLightingPatterns(sceneContext, mood);
     
     const prompt = `Scene: ${sceneContext}
 Mood: ${mood}

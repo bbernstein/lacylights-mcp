@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
-import { Project } from '../types/lighting';
+// Project type not currently used in this file
 
 const ListProjectsSchema = z.object({
   includeDetails: z.boolean().default(false).describe('Include fixture and scene counts')

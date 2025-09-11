@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
 import { RAGService } from '../services/rag-service-simple';
 import { AILightingService } from '../services/ai-lighting';
-import { GeneratedScene, LightingDesignRequest } from '../types/lighting';
+import { LightingDesignRequest } from '../types/lighting';
 
 // Type definitions for better type safety
 interface SceneActivationResult {
@@ -20,6 +20,7 @@ interface FixtureInfo {
 interface FixtureValueInfo {
   fixture: FixtureInfo;
   channelValues: number[];
+  sceneOrder?: number;
 }
 
 interface SceneInfo {
@@ -107,6 +108,48 @@ const FadeToBlackSchema = z.object({
   fadeOutTime: z.number().default(3.0)
 });
 
+// 🛡️ SAFE SCENE UPDATE SCHEMAS
+const AddFixturesToSceneSchema = z.object({
+  sceneId: z.string(),
+  fixtureValues: z.array(z.object({
+    fixtureId: z.string(),
+    channelValues: z.array(z.number().min(0).max(255)),
+    sceneOrder: z.number().optional()
+  })),
+  overwriteExisting: z.boolean().default(false)
+});
+
+const RemoveFixturesFromSceneSchema = z.object({
+  sceneId: z.string(),
+  fixtureIds: z.array(z.string())
+});
+
+const GetSceneFixtureValuesSchema = z.object({
+  sceneId: z.string(),
+  includeFixtureDetails: z.boolean().default(true)
+});
+
+const EnsureFixturesInSceneSchema = z.object({
+  sceneId: z.string(),
+  fixtureValues: z.array(z.object({
+    fixtureId: z.string(),
+    channelValues: z.array(z.number().min(0).max(255)),
+    sceneOrder: z.number().optional()
+  }))
+});
+
+const UpdateScenePartialSchema = z.object({
+  sceneId: z.string(),
+  name: z.string().optional(),
+  description: z.string().optional(),
+  fixtureValues: z.array(z.object({
+    fixtureId: z.string(),
+    channelValues: z.array(z.number().min(0).max(255)),
+    sceneOrder: z.number().optional()
+  })).optional(),
+  mergeFixtures: z.boolean().default(true)
+});
+
 export class SceneTools {
   constructor(
     private graphqlClient: LacyLightsGraphQLClient,
@@ -134,7 +177,7 @@ export class SceneTools {
 
       // Get all fixtures for context, then filter based on scene type and criteria
       let availableFixtures = project.fixtures;
-      let allFixtures = project.fixtures; // Keep reference to all fixtures
+      const allFixtures = project.fixtures; // Keep reference to all fixtures
       
       // For additive scenes, we need fixtureFilter to specify which fixtures to modify
       if (sceneType === 'additive' && !fixtureFilter) {
@@ -201,7 +244,8 @@ export class SceneTools {
               name: fv.fixture.name,
               type: fv.fixture.type || 'UNKNOWN'
             },
-            channelValues: fv.channelValues
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
           }))
         },
         designReasoning: optimizedScene.reasoning,
@@ -251,7 +295,7 @@ export class SceneTools {
 
       if (extractLightingCues) {
         // Extract specific lighting cues from the analysis
-        const lightingCues = scriptAnalysis.scenes.flatMap((scene, index) => 
+        const lightingCues = scriptAnalysis.scenes.flatMap((scene, _index) => 
           scene.lightingCues.map(cue => ({
             sceneNumber: scene.sceneNumber,
             cue,
@@ -267,7 +311,7 @@ export class SceneTools {
       if (suggestScenes) {
         // Generate scene suggestions based on script analysis
         const sceneTemplates = await Promise.all(
-          scriptAnalysis.scenes.slice(0, 5).map(async (scene, index) => {
+          scriptAnalysis.scenes.slice(0, 5).map(async (scene, _index) => {
             const recommendations = await this.ragService.generateLightingRecommendations(
               scene.content,
               scene.mood,
@@ -377,7 +421,8 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
           }))
         },
         fixturesUpdated: fixtureValues ? fixtureValues.length : 0,
@@ -451,7 +496,7 @@ export class SceneTools {
     };
   }
 
-  private async optimizeForColorAccuracy(scene: any, availableFixtures: any[]) {
+  private async optimizeForColorAccuracy(_scene: any, _availableFixtures: any[]) {
     return {
       type: 'color_accuracy',
       description: 'Optimized color mixing and white balance for accurate reproduction',
@@ -468,7 +513,7 @@ export class SceneTools {
     };
   }
 
-  private async optimizeForDramaticImpact(scene: any, availableFixtures: any[]) {
+  private async optimizeForDramaticImpact(_scene: any, _availableFixtures: any[]) {
     return {
       type: 'dramatic_impact',
       description: 'Enhanced contrast and focus to maximize dramatic effect',
@@ -485,7 +530,7 @@ export class SceneTools {
     };
   }
 
-  private async optimizeForTechnicalSimplicity(scene: any, availableFixtures: any[]) {
+  private async optimizeForTechnicalSimplicity(_scene: any, _availableFixtures: any[]) {
     return {
       type: 'technical_simplicity',
       description: 'Simplified setup with fewer fixtures and standardized settings',
@@ -634,6 +679,166 @@ export class SceneTools {
       };
     } catch (error) {
       throw new Error(`Failed to get current active scene: ${error}`);
+    }
+  }
+
+  // 🛡️ SAFE SCENE UPDATE METHODS
+
+  async addFixturesToScene(args: z.infer<typeof AddFixturesToSceneSchema>) {
+    const { sceneId, fixtureValues, overwriteExisting } = AddFixturesToSceneSchema.parse(args);
+
+    try {
+      const updatedScene = await this.graphqlClient.addFixturesToScene(
+        sceneId,
+        fixtureValues,
+        overwriteExisting
+      );
+
+      return {
+        sceneId: updatedScene.id,
+        scene: {
+          name: updatedScene.name,
+          description: updatedScene.description,
+          updatedAt: updatedScene.updatedAt,
+          totalFixtures: updatedScene.fixtureValues.length,
+          fixtureValues: updatedScene.fixtureValues.map(fv => ({
+            fixture: {
+              id: fv.fixture.id,
+              name: fv.fixture.name
+            },
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
+          }))
+        },
+        fixturesAdded: fixtureValues.length,
+        overwriteMode: overwriteExisting,
+        message: `Successfully added ${fixtureValues.length} fixtures to scene "${updatedScene.name}"${overwriteExisting ? ' (overwriting existing)' : ' (preserving existing)'}`
+      };
+    } catch (error) {
+      throw new Error(`Failed to add fixtures to scene: ${error}`);
+    }
+  }
+
+  async removeFixturesFromScene(args: z.infer<typeof RemoveFixturesFromSceneSchema>) {
+    const { sceneId, fixtureIds } = RemoveFixturesFromSceneSchema.parse(args);
+
+    try {
+      const updatedScene = await this.graphqlClient.removeFixturesFromScene(sceneId, fixtureIds);
+
+      return {
+        sceneId: updatedScene.id,
+        scene: {
+          name: updatedScene.name,
+          description: updatedScene.description,
+          updatedAt: updatedScene.updatedAt,
+          totalFixtures: updatedScene.fixtureValues.length,
+          fixtureValues: updatedScene.fixtureValues.map(fv => ({
+            fixture: {
+              id: fv.fixture.id,
+              name: fv.fixture.name
+            },
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
+          }))
+        },
+        fixturesRemoved: fixtureIds.length,
+        message: `Successfully removed ${fixtureIds.length} fixtures from scene "${updatedScene.name}"`
+      };
+    } catch (error) {
+      throw new Error(`Failed to remove fixtures from scene: ${error}`);
+    }
+  }
+
+  async getSceneFixtureValues(args: z.infer<typeof GetSceneFixtureValuesSchema>) {
+    const { sceneId, includeFixtureDetails } = GetSceneFixtureValuesSchema.parse(args);
+
+    try {
+      const scene = await this.graphqlClient.getScene(sceneId);
+      
+      if (!scene) {
+        throw new Error(`Scene with ID ${sceneId} not found`);
+      }
+
+      return {
+        sceneId: scene.id,
+        scene: {
+          name: scene.name,
+          description: scene.description,
+          totalFixtures: scene.fixtureValues.length
+        },
+        fixtureValues: scene.fixtureValues.map(fv => ({
+          fixtureId: fv.fixture.id,
+          fixtureName: includeFixtureDetails ? fv.fixture.name : undefined,
+          channelValues: fv.channelValues,
+          sceneOrder: fv.sceneOrder,
+          channelCount: fv.channelValues.length
+        })),
+        message: `Retrieved fixture values for ${scene.fixtureValues.length} fixtures in scene "${scene.name}"`
+      };
+    } catch (error) {
+      throw new Error(`Failed to get scene fixture values: ${error}`);
+    }
+  }
+
+  async ensureFixturesInScene(args: z.infer<typeof EnsureFixturesInSceneSchema>) {
+    const { sceneId, fixtureValues } = EnsureFixturesInSceneSchema.parse(args);
+
+    try {
+      // Use addFixturesToScene with overwriteExisting: false for safe behavior
+      const updatedScene = await this.graphqlClient.addFixturesToScene(
+        sceneId,
+        fixtureValues,
+        false // Don't overwrite existing
+      );
+
+      return {
+        sceneId: updatedScene.id,
+        scene: {
+          name: updatedScene.name,
+          description: updatedScene.description,
+          totalFixtures: updatedScene.fixtureValues.length
+        },
+        fixturesAdded: fixtureValues.length,
+        message: `Added ${fixtureValues.length} fixtures to scene "${updatedScene.name}" (only if missing)`
+      };
+    } catch (error) {
+      throw new Error(`Failed to ensure fixtures in scene: ${error}`);
+    }
+  }
+
+  async updateScenePartial(args: z.infer<typeof UpdateScenePartialSchema>) {
+    const { sceneId, name, description, fixtureValues, mergeFixtures } = UpdateScenePartialSchema.parse(args);
+
+    try {
+      const updatedScene = await this.graphqlClient.updateScenePartial(sceneId, {
+        name,
+        description,
+        fixtureValues,
+        mergeFixtures
+      });
+
+      return {
+        sceneId: updatedScene.id,
+        scene: {
+          name: updatedScene.name,
+          description: updatedScene.description,
+          updatedAt: updatedScene.updatedAt,
+          totalFixtures: updatedScene.fixtureValues.length,
+          fixtureValues: updatedScene.fixtureValues.map(fv => ({
+            fixture: {
+              id: fv.fixture.id,
+              name: fv.fixture.name
+            },
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
+          }))
+        },
+        updateType: mergeFixtures ? 'merged' : 'replaced',
+        fixturesUpdated: fixtureValues ? fixtureValues.length : 0,
+        message: `Successfully updated scene "${updatedScene.name}"${mergeFixtures ? ' (safe merge)' : ' (full replace)'}`
+      };
+    } catch (error) {
+      throw new Error(`Failed to update scene partially: ${error}`);
     }
   }
 }

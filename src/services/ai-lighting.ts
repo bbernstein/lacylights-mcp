@@ -4,8 +4,6 @@ import {
   GeneratedScene,
   CueSequence,
   LightingDesignRequest,
-  ChannelType,
-  FixtureType,
 } from "../types/lighting";
 import { RAGService } from "./rag-service-simple";
 
@@ -211,7 +209,7 @@ Colors: ${recommendations.colorSuggestions?.join(",") || "Default"}
         request.allFixtures
           ?.filter((fixture) => fixture.channels && fixture.channels.length > 0)
           .map((fixture) => {
-            const channels = fixture.channels.map((ch) => `${ch.type}`);
+            const _channels = fixture.channels.map((ch) => `${ch.type}`);
             return {
               id: fixture.id,
               name: fixture.name,

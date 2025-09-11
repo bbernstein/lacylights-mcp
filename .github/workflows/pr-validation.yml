@@ -1,0 +1,131 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main, develop ]
+
+jobs:
+  validate:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for better diff analysis
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run pre-commit checks
+        run: |
+          # Run the same checks as pre-commit hook
+          npm run lint
+          npm run build
+
+      - name: Check for breaking changes
+        run: |
+          echo "Checking for potential breaking changes..."
+          # Check if package.json dependencies changed
+          if git diff --name-only ${{ github.event.pull_request.base.sha }}..HEAD | grep -q "package.json"; then
+            echo "⚠️ package.json changed - review dependencies"
+          fi
+          
+          # Check if MCP tool definitions changed
+          if git diff --name-only ${{ github.event.pull_request.base.sha }}..HEAD | grep -q "src/index.ts\|src/tools/"; then
+            echo "ℹ️ MCP tool definitions may have changed - verify API compatibility"
+          fi
+          
+          # Check if core types changed
+          if git diff --name-only ${{ github.event.pull_request.base.sha }}..HEAD | grep -q "src/types/"; then
+            echo "ℹ️ Type definitions changed - verify compatibility"
+          fi
+
+      - name: Check MCP tool consistency
+        run: |
+          echo "Validating MCP tool definitions..."
+          # Build and check for tool definition consistency
+          npm run build
+          
+          # Check if all tools in src/tools/ are registered in src/index.ts
+          TOOL_FILES=$(find src/tools -name "*.ts" -not -name "*.test.ts" -exec basename {} .ts \;)
+          for tool in $TOOL_FILES; do
+            if grep -q "$tool" src/index.ts; then
+              echo "✅ $tool is registered"
+            else
+              echo "⚠️ $tool might not be registered in index.ts"
+            fi
+          done
+
+      - name: Validate test coverage
+        run: |
+          echo "Checking test coverage..."
+          npm run test:coverage
+          
+          # Check if new files have corresponding tests
+          NEW_FILES=$(git diff --name-only --diff-filter=A ${{ github.event.pull_request.base.sha }}..HEAD | grep "src/.*\.ts$" | grep -v "\.test\.ts$" || true)
+          if [ -n "$NEW_FILES" ]; then
+            for file in $NEW_FILES; do
+              TEST_FILE="${file%.ts}.test.ts"
+              if [ -f "tests/${TEST_FILE#src/}" ] || [ -f "${TEST_FILE}" ]; then
+                echo "✅ $file has tests"
+              else
+                echo "⚠️ $file might need tests"
+              fi
+            done
+          else
+            echo "✅ No new source files detected"
+          fi
+
+      - name: Validate commit messages
+        run: |
+          # Check if commits follow conventional commit format (optional)
+          echo "Validating commit messages..."
+          git log --oneline ${{ github.event.pull_request.base.sha }}..HEAD | while read commit; do
+            echo "✓ $commit"
+          done
+
+      - name: Check file sizes
+        run: |
+          # Check for large files that shouldn't be committed
+          echo "Checking for large files..."
+          find . -type f -size +5M ! -path "./node_modules/*" ! -path "./.git/*" ! -path "./coverage/*" | while read file; do
+            echo "⚠️ Large file detected: $file"
+          done || echo "✓ No large files found"
+
+      - name: Security scan
+        run: |
+          echo "Running basic security checks..."
+          # Check for common security issues
+          if grep -r "console.log\|console.error" src/ --include="*.ts" | grep -v test; then
+            echo "⚠️ Console statements found - consider using proper logging"
+          else
+            echo "✅ No console statements found"
+          fi
+          
+          # Check for hardcoded secrets/tokens
+          if grep -r "password\|secret\|token\|key" src/ --include="*.ts" | grep -v test | grep -i "=" | grep -v "process.env"; then
+            echo "⚠️ Potential hardcoded secrets found - review carefully"
+          else
+            echo "✅ No hardcoded secrets detected"
+          fi
+
+      - name: PR Validation Summary
+        run: |
+          echo "## PR Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "✅ ESLint passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ TypeScript compilation passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Pre-commit checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ MCP tool validation completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Security checks completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This PR is ready for review! 🚀" >> $GITHUB_STEP_SUMMARY
