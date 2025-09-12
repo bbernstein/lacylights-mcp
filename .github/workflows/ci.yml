@@ -42,7 +42,7 @@ jobs:
         run: npm run test:coverage
 
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: matrix.node-version == '24.x'
         with:
           file: ./coverage/lcov.info
