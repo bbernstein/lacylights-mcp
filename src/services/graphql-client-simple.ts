@@ -566,6 +566,35 @@ export class LacyLightsGraphQLClient {
     return data.updateCue;
   }
 
+  async bulkUpdateCues(input: {
+    cueIds: string[];
+    fadeInTime?: number;
+    fadeOutTime?: number;
+    followTime?: number | null;
+    easingType?: string;
+  }): Promise<Cue[]> {
+    const mutation = `
+      mutation BulkUpdateCues($input: BulkCueUpdateInput!) {
+        bulkUpdateCues(input: $input) {
+          id
+          name
+          cueNumber
+          fadeInTime
+          fadeOutTime
+          followTime
+          notes
+          scene {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkUpdateCues;
+  }
+
   async deleteCue(id: string): Promise<boolean> {
     const mutation = `
       mutation DeleteCue($id: ID!) {

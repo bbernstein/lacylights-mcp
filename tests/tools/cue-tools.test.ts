@@ -107,6 +107,9 @@ describe('CueTools', () => {
       createCue: jest.fn(),
       updateCue: jest.fn(),
       deleteCue: jest.fn(),
+      bulkUpdateCues: jest.fn(),
+      playCue: jest.fn(),
+      fadeToBlack: jest.fn(),
     } as any;
 
     mockRAGService = {
@@ -921,6 +924,204 @@ describe('CueTools', () => {
       await expect(cueTools.reorderCues({} as any)).rejects.toThrow();
       
       await expect(cueTools.getCueListDetails({} as any)).rejects.toThrow();
+
+      await expect(cueTools.bulkUpdateCues({} as any)).rejects.toThrow();
+    });
+  });
+
+  describe('bulkUpdateCues', () => {
+    it('should update multiple cues successfully', async () => {
+      const mockUpdatedCues = [
+        {
+          id: 'cue-1',
+          name: 'Cue 1',
+          cueNumber: 1.0,
+          scene: { name: 'Scene 1' },
+          fadeInTime: 5,
+          fadeOutTime: 5,
+          followTime: null,
+          notes: 'Updated cue 1'
+        },
+        {
+          id: 'cue-2',
+          name: 'Cue 2',
+          cueNumber: 2.0,
+          scene: { name: 'Scene 2' },
+          fadeInTime: 5,
+          fadeOutTime: 5,
+          followTime: 3,
+          notes: 'Updated cue 2'
+        }
+      ];
+
+      mockGraphQLClient.bulkUpdateCues = jest.fn().mockResolvedValue(mockUpdatedCues);
+
+      const result = await cueTools.bulkUpdateCues({
+        cueIds: ['cue-1', 'cue-2'],
+        fadeInTime: 5,
+        fadeOutTime: 5
+      });
+
+      expect(mockGraphQLClient.bulkUpdateCues).toHaveBeenCalledWith({
+        cueIds: ['cue-1', 'cue-2'],
+        fadeInTime: 5,
+        fadeOutTime: 5
+      });
+      expect(result.success).toBe(true);
+      expect(result.updatedCues).toHaveLength(2);
+      expect(result.summary.totalUpdated).toBe(2);
+      expect(result.summary.averageFadeInTime).toBe(5);
+      expect(result.summary.averageFadeOutTime).toBe(5);
+      expect(result.summary.followCuesCount).toBe(1);
+    });
+
+    it('should update only specified fields', async () => {
+      const mockUpdatedCues = [
+        {
+          id: 'cue-1',
+          name: 'Cue 1',
+          cueNumber: 1.0,
+          scene: { name: 'Scene 1' },
+          fadeInTime: 3,
+          fadeOutTime: 2,
+          followTime: 5,
+          notes: 'Updated'
+        }
+      ];
+
+      mockGraphQLClient.bulkUpdateCues = jest.fn().mockResolvedValue(mockUpdatedCues);
+
+      const result = await cueTools.bulkUpdateCues({
+        cueIds: ['cue-1'],
+        followTime: 5
+      });
+
+      expect(mockGraphQLClient.bulkUpdateCues).toHaveBeenCalledWith({
+        cueIds: ['cue-1'],
+        followTime: 5
+      });
+      expect(result.success).toBe(true);
+      expect(result.summary.updatesApplied).toEqual(['followTime']);
+    });
+
+    it('should handle easing type update', async () => {
+      const mockUpdatedCues = [
+        {
+          id: 'cue-1',
+          name: 'Cue 1',
+          cueNumber: 1.0,
+          scene: { name: 'Scene 1' },
+          fadeInTime: 3,
+          fadeOutTime: 3,
+          followTime: null,
+          easingType: 'ease-in-out'
+        }
+      ];
+
+      mockGraphQLClient.bulkUpdateCues = jest.fn().mockResolvedValue(mockUpdatedCues);
+
+      const result = await cueTools.bulkUpdateCues({
+        cueIds: ['cue-1'],
+        easingType: 'ease-in-out'
+      });
+
+      expect(mockGraphQLClient.bulkUpdateCues).toHaveBeenCalledWith({
+        cueIds: ['cue-1'],
+        easingType: 'ease-in-out'
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should throw error when no cue IDs provided', async () => {
+      await expect(cueTools.bulkUpdateCues({
+        cueIds: [],
+        fadeInTime: 5
+      })).rejects.toThrow('No cue IDs provided for bulk update');
+    });
+
+    it('should throw error when no update fields provided', async () => {
+      await expect(cueTools.bulkUpdateCues({
+        cueIds: ['cue-1']
+      })).rejects.toThrow('No update fields provided');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      mockGraphQLClient.bulkUpdateCues = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(cueTools.bulkUpdateCues({
+        cueIds: ['cue-1'],
+        fadeInTime: 5
+      })).rejects.toThrow('Failed to bulk update cues: Error: GraphQL error');
+    });
+  });
+
+  describe('playback controls', () => {
+    it('should test basic playback functionality', async () => {
+      // Basic startCueList test
+      const mockCueList = {
+        id: 'cuelist-1',
+        name: 'Test Cue List',
+        cues: [
+          {
+            id: 'cue-1',
+            name: 'Cue 1',
+            cueNumber: 1.0,
+            scene: { id: 'scene-1', name: 'Scene 1' },
+            fadeInTime: 3,
+            fadeOutTime: 3,
+            followTime: null
+          }
+        ]
+      };
+
+      mockGraphQLClient.getCueList = jest.fn().mockResolvedValue(mockCueList);
+      mockGraphQLClient.playCue = jest.fn().mockResolvedValue(true);
+
+      const result = await cueTools.startCueList({
+        cueListId: 'cuelist-1'
+      });
+
+      expect(mockGraphQLClient.getCueList).toHaveBeenCalledWith('cuelist-1');
+      expect(mockGraphQLClient.playCue).toHaveBeenCalledWith('cue-1', 3);
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle cue list not found', async () => {
+      mockGraphQLClient.getCueList = jest.fn().mockResolvedValue(null);
+
+      await expect(cueTools.startCueList({
+        cueListId: 'non-existent'
+      })).rejects.toThrow('Cue list with ID non-existent not found');
+    });
+
+    it('should handle no cue list playing for nextCue', async () => {
+      const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
+      await expect(freshCueTools.nextCue({})).rejects.toThrow('No cue list is currently playing');
+    });
+
+    it('should handle no cue list playing for previousCue', async () => {
+      const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
+      await expect(freshCueTools.previousCue({})).rejects.toThrow('No cue list is currently playing');
+    });
+
+    it('should handle no cue list playing for goToCue', async () => {
+      const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
+      await expect(freshCueTools.goToCue({ cueNumber: 1 })).rejects.toThrow('No cue list is currently playing');
+    });
+
+    it('should handle no cue list playing for stopCueList', async () => {
+      const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
+      const result = await freshCueTools.stopCueList({});
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('No cue list is currently active');
+    });
+
+    it('should return not playing status for getCueListStatus', async () => {
+      const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
+      const result = await freshCueTools.getCueListStatus({});
+
+      expect(result.isPlaying).toBe(false);
+      expect(result.message).toBe('No cue list is currently playing');
     });
   });
 });

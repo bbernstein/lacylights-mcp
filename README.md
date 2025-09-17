@@ -1,23 +1,83 @@
 # LacyLights MCP Server
 
-An MCP (Model Context Protocol) server that provides AI-powered theatrical lighting design capabilities for the LacyLights system.
+An MCP (Model Context Protocol) server that provides AI-powered theatrical lighting design capabilities for the LacyLights system. This server enables AI assistants to create, manage, and control professional theatrical lighting designs through natural language interactions.
 
-## Features
+## What is LacyLights MCP?
+
+LacyLights MCP is an intelligent lighting control interface that bridges the gap between creative vision and technical execution. It allows lighting designers, directors, and technicians to:
+
+- **Design lighting scenes** using natural language descriptions
+- **Analyze theatrical scripts** to automatically generate lighting cues
+- **Manage DMX fixtures** from various manufacturers
+- **Create and run cue sequences** for theatrical performances
+- **Optimize lighting designs** for dramatic impact or energy efficiency
+
+The system uses AI to understand artistic intent and translate it into precise DMX values for real-world lighting fixtures.
+
+## Complete Function Reference
+
+### Project Management
+
+- **`list_projects`** - List all available lighting projects with optional fixture/scene counts
+- **`create_project`** - Create a new lighting project for a production
+- **`get_project_details`** - Get comprehensive details about a specific project
+- **`delete_project`** - Delete a project and all associated data (requires confirmation)
+- **`qlc_import_guidance`** - Get information about importing QLC+ (.qxw) files
 
 ### Fixture Management
-- **`get_fixture_inventory`** - Query available lighting fixtures and their capabilities
-- **`analyze_fixture_capabilities`** - Analyze specific fixtures for color mixing, positioning, effects, etc.
 
-### Scene Generation
-- **`generate_scene`** - Generate lighting scenes based on script context and design preferences
-- **`analyze_script`** - Extract lighting-relevant information from theatrical scripts
-- **`optimize_scene`** - Optimize existing scenes for energy efficiency, dramatic impact, etc.
+- **`get_fixture_inventory`** - Query available fixtures and their capabilities
+- **`analyze_fixture_capabilities`** - Deep analysis of fixture capabilities (color mixing, positioning, effects)
+- **`create_fixture_instance`** - Add a new fixture to a project with manufacturer/model details
+- **`get_channel_map`** - View DMX channel usage map for a project
+- **`suggest_channel_assignment`** - Get optimal channel assignments for multiple fixtures
+- **`update_fixture_instance`** - Modify existing fixture properties
+- **`delete_fixture_instance`** - Remove a fixture from a project (requires confirmation)
 
-### Cue Management
-- **`create_cue_sequence`** - Create sequences of lighting cues from existing scenes
-- **`generate_act_cues`** - Generate complete cue suggestions for theatrical acts
-- **`optimize_cue_timing`** - Optimize cue timing for smooth transitions or dramatic effect
-- **`analyze_cue_structure`** - Analyze and recommend improvements to cue lists
+### Scene Creation & Management
+
+- **`generate_scene`** - AI-powered scene generation based on descriptions and context
+- **`analyze_script`** - Extract lighting cues and suggestions from theatrical scripts
+- **`optimize_scene`** - Optimize scenes for various goals (energy, impact, simplicity)
+- **`update_scene`** - Update scene properties and fixture values
+- **`activate_scene`** - Activate a scene by name or ID
+- **`fade_to_black`** - Fade all lights to black with customizable timing
+- **`get_current_active_scene`** - Get information about the currently active scene
+
+### Advanced Scene Operations
+
+- **`add_fixtures_to_scene`** - Add fixtures to existing scenes
+- **`remove_fixtures_from_scene`** - Remove specific fixtures from scenes
+- **`get_scene_fixture_values`** - Read current fixture values in a scene
+- **`ensure_fixtures_in_scene`** - Ensure fixtures exist with specific values
+- **`update_scene_partial`** - Partial scene updates with fixture merging
+
+### Cue Sequence Management
+
+- **`create_cue_sequence`** - Build cue sequences from existing scenes
+- **`generate_act_cues`** - Generate complete cue lists for theatrical acts
+- **`optimize_cue_timing`** - Optimize cue timing for various strategies
+- **`analyze_cue_structure`** - Analyze cue lists with recommendations
+
+### Cue List Operations
+
+- **`update_cue_list`** - Update cue list metadata
+- **`add_cue_to_list`** - Add new cues to existing lists
+- **`remove_cue_from_list`** - Remove cues from lists
+- **`update_cue`** - Modify individual cue properties
+- **`bulk_update_cues`** - Update multiple cues simultaneously
+- **`reorder_cues`** - Reorder cues with new numbering
+- **`get_cue_list_details`** - Query cues with filtering and sorting
+- **`delete_cue_list`** - Delete entire cue lists (requires confirmation)
+
+### Cue Playback Control
+
+- **`start_cue_list`** - Begin playing a cue list from any point
+- **`next_cue`** - Advance to the next cue
+- **`previous_cue`** - Go back to the previous cue
+- **`go_to_cue`** - Jump to a specific cue by number or name
+- **`stop_cue_list`** - Stop the currently playing cue list
+- **`get_cue_list_status`** - Get playback status and navigation options
 
 ## Installation
 
@@ -37,9 +97,309 @@ cp .env.example .env
 npm run build
 ```
 
-## ChromaDB Setup (Optional)
+## Configuration
 
-The MCP server currently uses an in-memory pattern storage system for simplicity. If you want to use ChromaDB for persistent vector storage and more advanced RAG capabilities:
+### Required Environment Variables
+
+- **`OPENAI_API_KEY`** - OpenAI API key for AI-powered lighting generation
+- **`LACYLIGHTS_GRAPHQL_ENDPOINT`** - GraphQL endpoint for your lacylights-node backend (default: http://localhost:4000/graphql)
+
+### Optional Environment Variables
+
+- **`CHROMA_HOST`** - ChromaDB host for enhanced RAG functionality (default: localhost)
+- **`CHROMA_PORT`** - ChromaDB port (default: 8000)
+
+## Running the Server
+
+Make sure your `lacylights-node` backend is running first, then:
+
+```bash
+# Start in development mode (with auto-reload)
+npm run dev
+
+# Or build and run in production mode
+npm run build
+npm start
+```
+
+You should see:
+```
+RAG service initialized with in-memory patterns
+LacyLights MCP Server running on stdio
+```
+
+## Integration with Claude
+
+Add this server to your Claude configuration:
+
+```json
+{
+  "mcpServers": {
+    "lacylights": {
+      "command": "/usr/local/bin/node",
+      "args": ["/path/to/lacylights-mcp/run-mcp.js"],
+      "env": {
+        "OPENAI_API_KEY": "your_openai_api_key_here",
+        "LACYLIGHTS_GRAPHQL_ENDPOINT": "http://localhost:4000/graphql"
+      }
+    }
+  }
+}
+```
+
+**Important**:
+- Use the absolute path to `run-mcp.js` in your configuration
+- If the above doesn't work, find your Node.js path with: `which node`
+- The wrapper script ensures proper CommonJS module loading
+
+## Complete Example: Lighting Design for Macbeth
+
+Here's a comprehensive example showing how a lighting designer would use LacyLights MCP to create a complete lighting design for Shakespeare's Macbeth:
+
+### Step 1: Create the Project
+
+```
+Use create_project to create a new project called "Macbeth - Main Stage 2024"
+with description "Shakespeare's Macbeth, directed by Jane Smith, March 2024 production"
+```
+
+### Step 2: Set Up Fixtures
+
+```
+Use create_fixture_instance to add these fixtures to the project:
+- 12x Chauvet SlimPAR Pro RGBA fixtures for front wash (channels 1-48)
+- 8x Martin MAC Quantum Profile moving heads for specials (channels 100-163)
+- 6x ETC Source Four LED Series 2 for side lighting (channels 200-241)
+- 4x Chauvet Strike 4 strobes for storm effects (channels 300-315)
+- 2x Rosco Vapour Plus hazers for atmosphere (channels 400-403)
+```
+
+### Step 3: Analyze the Script
+
+```
+Use analyze_script with the full text of Act 1 to extract:
+- All lighting cues mentioned in stage directions
+- Scene transitions that need lighting changes
+- Mood and atmosphere requirements for each scene
+```
+
+### Step 4: Generate Key Scenes
+
+```
+Use generate_scene to create these essential scenes:
+
+1. "Opening - Thunder and Lightning"
+   - Script context: "Thunder and lightning. Enter three witches."
+   - Mood: ominous, supernatural
+   - Color palette: ["deep purple", "electric blue", "white strobe"]
+   - Intensity: dramatic
+
+2. "Duncan's Arrival at Inverness"
+   - Script context: "Hautboys and torches. Enter Duncan, Malcolm, Donalbain, Banquo"
+   - Mood: regal, warm
+   - Color palette: ["warm amber", "gold", "soft orange"]
+   - Intensity: moderate
+
+3. "Lady Macbeth Reads the Letter"
+   - Script context: "Enter Lady Macbeth, reading a letter"
+   - Mood: intimate, plotting
+   - Color palette: ["cool blue", "pale amber", "shadow"]
+   - Focus areas: ["center stage", "downstage center"]
+
+4. "The Dagger Soliloquy"
+   - Script context: "Is this a dagger which I see before me"
+   - Mood: hallucinatory, tense
+   - Color palette: ["blood red", "deep shadow", "cold steel blue"]
+   - Intensity: subtle
+   - Focus areas: ["center stage spot"]
+
+5. "Murder of Duncan"
+   - Script context: "Macbeth exits to kill Duncan, bell rings"
+   - Mood: dark, suspenseful
+   - Color palette: ["deep red", "black", "moonlight blue"]
+   - Intensity: dramatic
+
+6. "Banquo's Ghost Appears"
+   - Script context: "The Ghost of Banquo enters, and sits in Macbeth's place"
+   - Mood: supernatural, terrifying
+   - Color palette: ["ghostly green", "cold white", "shadow"]
+   - Effects: use moving heads for ghost tracking
+
+7. "Lady Macbeth's Sleepwalking"
+   - Script context: "Enter Lady Macbeth with a taper"
+   - Mood: haunted, guilty
+   - Color palette: ["candlelight amber", "moonlight", "deep shadow"]
+   - Focus areas: ["follow spot", "single candle effect"]
+
+8. "Final Battle"
+   - Script context: "Alarums. Enter Macbeth and Macduff fighting"
+   - Mood: violent, chaotic
+   - Color palette: ["fire red", "steel blue", "explosive white"]
+   - Intensity: dramatic
+   - Effects: strobe for sword clashes
+```
+
+### Step 5: Create Cue Sequences
+
+```
+Use create_cue_sequence to build the Act 1 cue list:
+- Name: "Act 1 - Complete"
+- Include all Act 1 scenes in order
+- Set default fade times: 3 seconds in, 3 seconds out
+- Add follow cues for quick transitions during soliloquies
+```
+
+### Step 6: Generate Act Cues with Script Analysis
+
+```
+Use generate_act_cues with the complete text of Act 2:
+- This will analyze the script and create a complete cue list
+- Automatically times transitions based on dramatic pacing
+- Suggests lighting changes for every entrance, exit, and mood shift
+```
+
+### Step 7: Optimize for Performance
+
+```
+Use optimize_cue_timing on the Act 1 cue list:
+- Strategy: "dramatic_timing"
+- This will adjust fade times for maximum dramatic impact
+- Smooth transitions for scene changes
+- Sharp cuts for supernatural appearances
+```
+
+### Step 8: Create Special Effect Sequences
+
+```
+Use create_cue_sequence for the storm effect:
+1. Lightning Strike 1 (strobes at full, 0.1s)
+2. Thunder Roll (deep blue wash, 2s fade)
+3. Lightning Strike 2 (strobes at 75%, 0.15s)
+4. Return to storm base (purple/blue, 3s fade)
+- Set follow times for automatic progression
+```
+
+### Step 9: Run the Show
+
+During performance, the stage manager can use:
+
+```
+start_cue_list "Act 1 - Complete"
+next_cue  # Advance through each cue
+go_to_cue 15.5  # Jump to specific cue for pickups
+fade_to_black 5  # Emergency blackout with 5-second fade
+```
+
+### Step 10: Make Live Adjustments
+
+```
+Use update_scene to adjust the "Banquo's Ghost" scene:
+- Increase moving head intensity for better visibility
+- Adjust color temperature based on costume reflectance
+- Fine-tune positioning for actor's blocking changes
+```
+
+## Advanced Usage Examples
+
+### Script-Driven Design Workflow
+
+```
+1. Analyze the entire script:
+   analyze_script with full play text
+
+2. Review extracted cues and scenes
+
+3. Generate all suggested scenes in batch:
+   generate_scene for each suggestion
+
+4. Create master cue list:
+   create_cue_sequence with all scenes
+
+5. Optimize for your venue:
+   optimize_scene for each scene with "technical_simplicity"
+```
+
+### Multi-Universe Setup
+
+```
+For large productions spanning multiple DMX universes:
+
+1. Plan channel allocation:
+   suggest_channel_assignment for all fixtures
+
+2. Create fixtures with specific universe assignments:
+   create_fixture_instance with universe: 1 for front lights
+   create_fixture_instance with universe: 2 for moving heads
+   create_fixture_instance with universe: 3 for effects
+
+3. View the complete channel map:
+   get_channel_map for the project
+```
+
+### Collaborative Design Process
+
+```
+Director requests:
+"I want the witches' scenes to feel otherworldly but not cartoonish"
+
+Use generate_scene:
+- Description: "Witches on the heath"
+- Mood: "otherworldly, mysterious"
+- Color palette: ["deep violet", "fog grey", "pale green"]
+- Intensity: "subtle"
+
+Then iterate with optimize_scene using "dramatic_impact" until satisfied
+```
+
+## AI-Powered Features
+
+### Intelligent Script Analysis
+- Extracts explicit lighting cues from stage directions
+- Identifies implicit lighting needs from dialogue and action
+- Suggests atmospheric lighting based on dramatic context
+- Recognizes standard theatrical conventions (sunrise, sunset, storms)
+
+### Context-Aware Scene Generation
+- Understands theatrical lighting principles
+- Applies color theory for emotional impact
+- Considers fixture capabilities and positions
+- Generates DMX values that respect real-world constraints
+
+### Adaptive Optimization
+- **Energy Efficiency**: Reduces power consumption while maintaining artistic intent
+- **Dramatic Impact**: Enhances contrast and focus for maximum effect
+- **Technical Simplicity**: Simplifies programming for easier operation
+- **Color Accuracy**: Optimizes for true color rendering
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Module import errors**
+   - Ensure Node.js version is 18+ as specified in package.json
+   - Use the `run-mcp.js` wrapper script, not `dist/index.js` directly
+
+2. **GraphQL connection errors**
+   - Verify your `lacylights-node` backend is running on port 4000
+   - Check the `LACYLIGHTS_GRAPHQL_ENDPOINT` environment variable
+
+3. **OpenAI API errors**
+   - Ensure your `OPENAI_API_KEY` is set in the `.env` file
+   - Verify the API key has access to GPT-4
+
+4. **MCP connection errors in Claude**
+   - Use the full absolute path in your Claude configuration
+   - Restart Claude after updating the MCP configuration
+   - Check Claude's logs for detailed error messages
+
+5. **"Unexpected token ?" error**
+   - Update your config to use the full path to Node.js 14+
+   - On macOS with Homebrew: `"command": "/opt/homebrew/bin/node"`
+   - On other systems, find your node path with: `which node`
+
+## ChromaDB Setup (Optional - For Enhanced RAG)
+
+The MCP server works out of the box with in-memory pattern storage. For persistent vector storage and more sophisticated pattern matching:
 
 ### Option 1: Docker (Recommended)
 ```bash
@@ -66,120 +426,20 @@ CHROMA_HOST=localhost
 CHROMA_PORT=8000
 ```
 
-**Note**: The current implementation works without ChromaDB using built-in lighting patterns. ChromaDB enhances the system with vector similarity search for more sophisticated pattern matching.
+## Integration with LacyLights Ecosystem
 
-## Configuration
+This MCP server is part of the complete LacyLights system:
 
-### Required Environment Variables
+- **lacylights-node** - Backend GraphQL API for fixture and scene management
+- **lacylights-fe** - Web frontend for manual control and visualization
+- **lacylights-mcp** - AI interface for intelligent automation
 
-- **`OPENAI_API_KEY`** - OpenAI API key for AI-powered lighting generation
-- **`LACYLIGHTS_GRAPHQL_ENDPOINT`** - GraphQL endpoint for your lacylights-node backend (default: http://localhost:4000/graphql)
-
-### Running the Server
-
-Make sure your `lacylights-node` backend is running first, then:
-
-```bash
-# Start in development mode (with auto-reload)
-npm run dev
-
-# Or build and run in production mode
-npm run build
-npm start
-```
-
-You should see:
-```
-RAG service initialized with in-memory patterns
-LacyLights MCP Server running on stdio
-```
-
-### Optional Environment Variables
-
-- **`CHROMA_HOST`** - ChromaDB host for RAG functionality (default: localhost)
-- **`CHROMA_PORT`** - ChromaDB port (default: 8000)
-
-## Usage
-
-### Running the Server
-
-```bash
-# Development mode
-npm run dev
-
-# Production mode
-npm start
-```
-
-### Integration with Claude
-
-Add this server to your Claude configuration:
-
-```json
-{
-  "mcpServers": {
-    "lacylights": {
-      "command": "/usr/local/bin/node",
-      "args": ["/path/to/lacylights-mcp/run-mcp.js"],
-      "env": {
-        "OPENAI_API_KEY": "your_openai_api_key_here",
-        "LACYLIGHTS_GRAPHQL_ENDPOINT": "http://localhost:4000/graphql"
-      }
-    }
-  }
-}
-```
-
-**Important**: If the above doesn't work, you may need to specify the exact path to your Node.js 14+ installation. You can find it with:
-```bash
-which node
-```
-
-**Note**: Use the absolute path to `run-mcp.js` in your configuration. This wrapper ensures proper CommonJS module loading.
-
-## Example Usage
-
-### Generate a Scene
-
-```
-Use the generate_scene tool to create lighting for:
-- Scene: "Lady Macbeth's sleepwalking scene"
-- Script Context: "A dark castle at night, Lady Macbeth enters carrying a candle, tormented by guilt"
-- Mood: "mysterious"
-- Color Palette: ["deep blue", "pale white", "cold"]
-```
-
-### Analyze a Script
-
-```
-Use the analyze_script tool with the full text of Act 1 of Macbeth to:
-- Extract all lighting cues
-- Suggest scenes for each moment
-- Identify key lighting moments
-```
-
-### Create Cue Sequence
-
-```
-Use the create_cue_sequence tool to create a cue list for Act 1 using the scenes generated from script analysis.
-```
-
-## AI-Powered Features
-
-### Script Analysis with RAG
-- Analyzes theatrical scripts to extract lighting-relevant information
-- Uses vector embeddings to match script contexts with lighting patterns
-- Provides intelligent suggestions based on dramatic context
-
-### Intelligent Scene Generation
-- Creates detailed DMX values for fixtures based on artistic intent
-- Considers fixture capabilities and positioning
-- Applies color theory and lighting design principles
-
-### Cue Timing Optimization
-- Analyzes cue sequences for optimal timing
-- Considers dramatic pacing and technical constraints
-- Provides multiple optimization strategies
+The MCP server enhances the existing system with:
+- Natural language control
+- Intelligent scene generation
+- Script analysis capabilities
+- Automated cue creation
+- Performance optimization
 
 ## Development
 
@@ -188,15 +448,16 @@ Use the create_cue_sequence tool to create a cue list for Act 1 using the scenes
 ```
 src/
 ├── tools/           # MCP tool implementations
-│   ├── fixture-tools.ts
-│   ├── scene-tools.ts
-│   └── cue-tools.ts
+│   ├── fixture-tools.ts    # Fixture management operations
+│   ├── scene-tools.ts      # Scene creation and control
+│   ├── cue-tools.ts        # Cue list management
+│   └── project-tools.ts    # Project operations
 ├── services/        # Core services
-│   ├── graphql-client.ts
-│   ├── rag-service.ts
-│   └── ai-lighting.ts
+│   ├── graphql-client.ts   # GraphQL API client
+│   ├── rag-service.ts      # RAG pattern matching
+│   └── ai-lighting.ts      # AI scene generation
 ├── types/          # TypeScript type definitions
-│   └── lighting.ts
+│   └── lighting.ts         # Core lighting types
 └── index.ts        # MCP server entry point
 ```
 
@@ -212,49 +473,6 @@ src/
 ```bash
 npm test
 ```
-
-## Integration with LacyLights
-
-This MCP server is designed to work with the existing LacyLights system:
-
-- **lacylights-node** - Provides GraphQL API for fixture and scene management
-- **lacylights-fe** - Frontend for manual lighting control and visualization
-
-The MCP server acts as an AI layer that enhances the existing system with intelligent automation and design assistance.
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Module import errors**
-   - The server uses ES modules with cross-fetch for GraphQL requests
-   - Ensure Node.js version is 18+ as specified in package.json
-
-2. **GraphQL connection errors**
-   - Verify your `lacylights-node` backend is running on port 4000
-   - Check the `LACYLIGHTS_GRAPHQL_ENDPOINT` environment variable
-
-3. **OpenAI API errors**
-   - Ensure your `OPENAI_API_KEY` is set in the `.env` file
-   - Verify the API key has access to GPT-4
-
-4. **MCP connection errors in Claude**
-   - Make sure to use the `run-mcp.js` wrapper script, not `dist/index.js` directly
-   - Use the full absolute path in your Claude configuration
-   - Restart Claude after updating the MCP configuration
-
-5. **"Unexpected token ?" error**
-   - This means Claude is using an old Node.js version (< 14)
-   - Update your config to use the full path to your Node.js installation
-   - On macOS with Homebrew: `"command": "/opt/homebrew/bin/node"`
-   - On other systems, find your node path with: `which node`
-
-### Dependencies
-
-The simplified implementation uses:
-- Direct fetch requests instead of Apollo Client for better ESM compatibility
-- In-memory pattern storage instead of ChromaDB (can be upgraded later)
-- Cross-fetch polyfill for Node.js fetch support
 
 ## License
 
