@@ -63,6 +63,14 @@ const StopCueListSchema = z.object({});
 
 const GetCueListStatusSchema = z.object({});
 
+const BulkUpdateCuesSchema = z.object({
+  cueIds: z.array(z.string()),
+  fadeInTime: z.number().optional(),
+  fadeOutTime: z.number().optional(),
+  followTime: z.number().nullable().optional(),
+  easingType: z.string().optional()
+});
+
 // Playback state interface
 interface CueListPlaybackState {
   cueListId: string;
@@ -829,6 +837,65 @@ export class CueTools {
       };
     } catch (error) {
       throw new Error(`Failed to update cue: ${error}`);
+    }
+  }
+
+  async bulkUpdateCues(args: z.infer<typeof BulkUpdateCuesSchema>) {
+    const { cueIds, fadeInTime, fadeOutTime, followTime, easingType } = BulkUpdateCuesSchema.parse(args);
+    
+    try {
+      if (cueIds.length === 0) {
+        throw new Error('No cue IDs provided for bulk update');
+      }
+
+      // Build update data - only include fields that are provided
+      const updateData: any = {};
+      if (fadeInTime !== undefined) updateData.fadeInTime = fadeInTime;
+      if (fadeOutTime !== undefined) updateData.fadeOutTime = fadeOutTime;
+      if (followTime !== undefined) updateData.followTime = followTime;
+      if (easingType !== undefined) updateData.easingType = easingType;
+
+      if (Object.keys(updateData).length === 0) {
+        throw new Error('No update fields provided. At least one of fadeInTime, fadeOutTime, followTime, or easingType must be specified.');
+      }
+
+      // Use the GraphQL client's bulk update method
+      const updatedCues = await this.graphqlClient.bulkUpdateCues({
+        cueIds,
+        ...updateData
+      });
+
+      // Format the response
+      const formattedCues = updatedCues.map((cue: any) => ({
+        cueId: cue.id,
+        name: cue.name,
+        cueNumber: cue.cueNumber,
+        sceneName: cue.scene.name,
+        fadeInTime: cue.fadeInTime,
+        fadeOutTime: cue.fadeOutTime,
+        followTime: cue.followTime,
+        notes: cue.notes
+      }));
+
+      // Generate summary statistics
+      const summary = {
+        totalUpdated: updatedCues.length,
+        updatesApplied: Object.keys(updateData),
+        averageFadeInTime: fadeInTime !== undefined ? fadeInTime : 
+          formattedCues.reduce((sum, cue) => sum + cue.fadeInTime, 0) / formattedCues.length,
+        averageFadeOutTime: fadeOutTime !== undefined ? fadeOutTime :
+          formattedCues.reduce((sum, cue) => sum + cue.fadeOutTime, 0) / formattedCues.length,
+        followCuesCount: formattedCues.filter(cue => cue.followTime !== null && cue.followTime !== undefined).length
+      };
+
+      return {
+        success: true,
+        updatedCues: formattedCues,
+        summary,
+        message: `Successfully updated ${updatedCues.length} cues with: ${Object.keys(updateData).join(', ')}`
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk update cues: ${error}`);
     }
   }
 

@@ -1063,6 +1063,39 @@ class LacyLightsMCPServer {
             },
           },
           {
+            name: "bulk_update_cues",
+            description: "Update fade times and follow times for multiple cues in a single operation",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueIds: {
+                  type: "array",
+                  items: {
+                    type: "string"
+                  },
+                  description: "Array of cue IDs to update"
+                },
+                fadeInTime: {
+                  type: "number",
+                  description: "New fade in time in seconds (applies to all selected cues)"
+                },
+                fadeOutTime: {
+                  type: "number",
+                  description: "New fade out time in seconds (applies to all selected cues)"
+                },
+                followTime: {
+                  type: "number",
+                  description: "New follow time in seconds (applies to all selected cues, null to remove auto-follow)"
+                },
+                easingType: {
+                  type: "string",
+                  description: "Easing type for transitions"
+                }
+              },
+              required: ["cueIds"]
+            }
+          },
+          {
             name: "reorder_cues",
             description: "Reorder multiple cues by assigning new cue numbers",
             inputSchema: {
@@ -1733,6 +1766,20 @@ class LacyLightsMCPServer {
                   type: "text",
                   text: JSON.stringify(
                     await this.cueTools.updateCue(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_update_cues":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.bulkUpdateCues(args as any),
                     null,
                     2,
                   ),
