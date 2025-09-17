@@ -71,6 +71,28 @@ const BulkUpdateCuesSchema = z.object({
   easingType: z.string().optional()
 });
 
+// Type for bulk update data
+interface BulkUpdateData {
+  fadeInTime?: number;
+  fadeOutTime?: number;
+  followTime?: number | null;
+  easingType?: string;
+}
+
+// Type for cue response from GraphQL
+interface CueResponse {
+  id: string;
+  name: string;
+  cueNumber: number;
+  scene: {
+    name: string;
+  };
+  fadeInTime: number;
+  fadeOutTime: number;
+  followTime?: number | null;
+  notes?: string;
+}
+
 // Playback state interface
 interface CueListPlaybackState {
   cueListId: string;
@@ -842,14 +864,14 @@ export class CueTools {
 
   async bulkUpdateCues(args: z.infer<typeof BulkUpdateCuesSchema>) {
     const { cueIds, fadeInTime, fadeOutTime, followTime, easingType } = BulkUpdateCuesSchema.parse(args);
-    
+
     try {
       if (cueIds.length === 0) {
         throw new Error('No cue IDs provided for bulk update');
       }
 
       // Build update data - only include fields that are provided
-      const updateData: any = {};
+      const updateData: BulkUpdateData = {};
       if (fadeInTime !== undefined) updateData.fadeInTime = fadeInTime;
       if (fadeOutTime !== undefined) updateData.fadeOutTime = fadeOutTime;
       if (followTime !== undefined) updateData.followTime = followTime;
@@ -866,7 +888,7 @@ export class CueTools {
       });
 
       // Format the response
-      const formattedCues = updatedCues.map((cue: any) => ({
+      const formattedCues = updatedCues.map((cue: CueResponse) => ({
         cueId: cue.id,
         name: cue.name,
         cueNumber: cue.cueNumber,
