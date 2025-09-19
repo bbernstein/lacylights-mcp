@@ -368,5 +368,22 @@ describe('AILightingService', () => {
       expect(result.primaryFixtures).toEqual([]);
       expect(result.reasoning).toContain('Unable to parse AI response');
     });
+
+    it('should handle malformed JSON extraction error', async () => {
+      const mockAIResponse = {
+        choices: [{
+          message: {
+            content: 'Here is my analysis: {"primaryFixtures": ["fixture-1", malformed json}'
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
+
+      const result = await aiService.suggestFixtureUsage('Test', [mockFixture]);
+
+      expect(result.primaryFixtures).toEqual([]);
+      expect(result.reasoning).toContain('Unable to parse AI response');
+    });
   });
 });
