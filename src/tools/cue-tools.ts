@@ -100,6 +100,10 @@ export class CueTools {
   // The actual playback state is managed by the backend
   private activeCueLists: Set<string> = new Set();
 
+  // Cache for scene-to-cue-list mapping to avoid expensive nested loops
+  private sceneToCueListCache: Map<string, { cueListId: string; cueId: string; expiresAt: number }> = new Map();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
   constructor(
     private graphqlClient: LacyLightsGraphQLClient,
     private ragService: RAGService,
@@ -1257,6 +1261,47 @@ export class CueTools {
     return 'Unknown Scene';
   }
 
+  // Helper method to find cue list containing a specific scene with caching
+  private async findCueListForScene(sceneId: string): Promise<{ cueListId: string; cueId: string } | null> {
+    // Check cache first
+    const cached = this.sceneToCueListCache.get(sceneId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return { cueListId: cached.cueListId, cueId: cached.cueId };
+    }
+
+    // Cache miss or expired - search through projects
+    try {
+      const projects = await this.graphqlClient.getProjects();
+      for (const project of projects) {
+        for (const cueList of project.cueLists) {
+          try {
+            const fullCueList = await this.graphqlClient.getCueList(cueList.id);
+            if (!fullCueList) continue;
+
+            const matchingCue = fullCueList.cues.find(cue => cue.scene.id === sceneId);
+            if (matchingCue) {
+              // Cache the result
+              this.sceneToCueListCache.set(sceneId, {
+                cueListId: cueList.id,
+                cueId: matchingCue.id,
+                expiresAt: Date.now() + this.CACHE_TTL_MS
+              });
+              return { cueListId: cueList.id, cueId: matchingCue.id };
+            }
+          } catch (error) {
+            // Skip this cue list if we can't access it
+            continue;
+          }
+        }
+      }
+    } catch (error) {
+      // If we can't search, return null
+      return null;
+    }
+
+    return null;
+  }
+
   async nextCue(args: z.infer<typeof NextCueSchema>) {
     const { fadeInTime } = NextCueSchema.parse(args);
 
@@ -1501,20 +1546,14 @@ export class CueTools {
         };
       }
 
-      // Search all projects for cue lists that contain this scene
-      const projects = await this.graphqlClient.getProjects();
-      for (const project of projects) {
-        for (const cueList of project.cueLists) {
-          // Get cue list details to find if current scene matches any cue
-          try {
-            const fullCueList = await this.graphqlClient.getCueList(cueList.id);
-            if (!fullCueList) continue;
-
-            const matchingCue = fullCueList.cues.find(cue => cue.scene.id === currentScene.id);
+      // Use cached search to find cue list containing this scene
+      const cueListMatch = await this.findCueListForScene(currentScene.id);
+      if (cueListMatch) {
+        try {
+          const fullCueList = await this.graphqlClient.getCueList(cueListMatch.cueListId);
+          if (fullCueList) {
+            const matchingCue = fullCueList.cues.find(cue => cue.id === cueListMatch.cueId);
             if (matchingCue) {
-              // Found a matching cue! Track this cue list and return status
-              this.activeCueLists.add(cueList.id);
-
               const sortedCues = fullCueList.cues.sort((a, b) => a.cueNumber - b.cueNumber);
               const currentIndex = sortedCues.findIndex(cue => cue.id === matchingCue.id);
               const isFirstCue = currentIndex === 0;
@@ -1523,8 +1562,8 @@ export class CueTools {
               return {
                 isPlaying: false, // Scene is active but not formal cue list playback
                 cueList: {
-                  id: cueList.id,
-                  name: cueList.name,
+                  id: cueListMatch.cueListId,
+                  name: fullCueList.name,
                   totalCues: sortedCues.length
                 },
                 currentCue: {
@@ -1548,14 +1587,13 @@ export class CueTools {
                     name: sortedCues[currentIndex + 1].name
                   } : null
                 },
-                message: `Scene "${currentScene.name}" matches cue ${matchingCue.cueNumber} in "${cueList.name}". Use start_cue_list to enable formal playback.`,
+                message: `Scene "${currentScene.name}" matches cue ${matchingCue.cueNumber} in "${fullCueList.name}". Use start_cue_list to enable formal playback.`,
                 startedAt: new Date().toISOString()
               };
             }
-          } catch (error) {
-            // Skip this cue list if we can't access it
-            continue;
           }
+        } catch (error) {
+          // If we can't get the cue list details, fall through to the not found case
         }
       }
 
