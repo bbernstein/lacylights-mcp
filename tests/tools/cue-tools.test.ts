@@ -1133,7 +1133,7 @@ describe('CueTools', () => {
       const result = await freshCueTools.getCueListStatus({});
 
       expect(result.isPlaying).toBe(false);
-      expect(result.message).toBe('No cue list is currently playing and no active scene found');
+      expect(result.message).toBe('No cue list is currently playing and no active scene was found');
     });
   });
 });

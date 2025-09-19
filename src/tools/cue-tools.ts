@@ -1497,7 +1497,7 @@ export class CueTools {
       if (!currentScene) {
         return {
           isPlaying: false,
-          message: 'No cue list is currently playing and no active scene found'
+          message: 'No cue list is currently playing and no active scene was found'
         };
       }
 
@@ -1561,7 +1561,7 @@ export class CueTools {
 
       return {
         isPlaying: false,
-        message: `Active scene "${currentScene.name}" found but does not match any cue in available cue lists`
+        message: `Active scene "${currentScene.name}" was found but does not match any cue in available cue lists`
       };
     } catch (error) {
       throw new Error(`Failed to get cue list status: ${error}`);
