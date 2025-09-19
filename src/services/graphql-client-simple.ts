@@ -887,6 +887,86 @@ export class LacyLightsGraphQLClient {
     return data.playCue;
   }
 
+  async getCueListPlaybackStatus(cueListId: string): Promise<any> {
+    const query = `
+      query GetCueListPlaybackStatus($cueListId: ID!) {
+        cueListPlaybackStatus(cueListId: $cueListId) {
+          cueListId
+          currentCueIndex
+          isPlaying
+          currentCue {
+            id
+            name
+            cueNumber
+            fadeInTime
+            fadeOutTime
+            followTime
+          }
+          fadeProgress
+          lastUpdated
+        }
+      }
+    `;
+
+    const data = await this.query(query, { cueListId });
+    return data.cueListPlaybackStatus;
+  }
+
+  async startCueList(cueListId: string, startFromCue?: number): Promise<boolean> {
+    const mutation = `
+      mutation StartCueList($cueListId: ID!, $startFromCue: Int) {
+        startCueList(cueListId: $cueListId, startFromCue: $startFromCue)
+      }
+    `;
+
+    const data = await this.query(mutation, { cueListId, startFromCue });
+    return data.startCueList;
+  }
+
+  async nextCue(cueListId: string, fadeInTime?: number): Promise<boolean> {
+    const mutation = `
+      mutation NextCue($cueListId: ID!, $fadeInTime: Float) {
+        nextCue(cueListId: $cueListId, fadeInTime: $fadeInTime)
+      }
+    `;
+
+    const data = await this.query(mutation, { cueListId, fadeInTime });
+    return data.nextCue;
+  }
+
+  async previousCue(cueListId: string, fadeInTime?: number): Promise<boolean> {
+    const mutation = `
+      mutation PreviousCue($cueListId: ID!, $fadeInTime: Float) {
+        previousCue(cueListId: $cueListId, fadeInTime: $fadeInTime)
+      }
+    `;
+
+    const data = await this.query(mutation, { cueListId, fadeInTime });
+    return data.previousCue;
+  }
+
+  async goToCue(cueListId: string, cueIndex: number, fadeInTime?: number): Promise<boolean> {
+    const mutation = `
+      mutation GoToCue($cueListId: ID!, $cueIndex: Int!, $fadeInTime: Float) {
+        goToCue(cueListId: $cueListId, cueIndex: $cueIndex, fadeInTime: $fadeInTime)
+      }
+    `;
+
+    const data = await this.query(mutation, { cueListId, cueIndex, fadeInTime });
+    return data.goToCue;
+  }
+
+  async stopCueList(cueListId: string): Promise<boolean> {
+    const mutation = `
+      mutation StopCueList($cueListId: ID!) {
+        stopCueList(cueListId: $cueListId)
+      }
+    `;
+
+    const data = await this.query(mutation, { cueListId });
+    return data.stopCueList;
+  }
+
   // importProjectFromQLC method removed - import functionality moved to web UI due to file size constraints
   // async importProjectFromQLC(xmlContent: string, originalFileName: string): Promise<any> {
     /*const mutation = `

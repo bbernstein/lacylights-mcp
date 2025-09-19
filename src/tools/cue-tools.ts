@@ -93,34 +93,12 @@ interface CueResponse {
   notes?: string;
 }
 
-// Playback state interface
-interface CueListPlaybackState {
-  cueListId: string;
-  cueListName: string;
-  cues: Array<{
-    id: string;
-    name: string;
-    cueNumber: number;
-    scene: {
-      id: string;
-      name: string;
-    };
-    fadeInTime: number;
-    fadeOutTime: number;
-    followTime?: number;
-  }>;
-  currentCueIndex: number;
-  isPlaying: boolean;
-  startedAt: Date;
-}
+// Removed CueListPlaybackState interface - now using backend's centralized state
 
 export class CueTools {
-  // KNOWN LIMITATION: This instance-level playback state could cause issues in concurrent 
-  // environments where multiple cue list operations might interfere with each other.
-  // TODO: Future improvement should use a static map with cueListId as key:
-  // private static playbackStates: Map<string, CueListPlaybackState> = new Map();
-  // This would allow multiple concurrent cue list playback sessions.
-  private playbackState: CueListPlaybackState | null = null;
+  // Track active cue lists for MCP session
+  // The actual playback state is managed by the backend
+  private activeCueLists: Set<string> = new Set();
 
   constructor(
     private graphqlClient: LacyLightsGraphQLClient,
@@ -1242,27 +1220,13 @@ export class CueTools {
         }
       }
 
-      // Set up playback state
-      this.playbackState = {
-        cueListId: cueList.id,
-        cueListName: cueList.name,
-        cues: sortedCues.map(cue => ({
-          id: cue.id,
-          name: cue.name,
-          cueNumber: cue.cueNumber,
-          scene: cue.scene,
-          fadeInTime: cue.fadeInTime,
-          fadeOutTime: cue.fadeOutTime,
-          followTime: cue.followTime || undefined
-        })),
-        currentCueIndex: startIndex,
-        isPlaying: true,
-        startedAt: new Date()
-      };
+      // Use backend mutation to start the cue list
+      await this.graphqlClient.startCueList(resolvedCueListId, startIndex);
 
-      // Play the first cue
-      const firstCue = this.playbackState.cues[startIndex];
-      await this.graphqlClient.playCue(firstCue.id, firstCue.fadeInTime);
+      // Track this cue list as active
+      this.activeCueLists.add(resolvedCueListId);
+
+      const firstCue = sortedCues[startIndex];
 
       return {
         success: true,
@@ -1287,46 +1251,39 @@ export class CueTools {
   async nextCue(args: z.infer<typeof NextCueSchema>) {
     const { fadeInTime } = NextCueSchema.parse(args);
 
-    if (!this.playbackState || !this.playbackState.isPlaying) {
+    // Find the first active cue list
+    if (this.activeCueLists.size === 0) {
       throw new Error('No cue list is currently playing. Use start_cue_list first.');
     }
 
-    const nextIndex = this.playbackState.currentCueIndex + 1;
-    if (nextIndex >= this.playbackState.cues.length) {
-      return {
-        success: false,
-        message: 'Already at the last cue in the list',
-        currentCue: {
-          index: this.playbackState.currentCueIndex + 1,
-          number: this.playbackState.cues[this.playbackState.currentCueIndex].cueNumber,
-          name: this.playbackState.cues[this.playbackState.currentCueIndex].name,
-          scene: this.playbackState.cues[this.playbackState.currentCueIndex].scene.name
-        }
-      };
-    }
+    const cueListId = Array.from(this.activeCueLists)[0];
 
     try {
-      this.playbackState.currentCueIndex = nextIndex;
-      const nextCue = this.playbackState.cues[nextIndex];
-      
-      // Use provided fade time or cue's default fade time
-      const actualFadeTime = fadeInTime !== undefined ? fadeInTime : nextCue.fadeInTime;
-      await this.graphqlClient.playCue(nextCue.id, actualFadeTime);
+      // Use backend mutation to advance to next cue
+      await this.graphqlClient.nextCue(cueListId, fadeInTime);
+
+      // Get updated playback status from backend
+      const status = await this.graphqlClient.getCueListPlaybackStatus(cueListId);
+
+      if (!status || status.currentCueIndex === null) {
+        return {
+          success: false,
+          message: 'Could not advance to next cue'
+        };
+      }
 
       return {
         success: true,
         currentCue: {
-          index: nextIndex + 1, // 1-based for user display
-          number: nextCue.cueNumber,
-          name: nextCue.name,
-          scene: nextCue.scene.name
+          index: status.currentCueIndex + 1, // 1-based for user display
+          number: status.currentCue?.cueNumber || 0,
+          name: status.currentCue?.name || '',
+          scene: 'Scene' // We don't have scene name in status, could enhance if needed
         },
-        fadeTime: actualFadeTime,
-        message: `Advanced to cue ${nextCue.cueNumber} - "${nextCue.name}"`
+        fadeTime: fadeInTime || status.currentCue?.fadeInTime,
+        message: `Advanced to cue ${status.currentCue?.cueNumber} - "${status.currentCue?.name}"`
       };
     } catch (error) {
-      // Revert the index change if the cue failed to play
-      this.playbackState.currentCueIndex = nextIndex - 1;
       throw new Error(`Failed to advance to next cue: ${error}`);
     }
   }
@@ -1334,46 +1291,39 @@ export class CueTools {
   async previousCue(args: z.infer<typeof PreviousCueSchema>) {
     const { fadeInTime } = PreviousCueSchema.parse(args);
 
-    if (!this.playbackState || !this.playbackState.isPlaying) {
+    // Find the first active cue list
+    if (this.activeCueLists.size === 0) {
       throw new Error('No cue list is currently playing. Use start_cue_list first.');
     }
 
-    const prevIndex = this.playbackState.currentCueIndex - 1;
-    if (prevIndex < 0) {
-      return {
-        success: false,
-        message: 'Already at the first cue in the list',
-        currentCue: {
-          index: this.playbackState.currentCueIndex + 1,
-          number: this.playbackState.cues[this.playbackState.currentCueIndex].cueNumber,
-          name: this.playbackState.cues[this.playbackState.currentCueIndex].name,
-          scene: this.playbackState.cues[this.playbackState.currentCueIndex].scene.name
-        }
-      };
-    }
+    const cueListId = Array.from(this.activeCueLists)[0];
 
     try {
-      this.playbackState.currentCueIndex = prevIndex;
-      const prevCue = this.playbackState.cues[prevIndex];
-      
-      // Use provided fade time or cue's default fade time
-      const actualFadeTime = fadeInTime !== undefined ? fadeInTime : prevCue.fadeInTime;
-      await this.graphqlClient.playCue(prevCue.id, actualFadeTime);
+      // Use backend mutation to go to previous cue
+      await this.graphqlClient.previousCue(cueListId, fadeInTime);
+
+      // Get updated playback status from backend
+      const status = await this.graphqlClient.getCueListPlaybackStatus(cueListId);
+
+      if (!status || status.currentCueIndex === null) {
+        return {
+          success: false,
+          message: 'Could not go to previous cue'
+        };
+      }
 
       return {
         success: true,
         currentCue: {
-          index: prevIndex + 1, // 1-based for user display
-          number: prevCue.cueNumber,
-          name: prevCue.name,
-          scene: prevCue.scene.name
+          index: status.currentCueIndex + 1, // 1-based for user display
+          number: status.currentCue?.cueNumber || 0,
+          name: status.currentCue?.name || '',
+          scene: 'Scene' // We don't have scene name in status, could enhance if needed
         },
-        fadeTime: actualFadeTime,
-        message: `Went back to cue ${prevCue.cueNumber} - "${prevCue.name}"`
+        fadeTime: fadeInTime || status.currentCue?.fadeInTime,
+        message: `Went back to cue ${status.currentCue?.cueNumber} - "${status.currentCue?.name}"`
       };
     } catch (error) {
-      // Revert the index change if the cue failed to play
-      this.playbackState.currentCueIndex = prevIndex + 1;
       throw new Error(`Failed to go back to previous cue: ${error}`);
     }
   }
@@ -1381,7 +1331,8 @@ export class CueTools {
   async goToCue(args: z.infer<typeof GoToCueSchema>) {
     const { cueNumber, cueName, fadeInTime } = GoToCueSchema.parse(args);
 
-    if (!this.playbackState || !this.playbackState.isPlaying) {
+    // Find the first active cue list
+    if (this.activeCueLists.size === 0) {
       throw new Error('No cue list is currently playing. Use start_cue_list first.');
     }
 
@@ -1389,14 +1340,22 @@ export class CueTools {
       throw new Error('Either cueNumber or cueName must be provided');
     }
 
-    let targetIndex = -1;
-    const oldIndex = this.playbackState.currentCueIndex;
+    const cueListId = Array.from(this.activeCueLists)[0];
 
     try {
+      // Get the cue list to find the target cue index
+      const cueList = await this.graphqlClient.getCueList(cueListId);
+      if (!cueList) {
+        throw new Error('Active cue list not found');
+      }
+
+      const sortedCues = cueList.cues.sort((a, b) => a.cueNumber - b.cueNumber);
+      let targetIndex = -1;
+
       if (cueNumber !== undefined) {
-        targetIndex = this.playbackState.cues.findIndex(cue => cue.cueNumber === cueNumber);
+        targetIndex = sortedCues.findIndex(cue => cue.cueNumber === cueNumber);
       } else if (cueName) {
-        targetIndex = this.playbackState.cues.findIndex(cue => 
+        targetIndex = sortedCues.findIndex(cue =>
           cue.name.toLowerCase() === cueName.toLowerCase() ||
           cue.name.toLowerCase().includes(cueName.toLowerCase())
         );
@@ -1406,107 +1365,131 @@ export class CueTools {
         const searchTerm = cueNumber !== undefined ? `number ${cueNumber}` : `name "${cueName}"`;
         throw new Error(`Cue with ${searchTerm} not found in current cue list`);
       }
-      this.playbackState.currentCueIndex = targetIndex;
-      const targetCue = this.playbackState.cues[targetIndex];
-      
-      // Use provided fade time or cue's default fade time
-      const actualFadeTime = fadeInTime !== undefined ? fadeInTime : targetCue.fadeInTime;
-      await this.graphqlClient.playCue(targetCue.id, actualFadeTime);
+
+      // Use backend mutation to go to specific cue
+      await this.graphqlClient.goToCue(cueListId, targetIndex, fadeInTime);
+
+      // Get updated status
+      const status = await this.graphqlClient.getCueListPlaybackStatus(cueListId);
 
       return {
         success: true,
-        previousCue: {
-          index: oldIndex + 1,
-          number: this.playbackState.cues[oldIndex].cueNumber,
-          name: this.playbackState.cues[oldIndex].name
-        },
         currentCue: {
           index: targetIndex + 1, // 1-based for user display
-          number: targetCue.cueNumber,
-          name: targetCue.name,
-          scene: targetCue.scene.name
+          number: status?.currentCue?.cueNumber || sortedCues[targetIndex].cueNumber,
+          name: status?.currentCue?.name || sortedCues[targetIndex].name,
+          scene: 'Scene'
         },
-        fadeTime: actualFadeTime,
-        message: `Jumped to cue ${targetCue.cueNumber} - "${targetCue.name}"`
+        fadeTime: fadeInTime || status?.currentCue?.fadeInTime,
+        message: `Jumped to cue ${status?.currentCue?.cueNumber} - "${status?.currentCue?.name}"`
       };
     } catch (error) {
-      // Revert the index change if the cue failed to play
-      this.playbackState.currentCueIndex = oldIndex;
       throw new Error(`Failed to go to cue: ${error}`);
     }
   }
 
   async stopCueList(_args: z.infer<typeof StopCueListSchema>) {
-    if (!this.playbackState) {
+    if (this.activeCueLists.size === 0) {
       return {
         success: true,
         message: 'No cue list is currently active'
       };
     }
 
-    const stoppedCueList = {
-      name: this.playbackState.cueListName,
-      totalCues: this.playbackState.cues.length,
-      lastCue: this.playbackState.cues[this.playbackState.currentCueIndex]
-    };
+    const cueListId = Array.from(this.activeCueLists)[0];
 
-    this.playbackState = null;
+    try {
+      // Get current status before stopping
+      const status = await this.graphqlClient.getCueListPlaybackStatus(cueListId);
 
-    return {
-      success: true,
-      stoppedCueList: {
-        name: stoppedCueList.name,
-        totalCues: stoppedCueList.totalCues,
-        lastPlayedCue: {
-          number: stoppedCueList.lastCue.cueNumber,
-          name: stoppedCueList.lastCue.name
-        }
-      },
-      message: `Stopped cue list playback for "${stoppedCueList.name}"`
-    };
+      // Use backend mutation to stop
+      await this.graphqlClient.stopCueList(cueListId);
+
+      // Remove from active list
+      this.activeCueLists.delete(cueListId);
+
+      return {
+        success: true,
+        stoppedCueList: {
+          lastPlayedCue: status?.currentCue ? {
+            number: status.currentCue.cueNumber,
+            name: status.currentCue.name
+          } : null
+        },
+        message: `Stopped cue list playback`
+      };
+    } catch (error) {
+      throw new Error(`Failed to stop cue list: ${error}`);
+    }
   }
 
   async getCueListStatus(_args: z.infer<typeof GetCueListStatusSchema>) {
-    if (!this.playbackState || !this.playbackState.isPlaying) {
+    if (this.activeCueLists.size === 0) {
       return {
         isPlaying: false,
         message: 'No cue list is currently playing'
       };
     }
 
-    const currentCue = this.playbackState.cues[this.playbackState.currentCueIndex];
-    const isFirstCue = this.playbackState.currentCueIndex === 0;
-    const isLastCue = this.playbackState.currentCueIndex === this.playbackState.cues.length - 1;
+    const cueListId = Array.from(this.activeCueLists)[0];
 
-    return {
-      isPlaying: true,
-      cueList: {
-        id: this.playbackState.cueListId,
-        name: this.playbackState.cueListName,
-        totalCues: this.playbackState.cues.length
-      },
-      currentCue: {
-        index: this.playbackState.currentCueIndex + 1, // 1-based for user display
-        number: currentCue.cueNumber,
-        name: currentCue.name,
-        scene: currentCue.scene.name,
-        fadeInTime: currentCue.fadeInTime,
-        fadeOutTime: currentCue.fadeOutTime,
-        followTime: currentCue.followTime
-      },
-      navigation: {
-        canGoPrevious: !isFirstCue,
-        canGoNext: !isLastCue,
-        previousCue: !isFirstCue ? {
-          number: this.playbackState.cues[this.playbackState.currentCueIndex - 1].cueNumber,
-          name: this.playbackState.cues[this.playbackState.currentCueIndex - 1].name
+    try {
+      // Get current playback status from backend
+      const status = await this.graphqlClient.getCueListPlaybackStatus(cueListId);
+
+      if (!status) {
+        return {
+          isPlaying: false,
+          message: 'Could not get cue list status'
+        };
+      }
+
+      // Get the full cue list for navigation info
+      const cueList = await this.graphqlClient.getCueList(cueListId);
+      if (!cueList) {
+        return {
+          isPlaying: status.isPlaying,
+          message: 'Cue list not found'
+        };
+      }
+
+      const sortedCues = cueList.cues.sort((a, b) => a.cueNumber - b.cueNumber);
+      const currentIndex = status.currentCueIndex || 0;
+      const isFirstCue = currentIndex === 0;
+      const isLastCue = currentIndex === sortedCues.length - 1;
+
+      return {
+        isPlaying: status.isPlaying,
+        cueList: {
+          id: cueListId,
+          name: cueList.name,
+          totalCues: sortedCues.length
+        },
+        currentCue: status.currentCue ? {
+          index: currentIndex + 1, // 1-based for user display
+          number: status.currentCue.cueNumber,
+          name: status.currentCue.name,
+          scene: 'Scene',
+          fadeInTime: status.currentCue.fadeInTime,
+          fadeOutTime: status.currentCue.fadeOutTime,
+          followTime: status.currentCue.followTime
         } : null,
-        nextCue: !isLastCue ? {
-          number: this.playbackState.cues[this.playbackState.currentCueIndex + 1].cueNumber,
-          name: this.playbackState.cues[this.playbackState.currentCueIndex + 1].name
-        } : null
-      },
-      startedAt: this.playbackState.startedAt.toISOString()
-    };
+        navigation: {
+          canGoPrevious: !isFirstCue,
+          canGoNext: !isLastCue,
+          previousCue: !isFirstCue && currentIndex > 0 ? {
+            number: sortedCues[currentIndex - 1].cueNumber,
+            name: sortedCues[currentIndex - 1].name
+          } : null,
+          nextCue: !isLastCue && currentIndex < sortedCues.length - 1 ? {
+            number: sortedCues[currentIndex + 1].cueNumber,
+            name: sortedCues[currentIndex + 1].name
+          } : null
+        },
+        startedAt: status.lastUpdated
+      };
+    } catch (error) {
+      throw new Error(`Failed to get cue list status: ${error}`);
+    }
   }
 }
