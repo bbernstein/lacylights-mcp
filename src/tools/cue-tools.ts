@@ -1248,6 +1248,15 @@ export class CueTools {
     }
   }
 
+  // Helper function to get scene name for a cue by index
+  private getSceneNameFromCueList(cueList: any, cueIndex: number): string {
+    const sortedCues = cueList.cues.sort((a: any, b: any) => a.cueNumber - b.cueNumber);
+    if (cueIndex >= 0 && cueIndex < sortedCues.length && sortedCues[cueIndex].scene) {
+      return sortedCues[cueIndex].scene.name;
+    }
+    return 'Unknown Scene';
+  }
+
   async nextCue(args: z.infer<typeof NextCueSchema>) {
     const { fadeInTime } = NextCueSchema.parse(args);
 
@@ -1272,13 +1281,17 @@ export class CueTools {
         };
       }
 
+      // Get cue list to extract scene name
+      const cueList = await this.graphqlClient.getCueList(cueListId);
+      const sceneName = cueList ? this.getSceneNameFromCueList(cueList, status.currentCueIndex) : 'Unknown Scene';
+
       return {
         success: true,
         currentCue: {
           index: status.currentCueIndex + 1, // 1-based for user display
           number: status.currentCue?.cueNumber || 0,
           name: status.currentCue?.name || '',
-          scene: 'Scene' // We don't have scene name in status, could enhance if needed
+          scene: sceneName
         },
         fadeTime: fadeInTime || status.currentCue?.fadeInTime,
         message: `Advanced to cue ${status.currentCue?.cueNumber} - "${status.currentCue?.name}"`
@@ -1312,13 +1325,17 @@ export class CueTools {
         };
       }
 
+      // Get cue list to extract scene name
+      const cueList = await this.graphqlClient.getCueList(cueListId);
+      const sceneName = cueList ? this.getSceneNameFromCueList(cueList, status.currentCueIndex) : 'Unknown Scene';
+
       return {
         success: true,
         currentCue: {
           index: status.currentCueIndex + 1, // 1-based for user display
           number: status.currentCue?.cueNumber || 0,
           name: status.currentCue?.name || '',
-          scene: 'Scene' // We don't have scene name in status, could enhance if needed
+          scene: sceneName
         },
         fadeTime: fadeInTime || status.currentCue?.fadeInTime,
         message: `Went back to cue ${status.currentCue?.cueNumber} - "${status.currentCue?.name}"`
@@ -1372,13 +1389,15 @@ export class CueTools {
       // Get updated status
       const status = await this.graphqlClient.getCueListPlaybackStatus(cueListId);
 
+      const sceneName = this.getSceneNameFromCueList(cueList, targetIndex);
+
       return {
         success: true,
         currentCue: {
           index: targetIndex + 1, // 1-based for user display
           number: status?.currentCue?.cueNumber || sortedCues[targetIndex].cueNumber,
           name: status?.currentCue?.name || sortedCues[targetIndex].name,
-          scene: 'Scene'
+          scene: sceneName
         },
         fadeTime: fadeInTime || status?.currentCue?.fadeInTime,
         message: `Jumped to cue ${status?.currentCue?.cueNumber} - "${status?.currentCue?.name}"`
@@ -1450,7 +1469,7 @@ export class CueTools {
                 index: currentIndex + 1,
                 number: status.currentCue.cueNumber,
                 name: status.currentCue.name,
-                scene: 'Scene',
+                scene: this.getSceneNameFromCueList(cueList, currentIndex),
                 fadeInTime: status.currentCue.fadeInTime,
                 fadeOutTime: status.currentCue.fadeOutTime,
                 followTime: status.currentCue.followTime
