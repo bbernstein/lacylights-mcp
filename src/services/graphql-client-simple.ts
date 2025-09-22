@@ -967,7 +967,6 @@ export class LacyLightsGraphQLClient {
     return data.stopCueList;
   }
 
-
   // importProjectFromQLC method removed - import functionality moved to web UI due to file size constraints
   // async importProjectFromQLC(xmlContent: string, originalFileName: string): Promise<any> {
     /*const mutation = `

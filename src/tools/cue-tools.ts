@@ -1082,18 +1082,21 @@ export class CueTools {
       // Apply filters
       if (filterBy) {
         if (filterBy.cueNumberRange) {
-          cues = cues.filter(
-            (cue) =>
-              cue.cueNumber >= filterBy.cueNumberRange!.min &&
-              cue.cueNumber <= filterBy.cueNumberRange!.max,
-          );
+          const range = filterBy.cueNumberRange;
+          if (range) {
+            cues = cues.filter(
+              (cue) =>
+                cue.cueNumber >= range.min &&
+                cue.cueNumber <= range.max,
+            );
+          }
         }
 
         if (filterBy.nameContains) {
           cues = cues.filter((cue) =>
             cue.name
               .toLowerCase()
-              .includes(filterBy.nameContains!.toLowerCase()),
+              .includes(filterBy.nameContains?.toLowerCase() ?? ""),
           );
         }
 
@@ -1101,7 +1104,7 @@ export class CueTools {
           cues = cues.filter((cue) =>
             cue.scene.name
               .toLowerCase()
-              .includes(filterBy.sceneNameContains!.toLowerCase()),
+              .includes(filterBy.sceneNameContains?.toLowerCase() ?? ""),
           );
         }
 
@@ -1114,11 +1117,14 @@ export class CueTools {
         }
 
         if (filterBy.fadeTimeRange) {
-          cues = cues.filter(
-            (cue) =>
-              cue.fadeInTime >= filterBy.fadeTimeRange!.min &&
-              cue.fadeInTime <= filterBy.fadeTimeRange!.max,
-          );
+          const range = filterBy.fadeTimeRange;
+          if (range) {
+            cues = cues.filter(
+              (cue) =>
+                cue.fadeInTime >= range.min &&
+                cue.fadeInTime <= range.max,
+            );
+          }
         }
       }
 
@@ -1611,7 +1617,7 @@ export class CueTools {
       };
     }
 
-    const cueListId = Array.from(this.activeCueLists)[0];
+    const cueListId = this.getActiveCueListId();
 
     try {
       // Get current status before stopping
@@ -1645,7 +1651,7 @@ export class CueTools {
     try {
       // First check if we have an active cue list playback
       if (this.activeCueLists.size > 0) {
-        const cueListId = Array.from(this.activeCueLists)[0];
+        const cueListId = this.getActiveCueListId();
         const status =
           await this.graphqlClient.getCueListPlaybackStatus(cueListId);
 
