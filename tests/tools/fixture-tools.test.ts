@@ -558,6 +558,51 @@ describe('FixtureTools', () => {
     });
   });
 
+  describe('analyzeFixtureCapabilities edge cases', () => {
+    it('should handle fixture definition without profile but with channels', async () => {
+      // Create a fixture definition without profile but with channels
+      const fixtureWithoutProfile = {
+        id: 'def-no-profile',
+        manufacturer: 'Test Manufacturer',
+        model: 'Basic Model',
+        type: FixtureType.LED_PAR,
+        channels: [
+          { id: 'ch1', name: 'Red', type: ChannelType.RED, offset: 0, minValue: 0, maxValue: 255, defaultValue: 0 },
+          { id: 'ch2', name: 'Green', type: ChannelType.GREEN, offset: 1, minValue: 0, maxValue: 255, defaultValue: 0 },
+          { id: 'ch3', name: 'Blue', type: ChannelType.BLUE, offset: 2, minValue: 0, maxValue: 255, defaultValue: 0 }
+        ],
+        modes: [
+          { id: 'mode-1', name: 'Standard', channelCount: 3 }
+        ],
+        isBuiltIn: true
+        // Note: no profile property
+      };
+
+      const projectWithNoProfileFixture = {
+        ...mockProject,
+        fixtures: [{
+          ...mockProject.fixtures[0],
+          id: 'fixture-no-profile',
+          definitionId: 'def-no-profile'
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithNoProfileFixture] as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue([fixtureWithoutProfile] as any);
+
+      const result = await fixtureTools.analyzeFixtureCapabilities({
+        fixtureId: 'fixture-no-profile',
+        analysisType: 'color_mixing'
+      });
+
+      expect(result.analysisType).toBe('color_mixing');
+      expect(result.fixtures).toHaveLength(1);
+      // For color_mixing analysis, check the specific properties
+      const colorAnalysis = result.fixtures[0] as any;
+      expect(colorAnalysis.canMixColors).toBe(true);
+    });
+  });
+
   describe('validation', () => {
     it('should validate input parameters', async () => {
       // Test invalid parameters trigger validation errors

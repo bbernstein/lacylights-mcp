@@ -908,4 +908,477 @@ describe('LacyLightsGraphQLClient', () => {
       });
     });
   });
+
+  describe('bulkUpdateCues', () => {
+    it('should bulk update cues', async () => {
+      const mockCues = [
+        { id: '1', name: 'Cue 1', cueNumber: 1, fadeInTime: 2, fadeOutTime: 2, followTime: null, notes: '', scene: { id: 'scene-1', name: 'Scene 1' } },
+        { id: '2', name: 'Cue 2', cueNumber: 2, fadeInTime: 3, fadeOutTime: 3, followTime: null, notes: '', scene: { id: 'scene-1', name: 'Scene 1' } }
+      ];
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { bulkUpdateCues: mockCues }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.bulkUpdateCues({
+        cueIds: ['1', '2'],
+        fadeInTime: 2.5,
+        fadeOutTime: 2.5,
+        followTime: null,
+        easingType: 'linear'
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('BulkUpdateCues')
+        })
+      );
+      expect(result).toEqual(mockCues);
+    });
+  });
+
+  describe('deleteFixtureInstance', () => {
+    it('should delete fixture instance', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { deleteFixtureInstance: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.deleteFixtureInstance('fixture-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('DeleteFixtureInstance')
+        })
+      );
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('setSceneLive', () => {
+    it('should set scene live', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { setSceneLive: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.setSceneLive('scene-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('ActivateScene')
+        })
+      );
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('fadeToBlack', () => {
+    it('should fade to black', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { fadeToBlack: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.fadeToBlack(3.0);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('FadeToBlack')
+        })
+      );
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('getScene', () => {
+    it('should get scene by id', async () => {
+      const mockScene = {
+        id: 'scene-1',
+        name: 'Test Scene',
+        description: 'A test scene',
+        createdAt: '2023-01-01',
+        updatedAt: '2023-01-01',
+        fixtureValues: []
+      };
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { scene: mockScene }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getScene('scene-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('GetScene')
+        })
+      );
+      expect(result).toEqual(mockScene);
+    });
+
+    it('should return null for non-existent scene', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { scene: null }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getScene('non-existent');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('goToCue', () => {
+    it('should go to cue', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { goToCue: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.goToCue('cue-list-1', 2, 1.5);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('GoToCue')
+        })
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should go to cue without fade time', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { goToCue: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.goToCue('cue-list-1', 2);
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('stopCueList', () => {
+    it('should stop cue list', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { stopCueList: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.stopCueList('cue-list-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('StopCueList')
+        })
+      );
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('getCurrentActiveScene', () => {
+    it('should get current active scene', async () => {
+      const mockScene = {
+        id: 'scene-1',
+        name: 'Active Scene',
+        description: 'Currently active scene',
+        createdAt: '2023-01-01',
+        updatedAt: '2023-01-01',
+        project: { id: 'project-1', name: 'Test Project' },
+        fixtureValues: []
+      };
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { currentActiveScene: mockScene }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getCurrentActiveScene();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('GetCurrentActiveScene')
+        })
+      );
+      expect(result).toEqual(mockScene);
+    });
+
+    it('should return null when no scene is active', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { currentActiveScene: null }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getCurrentActiveScene();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getCue', () => {
+    it('should get cue by id', async () => {
+      const mockCue = {
+        id: 'cue-1',
+        name: 'Test Cue',
+        cueNumber: 1,
+        fadeInTime: 2,
+        fadeOutTime: 2,
+        followTime: null,
+        notes: 'Test notes',
+        scene: { id: 'scene-1', name: 'Scene 1' }
+      };
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { cue: mockCue }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getCue('cue-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('GetCue')
+        })
+      );
+      expect(result).toEqual(mockCue);
+    });
+
+    it('should return null for non-existent cue', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { cue: null }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getCue('non-existent');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('previousCue', () => {
+    it('should go to previous cue', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { previousCue: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.previousCue('cue-list-1', 1.5);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('PreviousCue')
+        })
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should go to previous cue without fade time', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { previousCue: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.previousCue('cue-list-1');
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('playCue', () => {
+    it('should play cue with fade time', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { playCue: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.playCue('cue-1', 2.0);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('PlayCue')
+        })
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should play cue without fade time', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { playCue: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.playCue('cue-1');
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('getCueListPlaybackStatus', () => {
+    it('should get cue list playback status', async () => {
+      const mockStatus = {
+        cueListId: 'cue-list-1',
+        currentCueIndex: 2,
+        isPlaying: true,
+        currentCue: {
+          id: 'cue-2',
+          name: 'Scene 2',
+          cueNumber: 2,
+          fadeInTime: 3,
+          fadeOutTime: 3,
+          followTime: null
+        }
+      };
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { cueListPlaybackStatus: mockStatus }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getCueListPlaybackStatus('cue-list-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('GetCueListPlaybackStatus')
+        })
+      );
+      expect(result).toEqual(mockStatus);
+    });
+  });
+
+  describe('startCueList', () => {
+    it('should start cue list from beginning', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { startCueList: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.startCueList('cue-list-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('StartCueList')
+        })
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should start cue list from specific cue', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { startCueList: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.startCueList('cue-list-1', 3);
+
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('nextCue', () => {
+    it('should advance to next cue', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { nextCue: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.nextCue('cue-list-1', 1.5);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('NextCue')
+        })
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should advance to next cue without fade time', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { nextCue: true }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.nextCue('cue-list-1');
+
+      expect(result).toBe(true);
+    });
+  });
 });

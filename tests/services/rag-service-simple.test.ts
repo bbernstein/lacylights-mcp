@@ -161,6 +161,28 @@ describe('RAGService', () => {
       expect(result.overallMood).toBe('test');
     });
 
+    it('should handle malformed JSON with parse error', async () => {
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: 'Analysis: {"scenes": [], "characters": incomplete json}'
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockResponse as any);
+
+      const result = await ragService.analyzeScript('Test script');
+
+      expect(result).toEqual({
+        scenes: [],
+        characters: [],
+        settings: [],
+        overallMood: 'unknown',
+        themes: []
+      });
+    });
+
     it('should handle OpenAI API errors', async () => {
       (mockOpenAI.chat.completions.create as jest.Mock).mockRejectedValue(new Error('API Error'));
 
@@ -284,6 +306,36 @@ describe('RAGService', () => {
         choices: [{
           message: {
             content: 'Invalid JSON'
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockResponse as any);
+
+      const result = await ragService.generateLightingRecommendations(
+        'test scene',
+        'test mood',
+        ['LED_PAR']
+      );
+
+      expect(result).toEqual({
+        colorSuggestions: [],
+        intensityLevels: {
+          ambient: 50,
+          key: 75,
+          fill: 60,
+          background: 30
+        },
+        focusAreas: [],
+        reasoning: 'Unable to parse AI response, using default values'
+      });
+    });
+
+    it('should handle malformed JSON extraction in recommendations', async () => {
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: 'Here is the recommendation: {"colorSuggestions": ["red", malformed json}'
           }
         }]
       };

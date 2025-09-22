@@ -100,6 +100,7 @@ describe('CueTools', () => {
     
     mockGraphQLClient = {
       getProject: jest.fn(),
+      getProjects: jest.fn(),
       getCueList: jest.fn(),
       createCueList: jest.fn(),
       updateCueList: jest.fn(),
@@ -110,6 +111,14 @@ describe('CueTools', () => {
       bulkUpdateCues: jest.fn(),
       playCue: jest.fn(),
       fadeToBlack: jest.fn(),
+      // New backend playback control methods
+      getCueListPlaybackStatus: jest.fn(),
+      getCurrentActiveScene: jest.fn(),
+      startCueList: jest.fn(),
+      nextCue: jest.fn(),
+      previousCue: jest.fn(),
+      goToCue: jest.fn(),
+      stopCueList: jest.fn(),
     } as any;
 
     mockRAGService = {
@@ -1075,14 +1084,14 @@ describe('CueTools', () => {
       };
 
       mockGraphQLClient.getCueList = jest.fn().mockResolvedValue(mockCueList);
-      mockGraphQLClient.playCue = jest.fn().mockResolvedValue(true);
+      mockGraphQLClient.startCueList = jest.fn().mockResolvedValue(true);
 
       const result = await cueTools.startCueList({
         cueListId: 'cuelist-1'
       });
 
       expect(mockGraphQLClient.getCueList).toHaveBeenCalledWith('cuelist-1');
-      expect(mockGraphQLClient.playCue).toHaveBeenCalledWith('cue-1', 3);
+      expect(mockGraphQLClient.startCueList).toHaveBeenCalledWith('cuelist-1', 0);
       expect(result.success).toBe(true);
     });
 
@@ -1117,11 +1126,15 @@ describe('CueTools', () => {
     });
 
     it('should return not playing status for getCueListStatus', async () => {
+      // Mock getCurrentActiveScene to return null (no active scene)
+      mockGraphQLClient.getCurrentActiveScene.mockResolvedValue(null);
+
       const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
       const result = await freshCueTools.getCueListStatus({});
 
       expect(result.isPlaying).toBe(false);
-      expect(result.message).toBe('No cue list is currently playing');
+      expect(result.message).toContain('No cue list is currently playing');
+      expect(result.message).toContain('no active scene');
     });
   });
 });
