@@ -359,39 +359,17 @@ export class SceneTools {
         throw new Error(`Scene with ID ${sceneId} not found`);
       }
 
-      const optimizations: any = {
+      // Scene optimization is planned for future implementation
+      // Currently returns analysis and recommendations without modifying the scene
+      return {
         sceneId,
+        sceneName: scene.name,
         originalFixtureCount: scene.fixtureValues.length,
-        optimizations: []
+        requestedGoals: optimizationGoals,
+        status: 'not_implemented',
+        message: 'Scene optimization is planned for future releases. Current implementation provides recommendations only.',
+        recommendations: this.getOptimizationRecommendations(optimizationGoals),
       };
-
-      // Apply different optimization strategies based on goals
-      for (const goal of optimizationGoals) {
-        switch (goal) {
-          case 'energy_efficiency':
-            optimizations.optimizations.push(
-              await this.optimizeForEnergyEfficiency(scene, project.fixtures)
-            );
-            break;
-          case 'color_accuracy':
-            optimizations.optimizations.push(
-              await this.optimizeForColorAccuracy(scene, project.fixtures)
-            );
-            break;
-          case 'dramatic_impact':
-            optimizations.optimizations.push(
-              await this.optimizeForDramaticImpact(scene, project.fixtures)
-            );
-            break;
-          case 'technical_simplicity':
-            optimizations.optimizations.push(
-              await this.optimizeForTechnicalSimplicity(scene, project.fixtures)
-            );
-            break;
-        }
-      }
-
-      return optimizations;
     } catch (error) {
       throw new Error(`Failed to optimize scene: ${error}`);
     }
@@ -468,83 +446,46 @@ export class SceneTools {
     return Math.min(baseCount, 12); // Cap at reasonable maximum
   }
 
-  private async optimizeForEnergyEfficiency(scene: any, availableFixtures: any[]) {
-    // Reduce overall intensity while maintaining visual impact
-    const totalPower = scene.fixtureValues.reduce((total: number, fv: any) => {
-      // Find the fixture to get channel information
-      const fixture = availableFixtures.find(f => f.id === fv.fixture?.id);
-      if (!fixture || !fixture.channels) return total;
-      
-      // Find intensity channel by type
-      const intensityChannelIndex = fixture.channels.findIndex((ch: any) => ch.type === 'INTENSITY');
-      if (intensityChannelIndex >= 0 && fv.channelValues && fv.channelValues[intensityChannelIndex]) {
-        return total + fv.channelValues[intensityChannelIndex];
+  /**
+   * Provides general recommendations for scene optimization goals
+   */
+  private getOptimizationRecommendations(goals: string[]): string[] {
+    const recommendations: string[] = [];
+
+    for (const goal of goals) {
+      switch (goal) {
+        case 'energy_efficiency':
+          recommendations.push(
+            'Use fewer fixtures at higher intensity rather than many at low intensity',
+            'Prioritize LED fixtures over traditional tungsten',
+            'Consider consolidating similar color washes'
+          );
+          break;
+        case 'color_accuracy':
+          recommendations.push(
+            'Use fixtures with dedicated white channels',
+            'Avoid oversaturated colors that may appear unnatural',
+            'Consider color temperature consistency across fixtures'
+          );
+          break;
+        case 'dramatic_impact':
+          recommendations.push(
+            'Use moving heads for dynamic positioning',
+            'Create strong key light with softer fill',
+            'Consider backlight for separation and depth'
+          );
+          break;
+        case 'technical_simplicity':
+          recommendations.push(
+            'Group similar fixtures for easier control',
+            'Use preset colors rather than custom mixes',
+            'Minimize moving head positioning changes'
+          );
+          break;
       }
-      return total;
-    }, 0);
+    }
 
-    return {
-      type: 'energy_efficiency',
-      description: 'Reduced overall intensity by 15% while maintaining key lighting',
-      powerSavings: '~15%',
-      originalPowerUsage: totalPower,
-      recommendations: [
-        'Use fewer fixtures at higher intensity rather than many at low intensity',
-        'Prioritize LED fixtures over traditional tungsten',
-        'Consider consolidating similar color washes'
-      ]
-    };
-  }
-
-  private async optimizeForColorAccuracy(_scene: any, _availableFixtures: any[]) {
-    return {
-      type: 'color_accuracy',
-      description: 'Optimized color mixing and white balance for accurate reproduction',
-      improvements: [
-        'Calibrated RGB values for consistent color temperature',
-        'Added white channel support where available',
-        'Balanced warm and cool tones'
-      ],
-      recommendations: [
-        'Use fixtures with dedicated white channels',
-        'Avoid oversaturated colors that may appear unnatural',
-        'Consider color temperature consistency across fixtures'
-      ]
-    };
-  }
-
-  private async optimizeForDramaticImpact(_scene: any, _availableFixtures: any[]) {
-    return {
-      type: 'dramatic_impact',
-      description: 'Enhanced contrast and focus to maximize dramatic effect',
-      enhancements: [
-        'Increased contrast between key and fill lighting',
-        'Added strategic shadows and highlights',
-        'Optimized color choices for emotional impact'
-      ],
-      recommendations: [
-        'Use moving heads for dynamic positioning',
-        'Create strong key light with softer fill',
-        'Consider backlight for separation and depth'
-      ]
-    };
-  }
-
-  private async optimizeForTechnicalSimplicity(_scene: any, _availableFixtures: any[]) {
-    return {
-      type: 'technical_simplicity',
-      description: 'Simplified setup with fewer fixtures and standardized settings',
-      simplifications: [
-        'Reduced number of active fixtures by 20%',
-        'Standardized fade times across cues',
-        'Simplified color palette to primary colors'
-      ],
-      recommendations: [
-        'Group similar fixtures for easier control',
-        'Use preset colors rather than custom mixes',
-        'Minimize moving head positioning changes'
-      ]
-    };
+    return recommendations;
   }
 
   async activateScene(args: z.infer<typeof ActivateSceneSchema>) {

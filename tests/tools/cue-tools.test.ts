@@ -1104,21 +1104,26 @@ describe('CueTools', () => {
     });
 
     it('should handle no cue list playing for nextCue', async () => {
+      // Mock getProjects to return empty array (no projects with active cue lists)
+      mockGraphQLClient.getProjects.mockResolvedValue([]);
       const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
       await expect(freshCueTools.nextCue({})).rejects.toThrow('No cue list is currently playing');
     });
 
     it('should handle no cue list playing for previousCue', async () => {
+      mockGraphQLClient.getProjects.mockResolvedValue([]);
       const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
       await expect(freshCueTools.previousCue({})).rejects.toThrow('No cue list is currently playing');
     });
 
     it('should handle no cue list playing for goToCue', async () => {
+      mockGraphQLClient.getProjects.mockResolvedValue([]);
       const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
       await expect(freshCueTools.goToCue({ cueNumber: 1 })).rejects.toThrow('No cue list is currently playing');
     });
 
     it('should handle no cue list playing for stopCueList', async () => {
+      mockGraphQLClient.getProjects.mockResolvedValue([]);
       const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
       const result = await freshCueTools.stopCueList({});
       expect(result.success).toBe(true);
@@ -1126,7 +1131,8 @@ describe('CueTools', () => {
     });
 
     it('should return not playing status for getCueListStatus', async () => {
-      // Mock getCurrentActiveScene to return null (no active scene)
+      // Mock getProjects and getCurrentActiveScene for no active playback
+      mockGraphQLClient.getProjects.mockResolvedValue([]);
       mockGraphQLClient.getCurrentActiveScene.mockResolvedValue(null);
 
       const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
@@ -1137,4 +1143,5 @@ describe('CueTools', () => {
       expect(result.message).toContain('no active scene');
     });
   });
+
 });
