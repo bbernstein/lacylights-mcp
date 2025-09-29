@@ -403,7 +403,9 @@ describe('SceneTools', () => {
 
       expect(mockGraphQLClient.getProject).toHaveBeenCalledWith('project-1');
       expect(result.sceneId).toBe('scene-1');
-      expect(result.optimizations).toBeDefined();
+      expect(result.status).toBe('not_implemented');
+      expect(result.recommendations).toBeDefined();
+      expect(result.requestedGoals).toContain('dramatic_impact');
     });
 
     it('should handle multiple optimization goals', async () => {
@@ -415,7 +417,10 @@ describe('SceneTools', () => {
         optimizationGoals: ['energy_efficiency', 'color_accuracy']
       });
 
-      expect(result.optimizations).toHaveLength(2);
+      expect(result.requestedGoals).toHaveLength(2);
+      expect(result.requestedGoals).toContain('energy_efficiency');
+      expect(result.requestedGoals).toContain('color_accuracy');
+      expect(result.recommendations.length).toBeGreaterThan(0);
     });
 
     it('should handle scene not found', async () => {
