@@ -601,6 +601,123 @@ describe('FixtureTools', () => {
       const colorAnalysis = result.fixtures[0] as any;
       expect(colorAnalysis.canMixColors).toBe(true);
     });
+
+    it('should analyze fixture with strobe and gobo capabilities', async () => {
+      const strobeGoboFixture = {
+        id: 'def-strobe-gobo',
+        manufacturer: 'Test Manufacturer',
+        model: 'Effect Light',
+        type: FixtureType.MOVING_HEAD,
+        channels: [
+          { id: 'ch1', name: 'Pan', type: ChannelType.PAN, offset: 0, minValue: 0, maxValue: 255, defaultValue: 128 },
+          { id: 'ch2', name: 'Tilt', type: ChannelType.TILT, offset: 1, minValue: 0, maxValue: 255, defaultValue: 128 },
+          { id: 'ch3', name: 'Strobe', type: ChannelType.STROBE, offset: 2, minValue: 0, maxValue: 255, defaultValue: 0 },
+          { id: 'ch4', name: 'Gobo', type: ChannelType.GOBO, offset: 3, minValue: 0, maxValue: 255, defaultValue: 0 },
+          { id: 'ch5', name: 'Focus', type: ChannelType.FOCUS, offset: 4, minValue: 0, maxValue: 255, defaultValue: 128 },
+          { id: 'ch6', name: 'Zoom', type: ChannelType.ZOOM, offset: 5, minValue: 0, maxValue: 255, defaultValue: 128 }
+        ],
+        modes: [
+          { id: 'mode-1', name: 'Standard', channelCount: 6 }
+        ],
+        isBuiltIn: true
+      };
+
+      const projectWithEffectFixture = {
+        ...mockProject,
+        fixtures: [{
+          ...mockProject.fixtures[0],
+          id: 'fixture-effect',
+          definitionId: 'def-strobe-gobo'
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithEffectFixture] as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue([strobeGoboFixture] as any);
+
+      const result = await fixtureTools.analyzeFixtureCapabilities({
+        fixtureId: 'fixture-effect',
+        analysisType: 'effects'
+      });
+
+      expect(result.analysisType).toBe('effects');
+      expect(result.fixtures).toHaveLength(1);
+    });
+
+    it('should analyze fixture with white and amber channels', async () => {
+      const whiteAmberFixture = {
+        id: 'def-white-amber',
+        manufacturer: 'Test Manufacturer',
+        model: 'RGBWA Light',
+        type: FixtureType.LED_PAR,
+        channels: [
+          { id: 'ch1', name: 'Red', type: ChannelType.RED, offset: 0, minValue: 0, maxValue: 255, defaultValue: 0 },
+          { id: 'ch2', name: 'Green', type: ChannelType.GREEN, offset: 1, minValue: 0, maxValue: 255, defaultValue: 0 },
+          { id: 'ch3', name: 'Blue', type: ChannelType.BLUE, offset: 2, minValue: 0, maxValue: 255, defaultValue: 0 },
+          { id: 'ch4', name: 'White', type: ChannelType.WHITE, offset: 3, minValue: 0, maxValue: 255, defaultValue: 0 },
+          { id: 'ch5', name: 'Amber', type: ChannelType.AMBER, offset: 4, minValue: 0, maxValue: 255, defaultValue: 0 }
+        ],
+        modes: [
+          { id: 'mode-1', name: 'Standard', channelCount: 5 }
+        ],
+        isBuiltIn: true
+      };
+
+      const projectWithWhiteAmber = {
+        ...mockProject,
+        fixtures: [{
+          ...mockProject.fixtures[0],
+          id: 'fixture-white-amber',
+          definitionId: 'def-white-amber'
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithWhiteAmber] as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue([whiteAmberFixture] as any);
+
+      const result = await fixtureTools.analyzeFixtureCapabilities({
+        fixtureId: 'fixture-white-amber',
+        analysisType: 'color_mixing'
+      });
+
+      expect(result.analysisType).toBe('color_mixing');
+      expect(result.fixtures).toHaveLength(1);
+    });
+
+    it('should analyze simple intensity dimmer fixture', async () => {
+      const dimmerFixture = {
+        id: 'def-dimmer',
+        manufacturer: 'Test Manufacturer',
+        model: 'Simple Dimmer',
+        type: FixtureType.DIMMER,
+        channels: [
+          { id: 'ch1', name: 'Intensity', type: ChannelType.INTENSITY, offset: 0, minValue: 0, maxValue: 255, defaultValue: 0 }
+        ],
+        modes: [
+          { id: 'mode-1', name: 'Standard', channelCount: 1 }
+        ],
+        isBuiltIn: true
+      };
+
+      const projectWithDimmer = {
+        ...mockProject,
+        fixtures: [{
+          ...mockProject.fixtures[0],
+          id: 'fixture-dimmer',
+          definitionId: 'def-dimmer'
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithDimmer] as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue([dimmerFixture] as any);
+
+      const result = await fixtureTools.analyzeFixtureCapabilities({
+        fixtureId: 'fixture-dimmer',
+        analysisType: 'positioning'
+      });
+
+      expect(result.analysisType).toBe('positioning');
+      expect(result.fixtures).toHaveLength(1);
+    });
   });
 
   describe('validation', () => {

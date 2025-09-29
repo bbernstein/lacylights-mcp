@@ -1041,4 +1041,526 @@ describe('SceneTools', () => {
       });
     });
   });
+
+  describe('generateScene - edge cases and error handling', () => {
+    it('should require fixtureFilter for additive scenes', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+
+      await expect(sceneTools.generateScene({
+        projectId: 'project-1',
+        sceneDescription: 'Test additive scene',
+        sceneType: 'additive'
+        // Missing fixtureFilter
+      })).rejects.toThrow('Additive scenes require fixtureFilter to specify which fixtures to modify');
+    });
+
+    it('should throw error when no fixtures match filter criteria', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+
+      await expect(sceneTools.generateScene({
+        projectId: 'project-1',
+        sceneDescription: 'Test scene',
+        sceneType: 'full',
+        fixtureFilter: {
+          includeTypes: [FixtureType.STROBE] // No STROBE fixtures in mockProject
+        }
+      })).rejects.toThrow('No fixtures available matching the specified criteria');
+    });
+
+    it('should filter fixtures by includeTags', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockAILightingService.generateScene.mockResolvedValue(mockGeneratedScene);
+      mockAILightingService.optimizeSceneForFixtures.mockResolvedValue(mockGeneratedScene);
+      const mockCreatedScene = {
+        id: 'scene-id',
+        name: 'Tagged Scene',
+        description: 'Scene using tagged fixtures',
+        fixtureValues: [{
+          fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
+          channelValues: [255, 128, 64]
+        }]
+      };
+      mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
+
+      const result = await sceneTools.generateScene({
+        projectId: 'project-1',
+        sceneDescription: 'Test scene',
+        sceneType: 'full',
+        fixtureFilter: {
+          includeTags: ['wash']
+        }
+      });
+
+      expect(result.sceneId).toBe('scene-id');
+      expect(mockAILightingService.generateScene).toHaveBeenCalledWith(
+        expect.objectContaining({
+          availableFixtures: expect.arrayContaining([
+            expect.objectContaining({ tags: expect.arrayContaining(['wash']) })
+          ])
+        })
+      );
+    });
+
+    it('should handle scene activation success', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockAILightingService.generateScene.mockResolvedValue(mockGeneratedScene);
+      mockAILightingService.optimizeSceneForFixtures.mockResolvedValue(mockGeneratedScene);
+      const mockCreatedScene = {
+        id: 'scene-id',
+        name: 'Activated Scene',
+        description: 'Scene that will be activated',
+        fixtureValues: [{
+          fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
+          channelValues: [255, 128, 64]
+        }]
+      };
+      mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
+      mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(true);
+
+      const result = await sceneTools.generateScene({
+        projectId: 'project-1',
+        sceneDescription: 'Test scene',
+        sceneType: 'full',
+        activate: true
+      });
+
+      expect(mockGraphQLClient.setSceneLive).toHaveBeenCalledWith('scene-id');
+      expect(result.activation).toEqual({
+        success: true,
+        message: 'Scene "Activated Scene" is now active'
+      });
+    });
+
+    it('should handle scene activation failure', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockAILightingService.generateScene.mockResolvedValue(mockGeneratedScene);
+      mockAILightingService.optimizeSceneForFixtures.mockResolvedValue(mockGeneratedScene);
+      const mockCreatedScene = {
+        id: 'scene-id',
+        name: 'Failed Activation Scene',
+        description: 'Scene with failed activation',
+        fixtureValues: [{
+          fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
+          channelValues: [255, 128, 64]
+        }]
+      };
+      mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
+      mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(false);
+
+      const result = await sceneTools.generateScene({
+        projectId: 'project-1',
+        sceneDescription: 'Test scene',
+        sceneType: 'full',
+        activate: true
+      });
+
+      expect(result.activation).toEqual({
+        success: false,
+        message: 'Scene created but activation failed'
+      });
+    });
+
+    it('should handle scene activation error exception', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockAILightingService.generateScene.mockResolvedValue(mockGeneratedScene);
+      mockAILightingService.optimizeSceneForFixtures.mockResolvedValue(mockGeneratedScene);
+      const mockCreatedScene = {
+        id: 'scene-id',
+        name: 'Error Activation Scene',
+        description: 'Scene with activation error',
+        fixtureValues: [{
+          fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
+          channelValues: [255, 128, 64]
+        }]
+      };
+      mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
+      mockGraphQLClient.setSceneLive = jest.fn().mockRejectedValue(new Error('Connection failed'));
+
+      const result = await sceneTools.generateScene({
+        projectId: 'project-1',
+        sceneDescription: 'Test scene',
+        sceneType: 'full',
+        activate: true
+      });
+
+      expect(result.activation).toEqual({
+        success: false,
+        error: 'Scene created but activation failed: Error: Connection failed'
+      });
+    });
+  });
+
+  describe('analyzeScript', () => {
+    it('should analyze script and return lighting cues', async () => {
+      const mockScriptAnalysis = {
+        scenes: [
+          {
+            sceneNumber: '1',
+            title: 'Opening',
+            content: 'The stage is dark',
+            mood: 'mysterious',
+            timeOfDay: 'night',
+            location: 'stage',
+            characters: ['Actor 1'],
+            lightingCues: ['Fade to black', 'Spotlight on center'],
+            stageDirections: ['Enter stage left']
+          }
+        ],
+        lightingCues: ['Fade to black', 'Spotlight on center'],
+        characters: ['Actor 1'],
+        settings: ['stage'],
+        overallMood: 'mysterious',
+        themes: ['mystery']
+      };
+
+      mockRAGService.analyzeScript.mockResolvedValue(mockScriptAnalysis);
+      mockRAGService.generateLightingRecommendations.mockResolvedValue({
+        colorSuggestions: ['blue', 'dark'],
+        intensityLevels: { key: 30 },
+        focusAreas: ['center'],
+        reasoning: 'Mysterious mood'
+      });
+
+      const result = await sceneTools.analyzeScript({
+        scriptText: 'Act 1, Scene 1. The stage is dark.',
+        extractLightingCues: true,
+        suggestScenes: true
+      });
+
+      expect(mockRAGService.analyzeScript).toHaveBeenCalledWith('Act 1, Scene 1. The stage is dark.');
+      expect(result.analysis).toBeDefined();
+      expect(result.lightingCues).toBeDefined();
+      expect(result.sceneTemplates).toBeDefined();
+    });
+
+    it('should handle script without extracting cues', async () => {
+      const mockScriptAnalysis = {
+        scenes: [],
+        lightingCues: [],
+        characters: [],
+        settings: [],
+        overallMood: 'neutral',
+        themes: []
+      };
+
+      mockRAGService.analyzeScript.mockResolvedValue(mockScriptAnalysis);
+
+      const result = await sceneTools.analyzeScript({
+        scriptText: 'Simple script',
+        extractLightingCues: false,
+        suggestScenes: false
+      });
+
+      expect(result.analysis).toBeDefined();
+      expect(result.lightingCues).toBeUndefined();
+      expect(result.sceneTemplates).toBeUndefined();
+    });
+
+    it('should handle blackout and snap cues with different timings', async () => {
+      const mockScriptAnalysis = {
+        scenes: [
+          {
+            sceneNumber: '1',
+            title: 'Action Scene',
+            content: 'Sudden action',
+            mood: 'tense',
+            timeOfDay: 'day',
+            location: 'stage',
+            characters: [],
+            lightingCues: ['Blackout', 'Snap to full', 'Flash effect', 'Lights out', 'Fade slowly', 'Dim lights'],
+            stageDirections: []
+          }
+        ],
+        lightingCues: [],
+        characters: [],
+        settings: [],
+        overallMood: 'tense',
+        themes: []
+      };
+
+      mockRAGService.analyzeScript.mockResolvedValue(mockScriptAnalysis);
+      mockRAGService.generateLightingRecommendations.mockResolvedValue({
+        colorSuggestions: ['red', 'orange', 'yellow', 'blue'],
+        intensityLevels: { main: 85, key: 90 },
+        focusAreas: ['left', 'right', 'center'],
+        reasoning: 'High energy scene'
+      });
+
+      const result = await sceneTools.analyzeScript({
+        scriptText: 'Action packed scene.',
+        extractLightingCues: true,
+        suggestScenes: true
+      });
+
+      expect(result.lightingCues).toBeDefined();
+      // Should have called suggestCueTiming with different cue types
+      expect(result.sceneTemplates).toBeDefined();
+    });
+
+    it('should estimate fixture needs based on recommendations', async () => {
+      const mockScriptAnalysis = {
+        scenes: [
+          {
+            sceneNumber: '1',
+            title: 'Complex Scene',
+            content: 'Complex lighting',
+            mood: 'dramatic',
+            timeOfDay: 'night',
+            location: 'stage',
+            characters: [],
+            lightingCues: [],
+            stageDirections: []
+          }
+        ],
+        lightingCues: [],
+        characters: [],
+        settings: [],
+        overallMood: 'dramatic',
+        themes: []
+      };
+
+      mockRAGService.analyzeScript.mockResolvedValue(mockScriptAnalysis);
+      mockRAGService.generateLightingRecommendations.mockResolvedValue({
+        colorSuggestions: ['red', 'blue', 'green', 'amber'],
+        intensityLevels: { main: 25, key: 20 },
+        focusAreas: ['left', 'center', 'right'],
+        reasoning: 'Complex scene'
+      });
+
+      const result = await sceneTools.analyzeScript({
+        scriptText: 'Complex scene.',
+        extractLightingCues: false,
+        suggestScenes: true
+      });
+
+      expect(result.sceneTemplates).toBeDefined();
+      // Should estimate fixture needs based on focus areas and colors
+    });
+  });
+
+  describe('activateScene', () => {
+    it('should activate scene by sceneId', async () => {
+      const mockScene = {
+        id: 'scene-1',
+        name: 'Test Scene',
+        description: 'Test description',
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }]
+      };
+
+      mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(true);
+      mockGraphQLClient.getScene = jest.fn().mockResolvedValue(mockScene as any);
+
+      const result = await sceneTools.activateScene({
+        sceneId: 'scene-1'
+      });
+
+      expect(mockGraphQLClient.setSceneLive).toHaveBeenCalledWith('scene-1');
+      expect(result.success).toBe(true);
+      expect(result.scene.id).toBe('scene-1');
+      expect(result.message).toContain('Test Scene');
+    });
+
+    it('should activate scene by sceneName with projectId', async () => {
+      const mockScene = {
+        id: 'scene-1',
+        name: 'Test Scene',
+        description: 'Test description',
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }]
+      };
+
+      mockGraphQLClient.getProject.mockResolvedValue({
+        ...mockProject,
+        scenes: [mockScene]
+      } as any);
+      mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(true);
+      mockGraphQLClient.getScene = jest.fn().mockResolvedValue(mockScene as any);
+
+      const result = await sceneTools.activateScene({
+        projectId: 'project-1',
+        sceneName: 'Test Scene'
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.scene.name).toBe('Test Scene');
+    });
+
+    it('should activate scene by sceneName across all projects', async () => {
+      const mockScene = {
+        id: 'scene-1',
+        name: 'Test Scene',
+        description: 'Test description',
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }]
+      };
+
+      mockGraphQLClient.getProjects = jest.fn().mockResolvedValue([{
+        ...mockProject,
+        scenes: [mockScene]
+      }] as any);
+      mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(true);
+      mockGraphQLClient.getScene = jest.fn().mockResolvedValue(mockScene as any);
+
+      const result = await sceneTools.activateScene({
+        sceneName: 'Test Scene'
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.scene.name).toBe('Test Scene');
+    });
+
+    it('should handle partial scene name match', async () => {
+      const mockScene = {
+        id: 'scene-1',
+        name: 'Opening Scene',
+        description: 'Test description',
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }]
+      };
+
+      mockGraphQLClient.getProject.mockResolvedValue({
+        ...mockProject,
+        scenes: [mockScene]
+      } as any);
+      mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(true);
+      mockGraphQLClient.getScene = jest.fn().mockResolvedValue(mockScene as any);
+
+      const result = await sceneTools.activateScene({
+        projectId: 'project-1',
+        sceneName: 'opening'
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.scene.name).toBe('Opening Scene');
+    });
+
+    it('should throw error when neither sceneId nor sceneName provided', async () => {
+      await expect(sceneTools.activateScene({})).rejects.toThrow('Either sceneId or sceneName must be provided');
+    });
+
+    it('should throw error when scene not found by name in project', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+
+      await expect(sceneTools.activateScene({
+        projectId: 'project-1',
+        sceneName: 'NonExistent Scene'
+      })).rejects.toThrow('Scene with name "NonExistent Scene" not found');
+    });
+
+    it('should throw error when scene not found across all projects', async () => {
+      mockGraphQLClient.getProjects = jest.fn().mockResolvedValue([mockProject] as any);
+
+      await expect(sceneTools.activateScene({
+        sceneName: 'NonExistent Scene'
+      })).rejects.toThrow('Scene with name "NonExistent Scene" not found in any project');
+    });
+
+    it('should throw error when project not found', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(null);
+
+      await expect(sceneTools.activateScene({
+        projectId: 'invalid-project',
+        sceneName: 'Test Scene'
+      })).rejects.toThrow('Project with ID invalid-project not found');
+    });
+
+    it('should throw error when activation fails', async () => {
+      mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(false);
+
+      await expect(sceneTools.activateScene({
+        sceneId: 'scene-1'
+      })).rejects.toThrow('Failed to activate scene');
+    });
+
+    it('should throw error when scene cannot be retrieved after activation', async () => {
+      mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(true);
+      mockGraphQLClient.getScene = jest.fn().mockResolvedValue(null);
+
+      await expect(sceneTools.activateScene({
+        sceneId: 'scene-1'
+      })).rejects.toThrow('Scene could not be retrieved after activation');
+    });
+  });
+
+  describe('fadeToBlack', () => {
+    it('should fade to black successfully', async () => {
+      mockGraphQLClient.fadeToBlack = jest.fn().mockResolvedValue(true);
+
+      const result = await sceneTools.fadeToBlack({
+        fadeOutTime: 3
+      });
+
+      expect(mockGraphQLClient.fadeToBlack).toHaveBeenCalledWith(3);
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('faded to black');
+      expect(result.fadeOutTime).toBe(3);
+    });
+
+    it('should handle fade to black failure', async () => {
+      mockGraphQLClient.fadeToBlack = jest.fn().mockResolvedValue(false);
+
+      const result = await sceneTools.fadeToBlack({
+        fadeOutTime: 2
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('Failed');
+    });
+
+    it('should use default fade out time', async () => {
+      mockGraphQLClient.fadeToBlack = jest.fn().mockResolvedValue(true);
+
+      await sceneTools.fadeToBlack({ fadeOutTime: 3 });
+
+      expect(mockGraphQLClient.fadeToBlack).toHaveBeenCalledWith(3);
+    });
+  });
+
+  describe('getCurrentActiveScene', () => {
+    it('should return active scene with project info', async () => {
+      const mockActiveScene = {
+        id: 'scene-1',
+        name: 'Active Scene',
+        description: 'Currently active',
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }],
+        project: {
+          id: 'project-1',
+          name: 'Test Project'
+        }
+      };
+
+      mockGraphQLClient.getCurrentActiveScene = jest.fn().mockResolvedValue(mockActiveScene);
+
+      const result = await sceneTools.getCurrentActiveScene();
+
+      expect(result.hasActiveScene).toBe(true);
+      expect(result.scene?.name).toBe('Active Scene');
+      expect(result.scene?.project?.name).toBe('Test Project');
+      expect(result.fixturesActive).toBe(1);
+    });
+
+    it('should handle no active scene', async () => {
+      mockGraphQLClient.getCurrentActiveScene = jest.fn().mockResolvedValue(null);
+
+      const result = await sceneTools.getCurrentActiveScene();
+
+      expect(result.hasActiveScene).toBe(false);
+      expect(result.message).toContain('No scene is currently active');
+    });
+
+    it('should handle active scene without project info', async () => {
+      const mockActiveScene = {
+        id: 'scene-1',
+        name: 'Active Scene',
+        description: 'Currently active',
+        fixtureValues: [],
+        project: null
+      };
+
+      mockGraphQLClient.getCurrentActiveScene = jest.fn().mockResolvedValue(mockActiveScene);
+
+      const result = await sceneTools.getCurrentActiveScene();
+
+      expect(result.hasActiveScene).toBe(true);
+      expect(result.scene?.project).toBeNull();
+    });
+  });
+
 });

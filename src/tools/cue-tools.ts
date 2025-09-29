@@ -105,10 +105,6 @@ interface CueResponse {
 // Removed CueListPlaybackState interface - now using backend's centralized state
 
 export class CueTools {
-  // Track active cue lists for MCP session
-  // The actual playback state is managed by the backend
-  private activeCueLists: Set<string> = new Set();
-
   // Cache for scene-to-cue-list mapping to avoid expensive nested loops
   private sceneToCueListCache: Map<
     string,
@@ -123,17 +119,25 @@ export class CueTools {
   ) {}
 
   /**
-   * Helper method to get the first active cue list ID
+   * Helper method to get the currently playing cue list ID from backend
    * @throws Error if no cue list is currently playing
-   * @returns The ID of the first active cue list
+   * @returns The ID of the currently playing cue list
    */
-  private getActiveCueListId(): string {
-    if (this.activeCueLists.size === 0) {
-      throw new Error(
-        "No cue list is currently playing. Use start_cue_list first.",
-      );
+  private async getActiveCueListId(): Promise<string> {
+    const projects = await this.graphqlClient.getProjects();
+    for (const project of projects) {
+      for (const cueList of project.cueLists) {
+        const status = await this.graphqlClient.getCueListPlaybackStatus(
+          cueList.id,
+        );
+        if (status && status.isPlaying) {
+          return cueList.id;
+        }
+      }
     }
-    return Array.from(this.activeCueLists)[0];
+    throw new Error(
+      "No cue list is currently playing. Use start_cue_list first.",
+    );
   }
 
   async createCueSequence(args: z.infer<typeof CreateCueSequenceSchema>) {
@@ -1377,9 +1381,6 @@ export class CueTools {
       // Use backend mutation to start the cue list
       await this.graphqlClient.startCueList(resolvedCueListId, startIndex);
 
-      // Track this cue list as active
-      this.activeCueLists.add(resolvedCueListId);
-
       const firstCue = sortedCues[startIndex];
 
       return {
@@ -1465,7 +1466,7 @@ export class CueTools {
   async nextCue(args: z.infer<typeof NextCueSchema>) {
     const { fadeInTime } = NextCueSchema.parse(args);
 
-    const cueListId = this.getActiveCueListId();
+    const cueListId = await this.getActiveCueListId();
 
     try {
       // Use backend mutation to advance to next cue
@@ -1507,7 +1508,7 @@ export class CueTools {
   async previousCue(args: z.infer<typeof PreviousCueSchema>) {
     const { fadeInTime } = PreviousCueSchema.parse(args);
 
-    const cueListId = this.getActiveCueListId();
+    const cueListId = await this.getActiveCueListId();
 
     try {
       // Use backend mutation to go to previous cue
@@ -1553,7 +1554,7 @@ export class CueTools {
       throw new Error("Either cueNumber or cueName must be provided");
     }
 
-    const cueListId = this.getActiveCueListId();
+    const cueListId = await this.getActiveCueListId();
 
     try {
       // Get the cue list to find the target cue index
@@ -1610,25 +1611,15 @@ export class CueTools {
   }
 
   async stopCueList(_args: z.infer<typeof StopCueListSchema>) {
-    if (this.activeCueLists.size === 0) {
-      return {
-        success: true,
-        message: "No cue list is currently active",
-      };
-    }
-
-    const cueListId = this.getActiveCueListId();
-
     try {
+      const cueListId = await this.getActiveCueListId();
+
       // Get current status before stopping
       const status =
         await this.graphqlClient.getCueListPlaybackStatus(cueListId);
 
       // Use backend mutation to stop
       await this.graphqlClient.stopCueList(cueListId);
-
-      // Remove from active list
-      this.activeCueLists.delete(cueListId);
 
       return {
         success: true,
@@ -1643,15 +1634,22 @@ export class CueTools {
         message: `Stopped cue list playback`,
       };
     } catch (error) {
+      // If no cue list is playing, return a success message
+      if (error instanceof Error && error.message.includes("No cue list is currently playing")) {
+        return {
+          success: true,
+          message: "No cue list is currently active",
+        };
+      }
       throw new Error(`Failed to stop cue list: ${error}`);
     }
   }
 
   async getCueListStatus(_args: z.infer<typeof GetCueListStatusSchema>) {
     try {
-      // First check if we have an active cue list playback
-      if (this.activeCueLists.size > 0) {
-        const cueListId = this.getActiveCueListId();
+      // Query backend for active cue list playback
+      try {
+        const cueListId = await this.getActiveCueListId();
         const status =
           await this.graphqlClient.getCueListPlaybackStatus(cueListId);
 
@@ -1706,6 +1704,8 @@ export class CueTools {
             };
           }
         }
+      } catch (error) {
+        // No active cue list playback, continue to check for active scene
       }
 
       // No active cue list playback - check if there's an active scene that matches a cue

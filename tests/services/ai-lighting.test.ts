@@ -386,4 +386,209 @@ describe('AILightingService', () => {
       expect(result.reasoning).toContain('Unable to parse AI response');
     });
   });
+
+  describe('generateScene - additive scenes', () => {
+    it('should generate additive scene with only specified fixtures', async () => {
+      const allFixtures: FixtureInstance[] = [
+        mockFixture,
+        {
+          ...mockFixture,
+          id: 'fixture-2',
+          name: 'Background LED',
+          tags: ['background']
+        }
+      ];
+
+      mockRAGService.generateLightingRecommendations.mockResolvedValue({
+        colorSuggestions: ['blue'],
+        intensityLevels: {},
+        focusAreas: [],
+        reasoning: 'Test'
+      });
+
+      const mockAIResponse = {
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              name: 'Additive Scene',
+              description: 'Only modifying some fixtures',
+              fixtureValues: [
+                {
+                  fixtureId: 'fixture-1',
+                  channelValues: [100, 150, 200]
+                }
+              ]
+            })
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
+
+      const request = {
+        scriptContext: 'Test',
+        sceneDescription: 'Additive test',
+        availableFixtures: [mockFixture],
+        allFixtures: allFixtures,
+        sceneType: 'additive' as const
+      };
+
+      const result = await aiService.generateScene(request);
+
+      expect(result.name).toBe('Additive Scene');
+      expect(result.fixtureValues).toHaveLength(1);
+      expect(result.fixtureValues[0].fixtureId).toBe('fixture-1');
+    });
+
+    it('should handle additive scene with many fixtures', async () => {
+      // Create 20 fixtures to test truncation
+      const manyFixtures = Array.from({ length: 20 }, (_, i) => ({
+        ...mockFixture,
+        id: `fixture-${i}`,
+        name: `Fixture ${i}`
+      }));
+
+      mockRAGService.generateLightingRecommendations.mockResolvedValue({
+        colorSuggestions: [],
+        intensityLevels: {},
+        focusAreas: [],
+        reasoning: 'Test'
+      });
+
+      const mockAIResponse = {
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              name: 'Test Scene',
+              fixtureValues: []
+            })
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
+
+      const request = {
+        scriptContext: 'Test',
+        sceneDescription: 'Test',
+        availableFixtures: manyFixtures.slice(0, 10),
+        allFixtures: manyFixtures,
+        sceneType: 'additive' as const
+      };
+
+      await aiService.generateScene(request);
+
+      // Should call OpenAI with truncated fixture list
+      expect(mockOpenAI.chat.completions.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('generateScene - JSON extraction edge cases', () => {
+    it('should extract JSON from text with nested braces', async () => {
+      mockRAGService.generateLightingRecommendations.mockResolvedValue({
+        colorSuggestions: [],
+        intensityLevels: {},
+        focusAreas: [],
+        reasoning: 'Test'
+      });
+
+      const mockAIResponse = {
+        choices: [{
+          message: {
+            content: 'Here is the scene: {"name": "Test", "fixtureValues": []}'
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
+
+      const result = await aiService.generateScene({
+        scriptContext: 'Test',
+        sceneDescription: 'Test',
+        availableFixtures: [mockFixture]
+      });
+
+      expect(result.name).toBe('Test');
+    });
+
+    it('should handle failed JSON extraction with nested try-catch', async () => {
+      mockRAGService.generateLightingRecommendations.mockResolvedValue({
+        colorSuggestions: [],
+        intensityLevels: {},
+        focusAreas: [],
+        reasoning: 'Test reasoning'
+      });
+
+      const mockAIResponse = {
+        choices: [{
+          message: {
+            content: 'Some text { invalid json here that will fail }'
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
+
+      const result = await aiService.generateScene({
+        scriptContext: 'Test',
+        sceneDescription: 'Test scene',
+        availableFixtures: [mockFixture]
+      });
+
+      expect(result.name).toBe('Scene for Test scene');
+      expect(result.reasoning).toContain('Test reasoning');
+    });
+  });
+
+  describe('generateCueSequence - JSON extraction', () => {
+    it('should extract JSON from text response', async () => {
+      const mockAIResponse = {
+        choices: [{
+          message: {
+            content: 'Here is the cue sequence: {"name": "Act 1", "cues": [], "reasoning": "Test"}'
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
+
+      const result = await aiService.generateCueSequence('Test', []);
+
+      expect(result.name).toBe('Act 1');
+    });
+
+    it('should handle failed JSON extraction in cue sequence', async () => {
+      const mockAIResponse = {
+        choices: [{
+          message: {
+            content: 'Text { broken json here }'
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
+
+      const result = await aiService.generateCueSequence('Test', []);
+
+      expect(result.name).toBe('Generated Cue Sequence');
+      expect(result.reasoning).toContain('Unable to parse AI response');
+    });
+
+    it('should handle no JSON match in response', async () => {
+      const mockAIResponse = {
+        choices: [{
+          message: {
+            content: 'No JSON here at all'
+          }
+        }]
+      };
+
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
+
+      const result = await aiService.generateCueSequence('Test', []);
+
+      expect(result.name).toBe('Generated Cue Sequence');
+      expect(result.cues).toEqual([]);
+    });
+  });
 });
