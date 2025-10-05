@@ -14,6 +14,7 @@ import { FixtureTools } from "./tools/fixture-tools";
 import { SceneTools } from "./tools/scene-tools";
 import { CueTools } from "./tools/cue-tools";
 import { ProjectTools } from "./tools/project-tools";
+import { logger } from "./utils/logger";
 
 class LacyLightsMCPServer {
   private server: Server;
@@ -1306,6 +1307,9 @@ class LacyLightsMCPServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
+      // Log all incoming tool calls
+      logger.info(`Tool call: ${name}`, { args });
+
       try {
         switch (name) {
           // Project Tools
@@ -1918,11 +1922,21 @@ class LacyLightsMCPServer {
             throw new Error(`Unknown tool: ${name}`);
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        // Log the error with full context
+        logger.error(`Tool call failed: ${name}`, {
+          args,
+          error: errorMessage,
+          stack: errorStack,
+        });
+
         return {
           content: [
             {
               type: "text",
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: `Error: ${errorMessage}`,
             },
           ],
           isError: true,
@@ -1932,17 +1946,25 @@ class LacyLightsMCPServer {
   }
 
   async run() {
+    // Log server startup
+    logger.info('LacyLights MCP Server initializing', {
+      logFile: logger.getLogPath(),
+      graphqlEndpoint: process.env.LACYLIGHTS_GRAPHQL_ENDPOINT || "http://localhost:4000/graphql",
+    });
+
     // Initialize RAG service
     try {
       await this.ragService.initializeCollection();
-      // Don't log to stderr as it interferes with MCP protocol
+      logger.info('RAG service initialized');
     } catch (error) {
-      // Silently continue - RAG service is optional
+      logger.warn('RAG service initialization failed (optional)', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
 
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    // Server is ready - no need to log
+    logger.info('MCP Server connected and ready');
   }
 }
 
@@ -1953,6 +1975,11 @@ async function main() {
 
 // Run the server
 main().catch((error) => {
-  // Exit with error code but don't log to stderr
+  // Log fatal startup error
+  logger.error('Fatal server startup error', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+  // Exit with error code but don't log to stderr (interferes with MCP protocol)
   process.exit(1);
 });
