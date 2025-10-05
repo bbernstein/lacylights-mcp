@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
 import { FixtureDefinition, FixtureInstance, Scene, FixtureValue, FixtureType } from "../types/lighting";
+import { logger } from "../utils/logger";
 
 const GetFixtureInventorySchema = z.object({
   projectId: z.string().optional(),
@@ -1004,8 +1005,21 @@ export class FixtureTools {
       tags,
     } = UpdateFixtureInstanceSchema.parse(args);
 
+    logger.debug('updateFixtureInstance called', {
+      fixtureId,
+      name,
+      description,
+      manufacturer,
+      model,
+      mode,
+      universe,
+      startChannel,
+      tags,
+    });
+
     try {
       // First, get the current fixture to understand what we're updating
+      logger.debug('Fetching projects to find fixture', { fixtureId });
       const projects = await this.graphqlClient.getProjects();
       let currentFixture: FixtureInstance | null = null;
       
@@ -1018,8 +1032,16 @@ export class FixtureTools {
       }
 
       if (!currentFixture) {
+        logger.error('Fixture not found', { fixtureId });
         throw new Error(`Fixture with ID ${fixtureId} not found`);
       }
+
+      logger.debug('Found current fixture', {
+        id: currentFixture.id,
+        name: currentFixture.name,
+        manufacturer: currentFixture.manufacturer,
+        model: currentFixture.model,
+      });
 
       // Prepare update data
       const updateData: any = {};
@@ -1091,7 +1113,13 @@ export class FixtureTools {
       }
 
       // Update the fixture
+      logger.debug('Calling GraphQL updateFixtureInstance', { fixtureId, updateData });
       const updatedFixture = await this.graphqlClient.updateFixtureInstance(fixtureId, updateData);
+
+      logger.info('Fixture updated successfully', {
+        id: updatedFixture.id,
+        name: updatedFixture.name,
+      });
 
       return {
         fixture: {
@@ -1119,6 +1147,11 @@ export class FixtureTools {
         message: `Successfully updated fixture "${updatedFixture.name}"`
       };
     } catch (error) {
+      logger.error('Failed to update fixture instance', {
+        fixtureId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw new Error(`Failed to update fixture instance: ${error}`);
     }
   }
