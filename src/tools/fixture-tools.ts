@@ -1005,17 +1005,19 @@ export class FixtureTools {
       tags,
     } = UpdateFixtureInstanceSchema.parse(args);
 
-    logger.debug('updateFixtureInstance called', {
-      fixtureId,
-      name,
-      description,
-      manufacturer,
-      model,
-      mode,
-      universe,
-      startChannel,
-      tags,
-    });
+    if (logger.isDebugEnabled && logger.isDebugEnabled()) {
+      logger.debug('updateFixtureInstance called', {
+        fixtureId,
+        name,
+        description,
+        manufacturer,
+        model,
+        mode,
+        universe,
+        startChannel,
+        tags,
+      });
+    }
 
     try {
       // First, get the current fixture to understand what we're updating
