@@ -68,9 +68,9 @@ const GoToCueSchema = z.object({
   fadeInTime: z.number().optional(),
 });
 
-const StopCueListSchema = z.object({});
+const _StopCueListSchema = z.object({});
 
-const GetCueListStatusSchema = z.object({});
+const _GetCueListStatusSchema = z.object({});
 
 const BulkUpdateCuesSchema = z.object({
   cueIds: z.array(z.string()),
@@ -1449,13 +1449,13 @@ export class CueTools {
               });
               return { cueListId: cueList.id, cueId: matchingCue.id };
             }
-          } catch (error) {
+          } catch (_error) {
             // Skip this cue list if we can't access it
             continue;
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // If we can't search, return null
       return null;
     }
@@ -1610,7 +1610,7 @@ export class CueTools {
     }
   }
 
-  async stopCueList(_args: z.infer<typeof StopCueListSchema>) {
+  async stopCueList(_args: z.infer<typeof _StopCueListSchema>) {
     try {
       const cueListId = await this.getActiveCueListId();
 
@@ -1645,7 +1645,7 @@ export class CueTools {
     }
   }
 
-  async getCueListStatus(_args: z.infer<typeof GetCueListStatusSchema>) {
+  async getCueListStatus(_args: z.infer<typeof _GetCueListStatusSchema>) {
     try {
       // Query backend for active cue list playback
       try {
@@ -1704,7 +1704,7 @@ export class CueTools {
             };
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // No active cue list playback, continue to check for active scene
       }
 
@@ -1778,7 +1778,7 @@ export class CueTools {
               };
             }
           }
-        } catch (error) {
+        } catch (_error) {
           // If we can't get the cue list details, fall through to the not found case
         }
       }
