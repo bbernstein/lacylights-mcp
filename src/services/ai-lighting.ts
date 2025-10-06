@@ -41,13 +41,13 @@ export class AILightingService {
 
     try {
       aiResponse = JSON.parse(content);
-    } catch (error) {
+    } catch (_error) {
       // If JSON parsing fails, try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           aiResponse = JSON.parse(jsonMatch[0]);
-        } catch (e) {
+        } catch (_e) {
           // If still fails, use fallback
           aiResponse = {};
         }
@@ -140,12 +140,12 @@ Consider:
     const content = response.choices[0].message.content || "{}";
     try {
       return JSON.parse(content);
-    } catch (error) {
+    } catch (_error) {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           return JSON.parse(jsonMatch[0]);
-        } catch (e) {
+        } catch (_e) {
           return {
             name: "Generated Cue Sequence",
             description: "Fallback cue sequence due to parsing error",
@@ -350,12 +350,12 @@ Consider:
     const content = response.choices[0].message.content || "{}";
     try {
       return JSON.parse(content);
-    } catch (error) {
+    } catch (_error) {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           return JSON.parse(jsonMatch[0]);
-        } catch (e) {
+        } catch (_e) {
           return {
             primaryFixtures: [],
             supportingFixtures: [],

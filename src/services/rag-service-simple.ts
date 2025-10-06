@@ -74,13 +74,13 @@ Focus on:
     const content = response.choices[0].message.content || '{}';
     try {
       return JSON.parse(content);
-    } catch (error) {
+    } catch (_error) {
       // If JSON parsing fails, try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           return JSON.parse(jsonMatch[0]);
-        } catch (e) {
+        } catch (_e) {
           // If still fails, return a fallback structure
           return {
             scenes: [],
@@ -163,13 +163,13 @@ Recommend colors and intensities for ${mood} mood.`;
     const content = response.choices[0].message.content || '{}';
     try {
       return JSON.parse(content);
-    } catch (error) {
+    } catch (_error) {
       // If JSON parsing fails, try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
           return JSON.parse(jsonMatch[0]);
-        } catch (e) {
+        } catch (_e) {
           // If still fails, return a fallback structure
           return {
             colorSuggestions: [],
