@@ -1,6 +1,7 @@
 // @ts-check
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import globals from 'globals';
 
 export default tseslint.config(
   // Base recommended config
@@ -25,16 +26,8 @@ export default tseslint.config(
         project: './tsconfig.json',
       },
       globals: {
-        node: true,
-        jest: true,
-        console: true,
-        process: true,
-        Buffer: true,
-        __dirname: true,
-        __filename: true,
-        module: true,
-        require: true,
-        exports: true,
+        ...globals.node,
+        ...globals.jest,
       },
     },
     rules: {
