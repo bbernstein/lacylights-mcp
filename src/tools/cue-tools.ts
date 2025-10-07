@@ -787,19 +787,21 @@ export class CueTools {
     cueListId: string;
     name?: string;
     description?: string;
+    loop?: boolean;
   }) {
-    const { cueListId, name, description } = args;
+    const { cueListId, name, description, loop } = args;
 
     try {
-      if (!name && !description) {
+      if (!name && !description && loop === undefined) {
         throw new Error(
-          "At least one field (name or description) must be provided",
+          "At least one field (name, description, or loop) must be provided",
         );
       }
 
       const updatedCueList = await this.graphqlClient.updateCueList(cueListId, {
         name,
         description,
+        loop,
       });
 
       return {
@@ -807,6 +809,7 @@ export class CueTools {
         cueList: {
           name: updatedCueList.name,
           description: updatedCueList.description,
+          loop: updatedCueList.loop,
           totalCues: updatedCueList.cues.length,
         },
         success: true,

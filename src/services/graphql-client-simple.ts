@@ -448,6 +448,7 @@ export class LacyLightsGraphQLClient {
   async updateCueList(id: string, input: {
     name?: string;
     description?: string;
+    loop?: boolean;
   }): Promise<CueList> {
     const mutation = `
       mutation UpdateCueList($id: ID!, $input: CreateCueListInput!) {
@@ -455,6 +456,7 @@ export class LacyLightsGraphQLClient {
           id
           name
           description
+          loop
           createdAt
           updatedAt
           cues {
@@ -480,6 +482,8 @@ export class LacyLightsGraphQLClient {
       query GetCueList($id: ID!) {
         cueList(id: $id) {
           id
+          name
+          loop
           project {
             id
           }
@@ -489,10 +493,11 @@ export class LacyLightsGraphQLClient {
     
     const cueListData = await this.query(cueListQuery, { id });
     const projectId = cueListData.cueList.project.id;
-    
+
     const updateInput = {
       name: input.name || cueListData.cueList.name,
       description: input.description,
+      loop: input.loop !== undefined ? input.loop : cueListData.cueList.loop,
       projectId
     };
 
