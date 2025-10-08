@@ -94,6 +94,7 @@ export interface CueList {
   id: string;
   name: string;
   description?: string;
+  loop: boolean;
   cues: Cue[];
 }
 

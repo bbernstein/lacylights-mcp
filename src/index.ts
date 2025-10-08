@@ -950,6 +950,10 @@ class LacyLightsMCPServer {
                   type: "string",
                   description: "New description for the cue list",
                 },
+                loop: {
+                  type: "boolean",
+                  description: "Whether to loop the cue list (restart from first cue after last cue finishes)",
+                },
               },
               required: ["cueListId"],
             },

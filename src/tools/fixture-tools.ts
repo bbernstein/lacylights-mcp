@@ -1018,8 +1018,46 @@ export class FixtureTools {
     });
 
     try {
-      // First, get the current fixture to understand what we're updating
-      logger.debug('Fetching projects to find fixture', { fixtureId });
+      // Check if this is a simple update (no manufacturer/model/mode changes)
+      const isSimpleUpdate = manufacturer === undefined && model === undefined && mode === undefined;
+
+      // For simple updates, we can skip fetching all projects
+      if (isSimpleUpdate) {
+        logger.debug('Performing simple update without fetching projects', { fixtureId });
+        const updateData: any = {};
+        if (name !== undefined) updateData.name = name;
+        if (description !== undefined) updateData.description = description;
+        if (universe !== undefined) updateData.universe = universe;
+        if (startChannel !== undefined) updateData.startChannel = startChannel;
+        if (tags !== undefined) updateData.tags = tags;
+
+        logger.debug('Calling GraphQL updateFixtureInstance', { fixtureId, updateData });
+        const updatedFixture = await this.graphqlClient.updateFixtureInstance(fixtureId, updateData);
+
+        logger.info('Fixture updated successfully (simple update)', {
+          id: updatedFixture.id,
+          name: updatedFixture.name,
+        });
+
+        return {
+          fixture: {
+            id: updatedFixture.id,
+            name: updatedFixture.name,
+            description: updatedFixture.description,
+            manufacturer: updatedFixture.manufacturer,
+            model: updatedFixture.model,
+            mode: updatedFixture.modeName,
+            universe: updatedFixture.universe,
+            startChannel: updatedFixture.startChannel,
+            channelCount: updatedFixture.channelCount,
+            tags: updatedFixture.tags
+          },
+          message: `Successfully updated fixture "${updatedFixture.name}"`
+        };
+      }
+
+      // For complex updates, we need the current fixture data
+      logger.debug('Fetching projects to find fixture (complex update)', { fixtureId });
       const projects = await this.graphqlClient.getProjects();
       let currentFixture: FixtureInstance | null = null;
       

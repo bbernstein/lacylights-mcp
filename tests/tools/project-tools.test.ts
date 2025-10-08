@@ -59,6 +59,7 @@ describe('ProjectTools', () => {
         id: 'cuelist-1',
         name: 'Test Cue List',
         description: 'Test cue list description',
+        loop: false,
         cues: []
       }
     ]
