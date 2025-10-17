@@ -24,23 +24,28 @@ export interface FixtureInstance {
   id: string;
   name: string;
   description?: string;
-  
+
   // Flattened fixture definition info
   definitionId: string;
   manufacturer: string;
   model: string;
   type: FixtureType;
-  
+
   // Flattened mode info
   modeName: string;
   channelCount: number;
   channels: InstanceChannel[];
-  
+
   // DMX configuration
   universe: number;
   startChannel: number;
   tags: string[];
-  
+
+  // Layout positioning (optional)
+  layoutX?: number;
+  layoutY?: number;
+  layoutRotation?: number;
+
 }
 
 export interface InstanceChannel {
