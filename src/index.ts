@@ -452,7 +452,7 @@ class LacyLightsMCPServer {
           {
             name: "bulk_create_fixtures",
             description:
-              "Create multiple fixture instances in a single atomic operation. All fixtures are created together or the entire operation fails. Useful for setting up multiple fixtures at once with automatic channel assignment.",
+              "Create multiple fixture instances with best-effort approach. Each fixture is processed individually, allowing partial success if some fixtures fail. Returns detailed success/failure information for each fixture. Automatically assigns DMX channels if not specified. Validates channel availability before creation.",
             inputSchema: {
               type: "object",
               properties: {
