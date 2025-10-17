@@ -779,6 +779,91 @@ export class LacyLightsGraphQLClient {
     return data.deleteFixtureInstance;
   }
 
+  async bulkUpdateFixtures(input: {
+    fixtures: Array<{
+      fixtureId: string;
+      name?: string;
+      description?: string;
+      universe?: number;
+      startChannel?: number;
+      tags?: string[];
+      layoutX?: number;
+      layoutY?: number;
+      layoutRotation?: number;
+    }>;
+  }): Promise<FixtureInstance[]> {
+    const mutation = `
+      mutation BulkUpdateFixtures($input: BulkFixtureUpdateInput!) {
+        bulkUpdateFixtures(input: $input) {
+          id
+          name
+          description
+          universe
+          startChannel
+          tags
+          layoutX
+          layoutY
+          layoutRotation
+          # Flattened fields
+          definitionId
+          manufacturer
+          model
+          type
+          modeName
+          channelCount
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkUpdateFixtures;
+  }
+
+  async bulkCreateFixtures(input: {
+    fixtures: Array<{
+      projectId: string;
+      name: string;
+      description?: string;
+      definitionId: string;
+      modeId?: string;
+      universe: number;
+      startChannel: number;
+      tags?: string[];
+    }>;
+  }): Promise<FixtureInstance[]> {
+    const mutation = `
+      mutation BulkCreateFixtures($input: BulkFixtureCreateInput!) {
+        bulkCreateFixtures(input: $input) {
+          id
+          name
+          description
+          universe
+          startChannel
+          tags
+          # Flattened fields
+          definitionId
+          manufacturer
+          model
+          type
+          modeName
+          channelCount
+          channels {
+            id
+            offset
+            name
+            type
+            minValue
+            maxValue
+            defaultValue
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkCreateFixtures;
+  }
+
   async setSceneLive(sceneId: string): Promise<boolean> {
     const mutation = `
       mutation ActivateScene($sceneId: ID!) {

@@ -720,13 +720,544 @@ describe('FixtureTools', () => {
     });
   });
 
+  describe('bulkUpdateFixtures', () => {
+    it('should bulk update multiple fixtures successfully', async () => {
+      const mockUpdatedFixtures = [
+        {
+          id: 'fixture-1',
+          name: 'Spot 1:1',
+          description: 'Updated fixture 1',
+          universe: 1,
+          startChannel: 1,
+          tags: ['spot', 'front'],
+          layoutX: 0.1,
+          layoutY: 0.2,
+          layoutRotation: 45,
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          definitionId: 'def-1',
+          modeName: 'Standard',
+          channelCount: 3
+        },
+        {
+          id: 'fixture-2',
+          name: 'Spot 1:2',
+          description: 'Updated fixture 2',
+          universe: 1,
+          startChannel: 4,
+          tags: ['spot', 'front'],
+          layoutX: 0.3,
+          layoutY: 0.4,
+          layoutRotation: 90,
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          definitionId: 'def-1',
+          modeName: 'Standard',
+          channelCount: 3
+        }
+      ];
+
+      // Mock the bulkUpdateFixtures method on the GraphQL client
+      mockGraphQLClient.bulkUpdateFixtures = jest.fn().mockResolvedValue(mockUpdatedFixtures as any);
+
+      const result = await fixtureTools.bulkUpdateFixtures({
+        fixtures: [
+          {
+            fixtureId: 'fixture-1',
+            name: 'Spot 1:1',
+            description: 'Updated fixture 1',
+            tags: ['spot', 'front'],
+            layoutX: 0.1,
+            layoutY: 0.2,
+            layoutRotation: 45
+          },
+          {
+            fixtureId: 'fixture-2',
+            name: 'Spot 1:2',
+            description: 'Updated fixture 2',
+            tags: ['spot', 'front'],
+            layoutX: 0.3,
+            layoutY: 0.4,
+            layoutRotation: 90
+          }
+        ]
+      });
+
+      expect(mockGraphQLClient.bulkUpdateFixtures).toHaveBeenCalledWith({
+        fixtures: [
+          {
+            fixtureId: 'fixture-1',
+            name: 'Spot 1:1',
+            description: 'Updated fixture 1',
+            tags: ['spot', 'front'],
+            layoutX: 0.1,
+            layoutY: 0.2,
+            layoutRotation: 45
+          },
+          {
+            fixtureId: 'fixture-2',
+            name: 'Spot 1:2',
+            description: 'Updated fixture 2',
+            tags: ['spot', 'front'],
+            layoutX: 0.3,
+            layoutY: 0.4,
+            layoutRotation: 90
+          }
+        ]
+      });
+      expect(result.success).toBe(true);
+      expect(result.updatedCount).toBe(2);
+      expect(result.fixtures).toHaveLength(2);
+      expect(result.fixtures[0].name).toBe('Spot 1:1');
+      expect(result.fixtures[1].name).toBe('Spot 1:2');
+      expect(result.message).toContain('Successfully updated 2 fixture(s)');
+    });
+
+    it('should handle bulk update with partial field updates', async () => {
+      const mockUpdatedFixtures = [
+        {
+          id: 'fixture-1',
+          name: 'Updated Name',
+          description: 'Original description',
+          universe: 1,
+          startChannel: 1,
+          tags: [],
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          definitionId: 'def-1',
+          modeName: 'Standard',
+          channelCount: 3
+        }
+      ];
+
+      mockGraphQLClient.bulkUpdateFixtures = jest.fn().mockResolvedValue(mockUpdatedFixtures as any);
+
+      const result = await fixtureTools.bulkUpdateFixtures({
+        fixtures: [
+          {
+            fixtureId: 'fixture-1',
+            name: 'Updated Name'
+            // Only updating name, not other fields
+          }
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.updatedCount).toBe(1);
+      expect(result.fixtures[0].name).toBe('Updated Name');
+    });
+
+    it('should handle bulk update errors', async () => {
+      mockGraphQLClient.bulkUpdateFixtures = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(fixtureTools.bulkUpdateFixtures({
+        fixtures: [
+          {
+            fixtureId: 'fixture-1',
+            name: 'Updated Name'
+          }
+        ]
+      })).rejects.toThrow('Failed to bulk update fixtures: Error: GraphQL error');
+    });
+
+    it('should validate bulk update input', async () => {
+      // Test with empty fixtures array
+      await expect(fixtureTools.bulkUpdateFixtures({
+        fixtures: []
+      })).rejects.toThrow();
+
+      // Test with missing fixtureId
+      await expect(fixtureTools.bulkUpdateFixtures({
+        fixtures: [
+          {
+            name: 'Updated Name'
+          } as any
+        ]
+      })).rejects.toThrow();
+    });
+
+    it('should handle bulk update with all updatable fields', async () => {
+      const mockUpdatedFixtures = [
+        {
+          id: 'fixture-1',
+          name: 'Updated Fixture',
+          description: 'Updated description',
+          universe: 2,
+          startChannel: 10,
+          tags: ['updated', 'test'],
+          layoutX: 0.5,
+          layoutY: 0.6,
+          layoutRotation: 180,
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          definitionId: 'def-1',
+          modeName: 'Standard',
+          channelCount: 3
+        }
+      ];
+
+      mockGraphQLClient.bulkUpdateFixtures = jest.fn().mockResolvedValue(mockUpdatedFixtures as any);
+
+      const result = await fixtureTools.bulkUpdateFixtures({
+        fixtures: [
+          {
+            fixtureId: 'fixture-1',
+            name: 'Updated Fixture',
+            description: 'Updated description',
+            universe: 2,
+            startChannel: 10,
+            tags: ['updated', 'test'],
+            layoutX: 0.5,
+            layoutY: 0.6,
+            layoutRotation: 180
+          }
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fixtures[0]).toMatchObject({
+        id: 'fixture-1',
+        name: 'Updated Fixture',
+        description: 'Updated description',
+        universe: 2,
+        startChannel: 10,
+        tags: ['updated', 'test'],
+        layoutX: 0.5,
+        layoutY: 0.6,
+        layoutRotation: 180
+      });
+    });
+  });
+
+  describe('bulkCreateFixtures', () => {
+    it('should bulk create multiple fixtures successfully', async () => {
+      const mockCreatedFixtures = [
+        {
+          id: 'fixture-new-1',
+          name: 'New Fixture 1',
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          type: FixtureType.LED_PAR,
+          universe: 1,
+          startChannel: 4,
+          modeName: 'Standard',
+          channelCount: 3,
+          tags: ['new'],
+          channels: mockProject.fixtures[0].channels
+        },
+        {
+          id: 'fixture-new-2',
+          name: 'New Fixture 2',
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          type: FixtureType.LED_PAR,
+          universe: 1,
+          startChannel: 7,
+          modeName: 'Standard',
+          channelCount: 3,
+          tags: ['new'],
+          channels: mockProject.fixtures[0].channels
+        }
+      ];
+
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
+      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue(mockCreatedFixtures as any);
+
+      const result = await fixtureTools.bulkCreateFixtures({
+        fixtures: [
+          {
+            projectId: 'project-1',
+            name: 'New Fixture 1',
+            manufacturer: 'Test Manufacturer',
+            model: 'Test Model',
+            universe: 1,
+            tags: ['new']
+          },
+          {
+            projectId: 'project-1',
+            name: 'New Fixture 2',
+            manufacturer: 'Test Manufacturer',
+            model: 'Test Model',
+            universe: 1,
+            tags: ['new']
+          }
+        ]
+      });
+
+      expect(mockGraphQLClient.bulkCreateFixtures).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.createdCount).toBe(2);
+      expect(result.fixtures).toHaveLength(2);
+      expect(result.fixtures[0].name).toBe('New Fixture 1');
+      expect(result.fixtures[1].name).toBe('New Fixture 2');
+      expect(result.message).toContain('Successfully created 2 fixture(s)');
+    });
+
+    it('should create fixtures with auto channel assignment', async () => {
+      const mockCreatedFixture = {
+        id: 'fixture-new',
+        name: 'Auto Channel Fixture',
+        manufacturer: 'Test Manufacturer',
+        model: 'Test Model',
+        type: FixtureType.LED_PAR,
+        universe: 1,
+        startChannel: 4,
+        modeName: 'Standard',
+        channelCount: 3,
+        tags: [],
+        channels: mockProject.fixtures[0].channels
+      };
+
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
+      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue([mockCreatedFixture] as any);
+
+      const result = await fixtureTools.bulkCreateFixtures({
+        fixtures: [
+          {
+            projectId: 'project-1',
+            name: 'Auto Channel Fixture',
+            manufacturer: 'Test Manufacturer',
+            model: 'Test Model',
+            universe: 1,
+            tags: []
+            // No startChannel provided - should auto-assign
+          }
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fixtures[0].startChannel).toBe(4); // Auto-assigned after existing fixture at channel 1-3
+    });
+
+    it('should create fixtures with manual channel assignment', async () => {
+      const mockCreatedFixture = {
+        id: 'fixture-new',
+        name: 'Manual Channel Fixture',
+        manufacturer: 'Test Manufacturer',
+        model: 'Test Model',
+        type: FixtureType.LED_PAR,
+        universe: 1,
+        startChannel: 10,
+        modeName: 'Standard',
+        channelCount: 3,
+        tags: [],
+        channels: mockProject.fixtures[0].channels
+      };
+
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
+      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue([mockCreatedFixture] as any);
+
+      const result = await fixtureTools.bulkCreateFixtures({
+        fixtures: [
+          {
+            projectId: 'project-1',
+            name: 'Manual Channel Fixture',
+            manufacturer: 'Test Manufacturer',
+            model: 'Test Model',
+            universe: 1,
+            startChannel: 10,
+            tags: []
+          }
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fixtures[0].startChannel).toBe(10);
+    });
+
+    it('should create new fixture definition if not found', async () => {
+      const newDefinition = {
+        id: 'def-new',
+        manufacturer: 'New Manufacturer',
+        model: 'New Model',
+        type: FixtureType.LED_PAR,
+        channels: [],
+        modes: [],
+        isBuiltIn: false
+      };
+
+      const mockCreatedFixture = {
+        id: 'fixture-new',
+        name: 'New Fixture',
+        manufacturer: 'New Manufacturer',
+        model: 'New Model',
+        type: FixtureType.LED_PAR,
+        universe: 1,
+        startChannel: 1,
+        modeName: 'Default',
+        channelCount: 3,
+        tags: [],
+        channels: []
+      };
+
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue([]);
+      mockGraphQLClient.createFixtureDefinition.mockResolvedValue(newDefinition);
+      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue([mockCreatedFixture] as any);
+
+      const result = await fixtureTools.bulkCreateFixtures({
+        fixtures: [
+          {
+            projectId: 'project-1',
+            name: 'New Fixture',
+            manufacturer: 'New Manufacturer',
+            model: 'New Model',
+            universe: 1,
+            tags: []
+          }
+        ]
+      });
+
+      expect(mockGraphQLClient.createFixtureDefinition).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.fixtures[0].name).toBe('New Fixture');
+    });
+
+    it('should handle bulk create with mode selection', async () => {
+      const mockCreatedFixture = {
+        id: 'fixture-new',
+        name: 'Mode Fixture',
+        manufacturer: 'Test Manufacturer',
+        model: 'Test Model',
+        type: FixtureType.LED_PAR,
+        universe: 1,
+        startChannel: 1,
+        modeName: 'Standard',
+        channelCount: 3,
+        tags: [],
+        channels: mockProject.fixtures[0].channels
+      };
+
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
+      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue([mockCreatedFixture] as any);
+
+      const result = await fixtureTools.bulkCreateFixtures({
+        fixtures: [
+          {
+            projectId: 'project-1',
+            name: 'Mode Fixture',
+            manufacturer: 'Test Manufacturer',
+            model: 'Test Model',
+            mode: 'Standard',
+            universe: 1,
+            tags: []
+          }
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fixtures[0].mode).toBe('Standard');
+    });
+
+    it('should handle bulk create errors', async () => {
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
+      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(fixtureTools.bulkCreateFixtures({
+        fixtures: [
+          {
+            projectId: 'project-1',
+            name: 'New Fixture',
+            manufacturer: 'Test Manufacturer',
+            model: 'Test Model',
+            universe: 1,
+            tags: []
+          }
+        ]
+      })).rejects.toThrow('Failed to bulk create fixtures: Error: GraphQL error');
+    });
+
+    it('should validate bulk create input', async () => {
+      // Test with empty fixtures array
+      await expect(fixtureTools.bulkCreateFixtures({
+        fixtures: []
+      })).rejects.toThrow();
+
+      // Test with missing required fields
+      await expect(fixtureTools.bulkCreateFixtures({
+        fixtures: [
+          {
+            projectId: 'project-1',
+            name: 'Incomplete Fixture'
+            // Missing manufacturer and model
+          } as any
+        ]
+      })).rejects.toThrow();
+    });
+
+    it('should provide channel summary for bulk created fixtures', async () => {
+      const mockCreatedFixtures = [
+        {
+          id: 'fixture-new-1',
+          name: 'New Fixture 1',
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          type: FixtureType.LED_PAR,
+          universe: 1,
+          startChannel: 1,
+          channelCount: 3,
+          modeName: 'Standard',
+          tags: []
+        },
+        {
+          id: 'fixture-new-2',
+          name: 'New Fixture 2',
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          type: FixtureType.LED_PAR,
+          universe: 2,
+          startChannel: 1,
+          channelCount: 3,
+          modeName: 'Standard',
+          tags: []
+        }
+      ];
+
+      mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
+      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue(mockCreatedFixtures as any);
+
+      const result = await fixtureTools.bulkCreateFixtures({
+        fixtures: [
+          {
+            projectId: 'project-1',
+            name: 'New Fixture 1',
+            manufacturer: 'Test Manufacturer',
+            model: 'Test Model',
+            universe: 1,
+            startChannel: 1,
+            tags: []
+          },
+          {
+            projectId: 'project-1',
+            name: 'New Fixture 2',
+            manufacturer: 'Test Manufacturer',
+            model: 'Test Model',
+            universe: 2,
+            startChannel: 1,
+            tags: []
+          }
+        ]
+      });
+
+      expect(result.channelSummary).toBeDefined();
+      expect(result.channelSummary.totalChannelsUsed).toBe(6); // 2 fixtures x 3 channels each
+      expect(result.channelSummary.universes).toEqual([1, 2]);
+    });
+  });
+
   describe('validation', () => {
     it('should validate input parameters', async () => {
       // Test invalid parameters trigger validation errors
       await expect(fixtureTools.getFixtureInventory({} as any)).rejects.toThrow();
-      
+
       await expect(fixtureTools.createFixtureInstance({} as any)).rejects.toThrow();
-      
+
       await expect(fixtureTools.getChannelMap({} as any)).rejects.toThrow();
     });
   });

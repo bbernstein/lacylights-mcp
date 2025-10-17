@@ -391,6 +391,124 @@ class LacyLightsMCPServer {
               required: ["fixtureId", "confirmDelete"],
             },
           },
+          {
+            name: "bulk_update_fixtures",
+            description:
+              "Update multiple fixture instances in a single atomic operation. All updates succeed or fail together. Useful for batch renaming, repositioning, or re-tagging fixtures.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fixtures: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      fixtureId: {
+                        type: "string",
+                        description: "ID of the fixture instance to update",
+                      },
+                      name: {
+                        type: "string",
+                        description: "New name for the fixture",
+                      },
+                      description: {
+                        type: "string",
+                        description: "New description",
+                      },
+                      universe: {
+                        type: "number",
+                        description: "New DMX universe number",
+                      },
+                      startChannel: {
+                        type: "number",
+                        description: "New starting DMX channel",
+                      },
+                      tags: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "New tags array",
+                      },
+                      layoutX: {
+                        type: "number",
+                        description: "X position (0-1 normalized)",
+                      },
+                      layoutY: {
+                        type: "number",
+                        description: "Y position (0-1 normalized)",
+                      },
+                      layoutRotation: {
+                        type: "number",
+                        description: "Rotation in degrees",
+                      },
+                    },
+                    required: ["fixtureId"],
+                  },
+                  description: "Array of fixture updates to apply",
+                },
+              },
+              required: ["fixtures"],
+            },
+          },
+          {
+            name: "bulk_create_fixtures",
+            description:
+              "Create multiple fixture instances in a single atomic operation. All fixtures are created together or the entire operation fails. Useful for setting up multiple fixtures at once with automatic channel assignment.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fixtures: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      projectId: {
+                        type: "string",
+                        description: "Project ID to add fixture to",
+                      },
+                      name: {
+                        type: "string",
+                        description: "Name for this fixture instance",
+                      },
+                      description: {
+                        type: "string",
+                        description: "Description of where this fixture is placed or its purpose",
+                      },
+                      manufacturer: {
+                        type: "string",
+                        description: 'Fixture manufacturer (e.g., "Chauvet", "Martin", "ETC")',
+                      },
+                      model: {
+                        type: "string",
+                        description: "Fixture model name",
+                      },
+                      mode: {
+                        type: "string",
+                        description: "Specific mode if the fixture has multiple modes",
+                      },
+                      universe: {
+                        type: "number",
+                        default: 1,
+                        description: "DMX universe number (typically 1-4)",
+                      },
+                      startChannel: {
+                        type: "number",
+                        description: "Starting DMX channel (1-512). If not provided, will auto-assign",
+                      },
+                      tags: {
+                        type: "array",
+                        items: { type: "string" },
+                        default: [],
+                        description: 'Tags for organization (e.g., ["front", "wash", "blue"])',
+                      },
+                    },
+                    required: ["projectId", "name", "manufacturer", "model"],
+                  },
+                  description: "Array of fixtures to create",
+                },
+              },
+              required: ["fixtures"],
+            },
+          },
           // Scene Tools
           {
             name: "generate_scene",
@@ -1490,6 +1608,34 @@ class LacyLightsMCPServer {
                   type: "text",
                   text: JSON.stringify(
                     await this.fixtureTools.deleteFixtureInstance(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_update_fixtures":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.bulkUpdateFixtures(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_create_fixtures":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.bulkCreateFixtures(args as any),
                     null,
                     2,
                   ),
