@@ -962,7 +962,11 @@ describe('FixtureTools', () => {
 
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
-      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue(mockCreatedFixtures as any);
+
+      // Mock createFixtureInstance to return fixtures sequentially
+      mockGraphQLClient.createFixtureInstance
+        .mockResolvedValueOnce(mockCreatedFixtures[0] as any)
+        .mockResolvedValueOnce(mockCreatedFixtures[1] as any);
 
       const result = await fixtureTools.bulkCreateFixtures({
         fixtures: [
@@ -985,13 +989,13 @@ describe('FixtureTools', () => {
         ]
       });
 
-      expect(mockGraphQLClient.bulkCreateFixtures).toHaveBeenCalled();
-      expect(result.success).toBe(true);
-      expect(result.createdCount).toBe(2);
-      expect(result.fixtures).toHaveLength(2);
-      expect(result.fixtures[0].name).toBe('New Fixture 1');
-      expect(result.fixtures[1].name).toBe('New Fixture 2');
-      expect(result.message).toContain('Successfully created 2 fixture(s)');
+      expect(mockGraphQLClient.createFixtureInstance).toHaveBeenCalledTimes(2);
+      expect(result.successCount).toBe(2);
+      expect(result.failureCount).toBe(0);
+      expect(result.succeeded).toHaveLength(2);
+      expect(result.succeeded[0].name).toBe('New Fixture 1');
+      expect(result.succeeded[1].name).toBe('New Fixture 2');
+      expect(result.message).toContain('Successfully created'); // Changed to match case
     });
 
     it('should create fixtures with auto channel assignment', async () => {
@@ -1011,7 +1015,7 @@ describe('FixtureTools', () => {
 
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
-      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue([mockCreatedFixture] as any);
+      mockGraphQLClient.createFixtureInstance.mockResolvedValue(mockCreatedFixture as any);
 
       const result = await fixtureTools.bulkCreateFixtures({
         fixtures: [
@@ -1027,8 +1031,9 @@ describe('FixtureTools', () => {
         ]
       });
 
-      expect(result.success).toBe(true);
-      expect(result.fixtures[0].startChannel).toBe(4); // Auto-assigned after existing fixture at channel 1-3
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+      expect(result.succeeded[0].startChannel).toBe(4); // Auto-assigned after existing fixture at channel 1-3
     });
 
     it('should create fixtures with manual channel assignment', async () => {
@@ -1048,7 +1053,7 @@ describe('FixtureTools', () => {
 
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
-      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue([mockCreatedFixture] as any);
+      mockGraphQLClient.createFixtureInstance.mockResolvedValue(mockCreatedFixture as any);
 
       const result = await fixtureTools.bulkCreateFixtures({
         fixtures: [
@@ -1064,8 +1069,9 @@ describe('FixtureTools', () => {
         ]
       });
 
-      expect(result.success).toBe(true);
-      expect(result.fixtures[0].startChannel).toBe(10);
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+      expect(result.succeeded[0].startChannel).toBe(10);
     });
 
     it('should create new fixture definition if not found', async () => {
@@ -1096,7 +1102,7 @@ describe('FixtureTools', () => {
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockGraphQLClient.getFixtureDefinitions.mockResolvedValue([]);
       mockGraphQLClient.createFixtureDefinition.mockResolvedValue(newDefinition);
-      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue([mockCreatedFixture] as any);
+      mockGraphQLClient.createFixtureInstance.mockResolvedValue(mockCreatedFixture as any);
 
       const result = await fixtureTools.bulkCreateFixtures({
         fixtures: [
@@ -1112,8 +1118,9 @@ describe('FixtureTools', () => {
       });
 
       expect(mockGraphQLClient.createFixtureDefinition).toHaveBeenCalled();
-      expect(result.success).toBe(true);
-      expect(result.fixtures[0].name).toBe('New Fixture');
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+      expect(result.succeeded[0].name).toBe('New Fixture');
     });
 
     it('should handle bulk create with mode selection', async () => {
@@ -1133,7 +1140,7 @@ describe('FixtureTools', () => {
 
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
-      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue([mockCreatedFixture] as any);
+      mockGraphQLClient.createFixtureInstance.mockResolvedValue(mockCreatedFixture as any);
 
       const result = await fixtureTools.bulkCreateFixtures({
         fixtures: [
@@ -1149,16 +1156,17 @@ describe('FixtureTools', () => {
         ]
       });
 
-      expect(result.success).toBe(true);
-      expect(result.fixtures[0].mode).toBe('Standard');
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(0);
+      expect(result.succeeded[0].mode).toBe('Standard'); // Changed from modeName to mode
     });
 
-    it('should handle bulk create errors', async () => {
+    it('should handle bulk create errors with best-effort approach', async () => {
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
-      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+      mockGraphQLClient.createFixtureInstance = jest.fn().mockRejectedValue(new Error('GraphQL error'));
 
-      await expect(fixtureTools.bulkCreateFixtures({
+      const result = await fixtureTools.bulkCreateFixtures({
         fixtures: [
           {
             projectId: 'project-1',
@@ -1169,16 +1177,25 @@ describe('FixtureTools', () => {
             tags: []
           }
         ]
-      })).rejects.toThrow('Failed to bulk create fixtures: Error: GraphQL error');
+      });
+
+      // With best-effort, individual failures don't throw - they're returned in failed array
+      expect(result.successCount).toBe(0);
+      expect(result.failureCount).toBe(1);
+      expect(result.failed).toHaveLength(1);
+      expect(result.failed[0].error).toContain('GraphQL error');
     });
 
     it('should validate bulk create input', async () => {
-      // Test with empty fixtures array
-      await expect(fixtureTools.bulkCreateFixtures({
+      // Test with empty fixtures array - best-effort returns success with 0 items
+      const emptyResult = await fixtureTools.bulkCreateFixtures({
         fixtures: []
-      })).rejects.toThrow();
+      });
+      expect(emptyResult.successCount).toBe(0);
+      expect(emptyResult.failureCount).toBe(0);
+      expect(emptyResult.totalRequested).toBe(0);
 
-      // Test with missing required fields
+      // Test with missing required fields - Zod validation should still throw
       await expect(fixtureTools.bulkCreateFixtures({
         fixtures: [
           {
@@ -1199,7 +1216,7 @@ describe('FixtureTools', () => {
           model: 'Test Model',
           type: FixtureType.LED_PAR,
           universe: 1,
-          startChannel: 1,
+          startChannel: 10, // Changed from 1 to match test input
           channelCount: 3,
           modeName: 'Standard',
           tags: []
@@ -1220,7 +1237,11 @@ describe('FixtureTools', () => {
 
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockGraphQLClient.getFixtureDefinitions.mockResolvedValue(mockFixtureDefinitions);
-      mockGraphQLClient.bulkCreateFixtures = jest.fn().mockResolvedValue(mockCreatedFixtures as any);
+
+      // Mock createFixtureInstance to return fixtures sequentially
+      mockGraphQLClient.createFixtureInstance
+        .mockResolvedValueOnce(mockCreatedFixtures[0] as any)
+        .mockResolvedValueOnce(mockCreatedFixtures[1] as any);
 
       const result = await fixtureTools.bulkCreateFixtures({
         fixtures: [
@@ -1230,7 +1251,7 @@ describe('FixtureTools', () => {
             manufacturer: 'Test Manufacturer',
             model: 'Test Model',
             universe: 1,
-            startChannel: 1,
+            startChannel: 10, // Changed from 1 to avoid conflict with existing fixture at channels 1-3
             tags: []
           },
           {
@@ -1246,8 +1267,9 @@ describe('FixtureTools', () => {
       });
 
       expect(result.channelSummary).toBeDefined();
-      expect(result.channelSummary.totalChannelsUsed).toBe(6); // 2 fixtures x 3 channels each
-      expect(result.channelSummary.universes).toEqual([1, 2]);
+      expect(result.channelSummary).not.toBeNull();
+      expect(result.channelSummary!.totalChannelsUsed).toBe(6);
+      expect(result.channelSummary!.universes).toEqual([1, 2]);
     });
   });
 
