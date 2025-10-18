@@ -108,6 +108,34 @@ const DeleteFixtureInstanceSchema = z.object({
   confirmDelete: z.boolean().describe("Confirm deletion (required to be true for safety)"),
 });
 
+const BulkUpdateFixturesSchema = z.object({
+  fixtures: z.array(z.object({
+    fixtureId: z.string().describe("ID of the fixture instance to update"),
+    name: z.string().optional().describe("New name for the fixture"),
+    description: z.string().optional().describe("New description"),
+    universe: z.number().optional().describe("New DMX universe number"),
+    startChannel: z.number().optional().describe("New starting DMX channel"),
+    tags: z.array(z.string()).optional().describe("New tags array"),
+    layoutX: z.number().optional().describe("X position (0-1 normalized)"),
+    layoutY: z.number().optional().describe("Y position (0-1 normalized)"),
+    layoutRotation: z.number().optional().describe("Rotation in degrees"),
+  })).describe("Array of fixture updates to apply")
+});
+
+const BulkCreateFixturesSchema = z.object({
+  fixtures: z.array(z.object({
+    projectId: z.string().describe("Project ID to add fixture to"),
+    name: z.string().describe("Name for this fixture instance"),
+    description: z.string().optional().describe("Description of where this fixture is placed or its purpose"),
+    manufacturer: z.string().describe('Fixture manufacturer (e.g., "Chauvet", "Martin", "ETC")'),
+    model: z.string().describe("Fixture model name"),
+    mode: z.string().optional().describe("Specific mode if the fixture has multiple modes"),
+    universe: z.number().default(1).describe("DMX universe number (typically 1-4)"),
+    startChannel: z.number().optional().describe("Starting DMX channel (1-512). If not provided, will auto-assign"),
+    tags: z.array(z.string()).default([]).describe('Tags for organization (e.g., ["front", "wash", "blue"])'),
+  })).describe("Array of fixtures to create")
+});
+
 export class FixtureTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
 
@@ -1260,6 +1288,264 @@ export class FixtureTools {
     } catch (error) {
       throw new Error(`Failed to delete fixture instance: ${error}`);
     }
+  }
+
+  async bulkUpdateFixtures(args: z.infer<typeof BulkUpdateFixturesSchema>) {
+    const { fixtures } = BulkUpdateFixturesSchema.parse(args);
+
+    try {
+      logger.info('Bulk updating fixtures', { count: fixtures.length });
+
+      // Call the GraphQL bulk update mutation
+      const updatedFixtures = await this.graphqlClient.bulkUpdateFixtures({
+        fixtures
+      });
+
+      logger.info('Bulk update completed successfully', {
+        updatedCount: updatedFixtures.length
+      });
+
+      return {
+        success: true,
+        updatedCount: updatedFixtures.length,
+        fixtures: updatedFixtures.map(f => ({
+          id: f.id,
+          name: f.name,
+          description: f.description,
+          manufacturer: f.manufacturer,
+          model: f.model,
+          universe: f.universe,
+          startChannel: f.startChannel,
+          tags: f.tags,
+          layoutX: f.layoutX,
+          layoutY: f.layoutY,
+          layoutRotation: f.layoutRotation,
+        })),
+        message: `Successfully updated ${updatedFixtures.length} fixture(s)`
+      };
+    } catch (error) {
+      logger.error('Failed to bulk update fixtures', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw new Error(`Failed to bulk update fixtures: ${error}`);
+    }
+  }
+
+  async bulkCreateFixtures(args: z.infer<typeof BulkCreateFixturesSchema>) {
+    const { fixtures } = BulkCreateFixturesSchema.parse(args);
+
+    logger.info('Bulk creating fixtures', { count: fixtures.length });
+
+    // Get all fixture definitions once to avoid repeated queries
+    const definitions = await this.graphqlClient.getFixtureDefinitions();
+
+    // Track successes and failures
+    const succeeded: any[] = [];
+    const failed: any[] = [];
+
+    // Process each fixture individually for best-effort approach
+    for (let i = 0; i < fixtures.length; i++) {
+      const fixtureSpec = fixtures[i];
+      const {
+        projectId,
+        name,
+        description,
+        manufacturer,
+        model,
+        mode,
+        universe,
+        startChannel,
+        tags
+      } = fixtureSpec;
+
+      try {
+        // Find or create fixture definition
+        let fixtureDefinition = definitions.find(
+          (d) =>
+            d.manufacturer.toLowerCase() === manufacturer.toLowerCase() &&
+            d.model.toLowerCase() === model.toLowerCase(),
+        );
+
+        if (!fixtureDefinition) {
+          // Create fixture definition based on intelligent analysis
+          const { channels, fixtureType } = this.createIntelligentFixtureChannels(mode, model, manufacturer);
+
+          fixtureDefinition = await this.graphqlClient.createFixtureDefinition({
+            manufacturer,
+            model,
+            type: fixtureType,
+            channels,
+            modes: mode ? [{ name: mode, channelCount: channels.length }] : [],
+          });
+
+          // Add to definitions list for future fixtures in this batch
+          definitions.push(fixtureDefinition);
+        }
+
+        if (!fixtureDefinition) {
+          throw new Error(`Failed to create or find fixture definition for ${manufacturer} ${model}`);
+        }
+
+        // Find the specific mode if requested
+        let selectedMode: any = null;
+        if (mode && fixtureDefinition.modes.length > 0) {
+          selectedMode = fixtureDefinition.modes.find(
+            (m) =>
+              m.name.toLowerCase().includes(mode.toLowerCase()) ||
+              mode.toLowerCase().includes(m.name.toLowerCase()),
+          );
+
+          if (!selectedMode) {
+            // If exact match not found, try to find by channel count
+            const modeChannelCount = parseInt(mode.match(/\d+/)?.[0] || "0");
+            if (modeChannelCount > 0) {
+              selectedMode = fixtureDefinition.modes.find(
+                (m) => m.channelCount === modeChannelCount,
+              );
+            }
+          }
+
+          // If mode was specified but no match found, throw error
+          if (!selectedMode && fixtureDefinition.modes.length > 0) {
+            const availableModes = fixtureDefinition.modes.map(m => ({
+              name: m.name,
+              channelCount: m.channelCount,
+              shortName: m.shortName
+            }));
+
+            throw new Error(
+              `Invalid mode "${mode}". Available modes: ${availableModes.map(m => `"${m.name}" (${m.channelCount} channels)`).join(', ')}`
+            );
+          }
+        }
+
+        // Determine channel count for validation
+        const channelCount = selectedMode?.channelCount || fixtureDefinition.channels.length;
+
+        // Handle channel assignment with validation
+        let finalStartChannel = startChannel;
+        if (!startChannel) {
+          // Auto-assign: find next available channel
+          try {
+            finalStartChannel = await this.findNextAvailableChannel(
+              projectId,
+              universe,
+              channelCount,
+            );
+          } catch (_error) {
+            throw new Error(`No available channel space in universe ${universe} for ${channelCount}-channel fixture`);
+          }
+        } else {
+          // Manual assignment: validate the specified channel range is available
+          const channelMap = await this.getChannelMap({ projectId, universe });
+          const universeData = channelMap.universes.find((u: any) => u.universe === universe);
+
+          if (universeData) {
+            // Check if the requested channel range is available
+            const endChannel = startChannel + channelCount - 1;
+
+            if (endChannel > 512) {
+              throw new Error(`Channel range ${startChannel}-${endChannel} exceeds universe size (512 channels)`);
+            }
+
+            for (let ch = startChannel; ch <= endChannel; ch++) {
+              if (universeData.channelUsage[ch - 1] !== null) {
+                const conflict = universeData.channelUsage[ch - 1];
+                throw new Error(
+                  `Channel ${ch} already in use by fixture "${conflict.fixtureName}". ` +
+                  `Cannot assign ${channelCount} channels starting at ${startChannel}.`
+                );
+              }
+            }
+          }
+          // If universe doesn't exist yet, all channels are available
+        }
+
+        // Create the fixture instance
+        const createdFixture = await this.graphqlClient.createFixtureInstance({
+          projectId,
+          name,
+          description,
+          definitionId: fixtureDefinition.id,
+          modeId: selectedMode?.id,
+          universe,
+          startChannel: finalStartChannel || 1,
+          tags: tags || [],
+        });
+
+        succeeded.push({
+          index: i,
+          fixture: {
+            id: createdFixture.id,
+            name: createdFixture.name,
+            description: createdFixture.description,
+            manufacturer: createdFixture.manufacturer,
+            model: createdFixture.model,
+            mode: createdFixture.modeName,
+            universe: createdFixture.universe,
+            startChannel: createdFixture.startChannel,
+            channelCount: createdFixture.channelCount,
+            tags: createdFixture.tags,
+            channelRange: `${createdFixture.startChannel}-${createdFixture.startChannel + createdFixture.channelCount - 1}`,
+          }
+        });
+
+        logger.info('Created fixture', {
+          index: i,
+          name: createdFixture.name,
+          universe: createdFixture.universe,
+          startChannel: createdFixture.startChannel
+        });
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        failed.push({
+          index: i,
+          fixture: {
+            name,
+            manufacturer,
+            model,
+            mode,
+            universe,
+            startChannel,
+          },
+          error: errorMessage
+        });
+
+        logger.warn('Failed to create fixture', {
+          index: i,
+          name,
+          error: errorMessage
+        });
+      }
+    }
+
+    // Build response with success/failure details
+    const response = {
+      totalRequested: fixtures.length,
+      successCount: succeeded.length,
+      failureCount: failed.length,
+      succeeded: succeeded.map(s => s.fixture),
+      failed: failed,
+      message: succeeded.length === fixtures.length
+        ? `Successfully created all ${succeeded.length} fixture(s)`
+        : succeeded.length > 0
+        ? `Partially successful: ${succeeded.length} created, ${failed.length} failed`
+        : `All ${failed.length} fixtures failed to create`,
+      channelSummary: succeeded.length > 0 ? {
+        totalChannelsUsed: succeeded.reduce((sum, s) => sum + s.fixture.channelCount, 0),
+        universes: Array.from(new Set(succeeded.map(s => s.fixture.universe))).sort(),
+      } : null
+    };
+
+    logger.info('Bulk create completed', {
+      successCount: succeeded.length,
+      failureCount: failed.length
+    });
+
+    return response;
   }
 
   /**
