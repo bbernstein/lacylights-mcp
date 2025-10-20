@@ -27,7 +27,7 @@
     "@modelcontextprotocol/sdk": "^1.0.0",
     "cross-fetch": "^4.1.0",
     "graphql": "^16.9.0",
-    "openai": "^6.1.0",
+    "openai": "^6.5.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {
