@@ -95,19 +95,6 @@ jobs:
           git tag -a "v${{ steps.new_version.outputs.version }}" -m "Release v${{ steps.new_version.outputs.version }}"
           git push origin "v${{ steps.new_version.outputs.version }}"
 
-      - name: Generate release notes
-        id: release_notes
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { data: release } = await github.rest.repos.generateReleaseNotes({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: 'v${{ steps.new_version.outputs.version }}',
-            });
-            return release.body;
-          result-encoding: string
-
       - name: Determine release name
         id: release_name
         run: |
@@ -126,7 +113,6 @@ jobs:
               repo: context.repo.repo,
               tag_name: 'v${{ steps.new_version.outputs.version }}',
               name: '${{ steps.release_name.outputs.name }}',
-              body: `${{ steps.release_notes.outputs.result }}`,
               draft: false,
               prerelease: false,
               generate_release_notes: true
