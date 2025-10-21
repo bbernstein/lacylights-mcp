@@ -1,115 +1,149 @@
-name: Release Validation
+name: Create Release
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to validate'
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+      release_name:
+        description: 'Release name (optional - leave blank for auto-generated)'
         required: false
-        default: 'latest'
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  validate-release:
-    name: Validate Release Build
+  release:
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [22.x, 24.x]
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v5
+        uses: actions/checkout@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --only=production
-
-      - name: Run production build
-        run: npm run build
-
-      - name: Test production build
-        run: |
-          echo "Testing production build..."
-          timeout 10s node dist/index.js --help || echo "Production build validation complete"
-
-      - name: Validate MCP server exports
-        run: |
-          echo "Validating MCP server exports..."
-          # Check that the built server has required MCP methods
-          if node -e "
-            const server = require('./dist/index.js');
-            if (typeof server.listTools === 'function' && typeof server.callTool === 'function') {
-              console.log('✅ MCP server exports validated');
-              process.exit(0);
-            } else {
-              console.log('❌ MCP server exports missing');
-              process.exit(1);
-            }
-          " 2>/dev/null; then
-            echo "MCP server exports validated"
-          else
-            echo "Checking for MCP compliance in built files..."
-            if grep -q "listTools\|callTool" dist/index.js; then
-              echo "✅ MCP methods found in build"
-            else
-              echo "❌ MCP methods not found in build"
-              exit 1
-            fi
-          fi
-
-  package-validation:
-    name: Validate Package
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
-          node-version: '24.x'
-          cache: 'npm'
+          node-version: '20'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build package
-        run: npm run build
-
-      - name: Pack package
-        run: npm pack
-
-      - name: Test packed package
+      - name: Configure Git
         run: |
-          # Create a temporary directory to test the package
-          mkdir test-package
-          cd test-package
-          npm init -y
-          npm install ../lacylights-mcp-*.tgz
-          
-          # Test that the package can be imported
-          node -e "
-            try {
-              const pkg = require('lacylights-mcp');
-              console.log('✅ Package imports successfully');
-            } catch (error) {
-              console.log('❌ Package import failed:', error.message);
-              process.exit(1);
-            }
-          "
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Upload package artifact
-        uses: actions/upload-artifact@v4
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR="${VERSION_PARTS[0]}"
+          MINOR="${VERSION_PARTS[1]}"
+          PATCH="${VERSION_PARTS[2]}"
+
+          case "${{ inputs.version_bump }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update package.json version
+        run: |
+          npm version ${{ steps.new_version.outputs.version }} --no-git-tag-version
+
+      - name: Update package-lock.json
+        run: |
+          npm install --package-lock-only
+
+      - name: Commit version bump
+        run: |
+          set -e
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${{ steps.new_version.outputs.version }}"
+          git push
+
+      - name: Create Git tag
+        run: |
+          set -e
+          git tag -a "v${{ steps.new_version.outputs.version }}" -m "Release v${{ steps.new_version.outputs.version }}"
+          git push origin "v${{ steps.new_version.outputs.version }}"
+
+      - name: Determine release name
+        id: release_name
+        run: |
+          if [ -z "${{ inputs.release_name }}" ]; then
+            echo "name=v${{ steps.new_version.outputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "name=${{ inputs.release_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
         with:
-          name: lacylights-mcp-package-node-${{ matrix.node-version }}
-          path: lacylights-mcp-*.tgz
-          retention-days: 7
+          script: |
+            const tagName = 'v${{ steps.new_version.outputs.version }}';
+
+            // Check if release already exists
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tagName
+              });
+              core.info(`Release ${tagName} already exists. Skipping creation.`);
+              return;
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
+
+            // Create the release
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: '${{ steps.release_name.outputs.name }}',
+              draft: false,
+              prerelease: false,
+              generate_release_notes: true
+            });
+
+      - name: Summary
+        run: |
+          echo "## Release Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** v${{ steps.new_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Bump Type:** ${{ inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Previous Version:** v${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/v${{ steps.new_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
