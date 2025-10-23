@@ -383,6 +383,114 @@ export class LacyLightsGraphQLClient {
     return data.cueList;
   }
 
+  /**
+   * Get lightweight cue list summaries for a project
+   * Part of Task 2.5 - MCP API Refactor
+   */
+  async getCueLists(projectId: string): Promise<any[]> {
+    // For now, use the existing project query to get cue lists
+    // This will be replaced with a dedicated cueLists query once Task 1.4 backend changes are merged
+    const project = await this.getProject(projectId);
+    if (!project || !project.cueLists) {
+      return [];
+    }
+
+    // Return lightweight summaries
+    return project.cueLists.map((cueList: any) => ({
+      id: cueList.id,
+      name: cueList.name,
+      description: cueList.description,
+      cueCount: cueList.cues?.length || 0,
+      totalDuration: this.estimateCueListDuration(cueList.cues || []),
+      loop: cueList.loop || false,
+      createdAt: cueList.createdAt,
+    }));
+  }
+
+  /**
+   * Get cue list with paginated cues
+   * Part of Task 2.5 - MCP API Refactor
+   */
+  async getCueListWithPagination(
+    cueListId: string,
+    page: number = 1,
+    perPage: number = 50,
+    includeSceneDetails: boolean = false
+  ): Promise<any> {
+    // For now, use the existing getCueList and apply client-side pagination
+    // This will be replaced with a backend paginated query once Task 1.4 is merged
+    const cueList = await this.getCueList(cueListId);
+    if (!cueList) {
+      return null;
+    }
+
+    const cues = cueList.cues || [];
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+    const paginatedCues = cues.slice(start, end);
+
+    // Format cues with optional scene details
+    const formattedCues = paginatedCues.map((cue: any) => {
+      const baseCue = {
+        id: cue.id,
+        name: cue.name,
+        cueNumber: cue.cueNumber,
+        fadeInTime: cue.fadeInTime,
+        fadeOutTime: cue.fadeOutTime,
+        followTime: cue.followTime,
+        notes: cue.notes,
+        sceneId: cue.scene.id,
+        sceneName: cue.scene.name,
+      };
+
+      if (includeSceneDetails) {
+        return {
+          ...baseCue,
+          scene: cue.scene,
+        };
+      }
+
+      return baseCue;
+    });
+
+    const totalPages = Math.ceil(cues.length / perPage);
+
+    return {
+      id: cueList.id,
+      name: cueList.name,
+      description: cueList.description,
+      loop: (cueList as any).loop || false,
+      cues: formattedCues,
+      pagination: {
+        total: cues.length,
+        page,
+        perPage,
+        totalPages,
+        hasMore: page < totalPages,
+      },
+      cueCount: cues.length,
+      totalDuration: this.estimateCueListDuration(cues),
+      createdAt: cueList.createdAt,
+      updatedAt: cueList.updatedAt,
+    };
+  }
+
+  /**
+   * Helper to estimate cue list duration
+   */
+  private estimateCueListDuration(cues: any[]): number {
+    let totalTime = 0;
+    for (const cue of cues) {
+      totalTime += cue.fadeInTime || 0;
+      if (cue.followTime) {
+        totalTime += cue.followTime;
+      } else {
+        totalTime += 5; // Assume 5 seconds for manual advance
+      }
+    }
+    return totalTime;
+  }
+
   async createCueList(input: {
     name: string;
     description?: string;

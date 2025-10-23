@@ -101,6 +101,8 @@ export interface CueList {
   description?: string;
   loop: boolean;
   cues: Cue[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Cue {
@@ -108,6 +110,7 @@ export interface Cue {
   name: string;
   cueNumber: number;
   scene: Scene;
+  cueList?: { id: string; name: string }; // Added for Task 2.5
   fadeInTime: number;
   fadeOutTime: number;
   followTime?: number;
@@ -203,6 +206,7 @@ export interface CueSequence {
   reasoning: string;
 }
 
+<<<<<<< HEAD
 // Relationship Query Types (Task 2.7)
 
 export interface CueUsageSummary {
@@ -255,4 +259,17 @@ export interface SceneSummary {
   createdAt?: string;
   updatedAt?: string;
   fixtureCount?: number;
+}
+
+// MCP API Refactor - Task 2.4: Scene Query Types
+export interface SceneFixtureSummary {
+  fixtureId: string;
+  fixtureName: string;
+  fixtureType: FixtureType;
+}
+
+export enum SceneSortField {
+  NAME = 'NAME',
+  CREATED_AT = 'CREATED_AT',
+  UPDATED_AT = 'UPDATED_AT'
 }

@@ -1058,217 +1058,6 @@ export class CueTools {
     }
   }
 
-  async getCueListDetails(args: {
-    cueListId: string;
-    includeSceneDetails?: boolean;
-    sortBy?: "cueNumber" | "name" | "sceneName";
-    filterBy?: {
-      cueNumberRange?: { min: number; max: number };
-      nameContains?: string;
-      sceneNameContains?: string;
-      hasFollowTime?: boolean;
-      fadeTimeRange?: { min: number; max: number };
-    };
-  }) {
-    const {
-      cueListId,
-      includeSceneDetails = true,
-      sortBy = "cueNumber",
-      filterBy,
-    } = args;
-
-    try {
-      const cueList = await this.graphqlClient.getCueList(cueListId);
-
-      if (!cueList) {
-        throw new Error(`Cue list with ID ${cueListId} not found`);
-      }
-
-      let cues = [...cueList.cues];
-
-      // Apply filters
-      if (filterBy) {
-        if (filterBy.cueNumberRange) {
-          const range = filterBy.cueNumberRange;
-          if (range) {
-            cues = cues.filter(
-              (cue) =>
-                cue.cueNumber >= range.min &&
-                cue.cueNumber <= range.max,
-            );
-          }
-        }
-
-        if (filterBy.nameContains) {
-          cues = cues.filter((cue) =>
-            cue.name
-              .toLowerCase()
-              .includes(filterBy.nameContains?.toLowerCase() ?? ""),
-          );
-        }
-
-        if (filterBy.sceneNameContains) {
-          cues = cues.filter((cue) =>
-            cue.scene.name
-              .toLowerCase()
-              .includes(filterBy.sceneNameContains?.toLowerCase() ?? ""),
-          );
-        }
-
-        if (filterBy.hasFollowTime !== undefined) {
-          cues = cues.filter((cue) =>
-            filterBy.hasFollowTime
-              ? cue.followTime !== undefined
-              : cue.followTime === undefined,
-          );
-        }
-
-        if (filterBy.fadeTimeRange) {
-          const range = filterBy.fadeTimeRange;
-          if (range) {
-            cues = cues.filter(
-              (cue) =>
-                cue.fadeInTime >= range.min &&
-                cue.fadeInTime <= range.max,
-            );
-          }
-        }
-      }
-
-      // Apply sorting
-      switch (sortBy) {
-        case "cueNumber":
-          cues.sort((a, b) => a.cueNumber - b.cueNumber);
-          break;
-        case "name":
-          cues.sort((a, b) => a.name.localeCompare(b.name));
-          break;
-        case "sceneName":
-          cues.sort((a, b) => a.scene.name.localeCompare(b.scene.name));
-          break;
-      }
-
-      // Format cue details
-      const formattedCues = cues.map((cue) => {
-        const baseInfo = {
-          cueId: cue.id,
-          cueNumber: cue.cueNumber,
-          name: cue.name,
-          fadeInTime: cue.fadeInTime,
-          fadeOutTime: cue.fadeOutTime,
-          followTime: cue.followTime,
-          notes: cue.notes,
-          sceneName: cue.scene.name,
-          sceneId: cue.scene.id,
-        };
-
-        if (includeSceneDetails) {
-          return {
-            ...baseInfo,
-            scene: {
-              id: cue.scene.id,
-              name: cue.scene.name,
-              description: cue.scene.description,
-            },
-          };
-        }
-
-        return baseInfo;
-      });
-
-      // Generate summary statistics
-      const statistics = {
-        totalCues: cues.length,
-        cueNumberRange:
-          cues.length > 0
-            ? {
-                min: Math.min(...cues.map((c) => c.cueNumber)),
-                max: Math.max(...cues.map((c) => c.cueNumber)),
-              }
-            : null,
-        averageFadeInTime:
-          cues.length > 0
-            ? cues.reduce((sum, c) => sum + c.fadeInTime, 0) / cues.length
-            : 0,
-        averageFadeOutTime:
-          cues.length > 0
-            ? cues.reduce((sum, c) => sum + c.fadeOutTime, 0) / cues.length
-            : 0,
-        cuesTotalFollowTime: cues.filter((c) => c.followTime).length,
-        uniqueScenes: [...new Set(cues.map((c) => c.scene.id))].length,
-        estimatedTotalTime: this.estimateSequenceDuration(cues),
-      };
-
-      // Create lookup tables for easy reference
-      const lookupTables = {
-        byCueNumber: Object.fromEntries(
-          cues.map((cue) => [
-            cue.cueNumber.toString(),
-            {
-              cueId: cue.id,
-              name: cue.name,
-              sceneName: cue.scene.name,
-            },
-          ]),
-        ),
-        byName: Object.fromEntries(
-          cues.map((cue) => [
-            cue.name.toLowerCase(),
-            {
-              cueId: cue.id,
-              cueNumber: cue.cueNumber,
-              sceneName: cue.scene.name,
-            },
-          ]),
-        ),
-        bySceneName: cues.reduce((acc: any, cue) => {
-          const sceneName = cue.scene.name.toLowerCase();
-          if (!acc[sceneName]) {
-            acc[sceneName] = [];
-          }
-          acc[sceneName].push({
-            cueId: cue.id,
-            cueNumber: cue.cueNumber,
-            cueName: cue.name,
-          });
-          return acc;
-        }, {}),
-        bySceneId: cues.reduce((acc: any, cue) => {
-          const sceneId = cue.scene.id;
-          if (!acc[sceneId]) {
-            acc[sceneId] = [];
-          }
-          acc[sceneId].push({
-            cueId: cue.id,
-            cueNumber: cue.cueNumber,
-            cueName: cue.name,
-          });
-          return acc;
-        }, {}),
-      };
-
-      return {
-        cueListId: cueList.id,
-        cueList: {
-          name: cueList.name,
-          description: cueList.description,
-          projectId: (cueList as any).project?.id,
-        },
-        cues: formattedCues,
-        statistics,
-        lookupTables,
-        query: {
-          sortedBy: sortBy,
-          filtersApplied: filterBy ? Object.keys(filterBy).length : 0,
-          totalBeforeFiltering: cueList.cues.length,
-          totalAfterFiltering: cues.length,
-        },
-      };
-    } catch (error) {
-      throw new Error(`Failed to get cue list details: ${error}`);
-    }
-  }
-
   async deleteCueList(args: { cueListId: string; confirmDelete: boolean }) {
     const { cueListId, confirmDelete } = args;
 
@@ -1792,6 +1581,259 @@ export class CueTools {
       };
     } catch (error) {
       throw new Error(`Failed to get cue list status: ${error}`);
+    }
+  }
+
+  /**
+   * List all cue lists in a project (lightweight summaries)
+   * Part of Task 2.5 - MCP API Refactor
+   */
+  async listCueLists(args: { projectId: string }) {
+    const { projectId } = args;
+
+    try {
+      const cueLists = await this.graphqlClient.getCueLists(projectId);
+
+      return {
+        projectId,
+        cueLists,
+        totalCount: cueLists.length,
+        summary: {
+          totalCues: cueLists.reduce((sum, cl) => sum + cl.cueCount, 0),
+          totalEstimatedDuration: cueLists.reduce(
+            (sum, cl) => sum + cl.totalDuration,
+            0
+          ),
+          loopingCueLists: cueLists.filter((cl) => cl.loop).length,
+        },
+      };
+    } catch (error) {
+      throw new Error(`Failed to list cue lists: ${error}`);
+    }
+  }
+
+  /**
+   * Get detailed cue list with paginated cues
+   * Part of Task 2.5 - MCP API Refactor
+   */
+  async getCueListDetails(args: {
+    cueListId: string;
+    page?: number;
+    perPage?: number;
+    includeSceneDetails?: boolean;
+    sortBy?: "cueNumber" | "name" | "sceneName";
+    filterBy?: {
+      cueNumberRange?: { min: number; max: number };
+      nameContains?: string;
+      sceneNameContains?: string;
+      hasFollowTime?: boolean;
+      fadeTimeRange?: { min: number; max: number };
+    };
+  }) {
+    const {
+      cueListId,
+      page = 1,
+      perPage = 50,
+      includeSceneDetails = false,
+      sortBy = "cueNumber",
+      filterBy,
+    } = args;
+
+    try {
+      // Get paginated cue list
+      const cueList = await this.graphqlClient.getCueListWithPagination(
+        cueListId,
+        page,
+        perPage,
+        includeSceneDetails
+      );
+
+      if (!cueList) {
+        throw new Error(`Cue list with ID ${cueListId} not found`);
+      }
+
+      let cues = cueList.cues;
+
+      // Apply filters if provided
+      if (filterBy) {
+        if (filterBy.cueNumberRange) {
+          cues = cues.filter(
+            (cue: any) =>
+              cue.cueNumber >= filterBy.cueNumberRange!.min &&
+              cue.cueNumber <= filterBy.cueNumberRange!.max
+          );
+        }
+
+        if (filterBy.nameContains) {
+          const search = filterBy.nameContains.toLowerCase();
+          cues = cues.filter((cue: any) =>
+            cue.name.toLowerCase().includes(search)
+          );
+        }
+
+        if (filterBy.sceneNameContains) {
+          const search = filterBy.sceneNameContains.toLowerCase();
+          cues = cues.filter((cue: any) =>
+            cue.sceneName.toLowerCase().includes(search)
+          );
+        }
+
+        if (filterBy.hasFollowTime !== undefined) {
+          cues = cues.filter((cue: any) =>
+            filterBy.hasFollowTime
+              ? cue.followTime !== null && cue.followTime !== undefined
+              : cue.followTime === null || cue.followTime === undefined
+          );
+        }
+
+        if (filterBy.fadeTimeRange) {
+          cues = cues.filter(
+            (cue: any) =>
+              cue.fadeInTime >= filterBy.fadeTimeRange!.min &&
+              cue.fadeInTime <= filterBy.fadeTimeRange!.max
+          );
+        }
+      }
+
+      // Apply sorting
+      switch (sortBy) {
+        case "cueNumber":
+          cues.sort((a: any, b: any) => a.cueNumber - b.cueNumber);
+          break;
+        case "name":
+          cues.sort((a: any, b: any) => a.name.localeCompare(b.name));
+          break;
+        case "sceneName":
+          cues.sort((a: any, b: any) =>
+            a.sceneName.localeCompare(b.sceneName)
+          );
+          break;
+      }
+
+      // Generate statistics
+      const statistics = {
+        totalCues: cues.length,
+        cueNumberRange:
+          cues.length > 0
+            ? {
+                min: Math.min(...cues.map((c: any) => c.cueNumber)),
+                max: Math.max(...cues.map((c: any) => c.cueNumber)),
+              }
+            : null,
+        averageFadeInTime:
+          cues.length > 0
+            ? cues.reduce((sum: number, c: any) => sum + c.fadeInTime, 0) /
+              cues.length
+            : 0,
+        averageFadeOutTime:
+          cues.length > 0
+            ? cues.reduce((sum: number, c: any) => sum + c.fadeOutTime, 0) /
+              cues.length
+            : 0,
+        followCuesCount: cues.filter(
+          (c: any) => c.followTime !== null && c.followTime !== undefined
+        ).length,
+        uniqueScenes: [...new Set(cues.map((c: any) => c.sceneId))].length,
+      };
+
+      // Create lookup tables for easy reference
+      const lookupTables = {
+        byCueNumber: Object.fromEntries(
+          cues.map((cue: any) => [
+            cue.cueNumber.toString(),
+            {
+              cueId: cue.id,
+              name: cue.name,
+              sceneName: cue.sceneName,
+            },
+          ])
+        ),
+        byName: Object.fromEntries(
+          cues.map((cue: any) => [
+            cue.name.toLowerCase(),
+            {
+              cueId: cue.id,
+              cueNumber: cue.cueNumber,
+              sceneName: cue.sceneName,
+            },
+          ])
+        ),
+        bySceneName: cues.reduce((acc: any, cue: any) => {
+          const sceneName = cue.sceneName.toLowerCase();
+          if (!acc[sceneName]) {
+            acc[sceneName] = [];
+          }
+          acc[sceneName].push({
+            cueId: cue.id,
+            cueNumber: cue.cueNumber,
+            cueName: cue.name,
+          });
+          return acc;
+        }, {}),
+      };
+
+      return {
+        cueListId: cueList.id,
+        cueList: {
+          name: cueList.name,
+          description: cueList.description,
+          loop: cueList.loop,
+          cueCount: cueList.cueCount,
+          totalDuration: cueList.totalDuration,
+        },
+        cues,
+        pagination: cueList.pagination,
+        statistics,
+        lookupTables,
+        query: {
+          sortedBy: sortBy,
+          filtersApplied: filterBy ? Object.keys(filterBy).length : 0,
+          includeSceneDetails,
+        },
+      };
+    } catch (error) {
+      throw new Error(`Failed to get cue list details: ${error}`);
+    }
+  }
+
+  /**
+   * Get a single cue by ID
+   * Part of Task 2.5 - MCP API Refactor
+   */
+  async getCue(args: { cueId: string }) {
+    const { cueId } = args;
+
+    try {
+      const cue = await this.graphqlClient.getCue(cueId);
+
+      if (!cue) {
+        throw new Error(`Cue with ID ${cueId} not found`);
+      }
+
+      return {
+        cueId: cue.id,
+        cue: {
+          name: cue.name,
+          cueNumber: cue.cueNumber,
+          fadeInTime: cue.fadeInTime,
+          fadeOutTime: cue.fadeOutTime,
+          followTime: cue.followTime,
+          notes: cue.notes,
+        },
+        scene: {
+          id: cue.scene.id,
+          name: cue.scene.name,
+          description: cue.scene.description,
+        },
+        cueList: cue.cueList
+          ? {
+              id: cue.cueList.id,
+              name: cue.cueList.name,
+            }
+          : undefined,
+      };
+    } catch (error) {
+      throw new Error(`Failed to get cue: ${error}`);
     }
   }
 }
