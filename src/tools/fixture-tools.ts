@@ -2,6 +2,24 @@ import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
 import { FixtureDefinition, FixtureInstance, Scene, FixtureValue, FixtureType } from "../types/lighting";
 import { logger } from "../utils/logger";
+import { normalizePaginationParams } from "../utils/pagination";
+
+const ListFixturesSchema = z.object({
+  projectId: z.string().describe("Project ID to list fixtures from"),
+  page: z.number().default(1).optional().describe("Page number (default: 1)"),
+  perPage: z.number().default(50).optional().describe("Items per page (default: 50, max: 100)"),
+  filter: z.object({
+    type: z.enum(["LED_PAR", "MOVING_HEAD", "STROBE", "DIMMER", "OTHER"]).optional().describe("Filter by fixture type"),
+    universe: z.number().optional().describe("Filter by DMX universe"),
+    tags: z.array(z.string()).optional().describe("Filter by tags (all must match)"),
+    manufacturer: z.string().optional().describe("Filter by manufacturer name"),
+    model: z.string().optional().describe("Filter by model name"),
+  }).optional().describe("Optional filters to apply"),
+});
+
+const GetFixtureSchema = z.object({
+  fixtureId: z.string().describe("Fixture ID to retrieve"),
+});
 
 const GetFixtureInventorySchema = z.object({
   projectId: z.string().optional(),
@@ -138,6 +156,95 @@ const BulkCreateFixturesSchema = z.object({
 
 export class FixtureTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
+
+  /**
+   * List fixtures in a project with pagination and filtering
+   * Part of MCP API Refactor - Task 2.3
+   */
+  async listFixtures(args: z.infer<typeof ListFixturesSchema>) {
+    const { projectId, page, perPage, filter } = ListFixturesSchema.parse(args);
+
+    try {
+      // Normalize pagination parameters
+      const normalizedParams = normalizePaginationParams(page, perPage);
+
+      // Call the GraphQL query
+      const result = await this.graphqlClient.getFixtureInstances({
+        projectId,
+        page: normalizedParams.page,
+        perPage: normalizedParams.perPage,
+        filter,
+      });
+
+      return {
+        fixtures: result.fixtures.map(f => ({
+          id: f.id,
+          name: f.name,
+          description: f.description,
+          manufacturer: f.manufacturer,
+          model: f.model,
+          type: f.type,
+          universe: f.universe,
+          startChannel: f.startChannel,
+          channelCount: f.channelCount,
+          tags: f.tags,
+        })),
+        pagination: result.pagination,
+      };
+    } catch (error) {
+      logger.error('Failed to list fixtures', {
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(`Failed to list fixtures: ${error}`);
+    }
+  }
+
+  /**
+   * Get a single fixture instance by ID
+   * Part of MCP API Refactor - Task 2.3
+   */
+  async getFixture(args: z.infer<typeof GetFixtureSchema>) {
+    const { fixtureId } = GetFixtureSchema.parse(args);
+
+    try {
+      const fixture = await this.graphqlClient.getFixtureInstance(fixtureId);
+
+      if (!fixture) {
+        throw new Error(`Fixture with ID ${fixtureId} not found`);
+      }
+
+      return {
+        fixture: {
+          id: fixture.id,
+          name: fixture.name,
+          description: fixture.description,
+          manufacturer: fixture.manufacturer,
+          model: fixture.model,
+          type: fixture.type,
+          mode: fixture.modeName,
+          universe: fixture.universe,
+          startChannel: fixture.startChannel,
+          channelCount: fixture.channelCount,
+          tags: fixture.tags,
+          channels: fixture.channels.map(ch => ({
+            offset: ch.offset,
+            name: ch.name,
+            type: ch.type,
+            minValue: ch.minValue,
+            maxValue: ch.maxValue,
+            defaultValue: ch.defaultValue,
+          })),
+        },
+      };
+    } catch (error) {
+      logger.error('Failed to get fixture', {
+        fixtureId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(`Failed to get fixture: ${error}`);
+    }
+  }
 
   async getFixtureInventory(args: z.infer<typeof GetFixtureInventorySchema>) {
     const { projectId, fixtureType, includeDefinitions } =

@@ -70,8 +70,8 @@ describe('ProjectTools', () => {
 
     mockGraphQLClient = {
       getProjects: jest.fn(),
-      getProject: jest.fn(),
       getProjectsWithCounts: jest.fn(),
+      getProject: jest.fn(),
       getProjectWithCounts: jest.fn(),
       createProject: jest.fn(),
       deleteProject: jest.fn(),
@@ -100,22 +100,19 @@ describe('ProjectTools', () => {
       });
     });
 
-    it('should list projects with details', async () => {
-      const projectWithCounts = {
+    it('should list projects with details using count query', async () => {
+      const mockProjectWithCounts = {
         id: 'project-1',
         name: 'Test Project',
         description: 'Test description',
         createdAt: '2024-01-01',
         updatedAt: '2024-01-01',
-        fixtures: [],
-        scenes: [],
-        cueLists: [],
         fixtureCount: 2,
         sceneCount: 1,
         cueListCount: 1
       };
 
-      mockGraphQLClient.getProjectsWithCounts.mockResolvedValue([projectWithCounts as any]);
+      mockGraphQLClient.getProjectsWithCounts.mockResolvedValue([mockProjectWithCounts]);
 
       const result = await projectTools.listProjects({ includeDetails: true });
 
@@ -225,6 +222,74 @@ describe('ProjectTools', () => {
 
     it('should validate required name field', async () => {
       await expect(projectTools.createProject({} as any)).rejects.toThrow();
+    });
+  });
+
+  describe('getProject', () => {
+    it('should get project with counts', async () => {
+      const mockProjectWithCounts = {
+        id: 'project-1',
+        name: 'Test Project',
+        description: 'Test description',
+        createdAt: '2024-01-01',
+        updatedAt: '2024-01-01',
+        fixtureCount: 2,
+        sceneCount: 1,
+        cueListCount: 1
+      };
+
+      mockGraphQLClient.getProjectWithCounts.mockResolvedValue(mockProjectWithCounts);
+
+      const result = await projectTools.getProject({ projectId: 'project-1' });
+
+      expect(mockGraphQLClient.getProjectWithCounts).toHaveBeenCalledWith('project-1');
+      expect(result).toEqual({
+        project: {
+          id: 'project-1',
+          name: 'Test Project',
+          description: 'Test description',
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01',
+          fixtureCount: 2,
+          sceneCount: 1,
+          cueListCount: 1
+        }
+      });
+    });
+
+    it('should handle project not found', async () => {
+      mockGraphQLClient.getProjectWithCounts.mockResolvedValue(null);
+
+      await expect(projectTools.getProject({ projectId: 'non-existent' }))
+        .rejects.toThrow('Project with ID non-existent not found');
+    });
+
+    it('should handle GraphQL client errors', async () => {
+      mockGraphQLClient.getProjectWithCounts.mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(projectTools.getProject({ projectId: 'project-1' }))
+        .rejects.toThrow('Failed to get project: Error: GraphQL error');
+    });
+
+    it('should handle project with zero counts', async () => {
+      const mockEmptyProject = {
+        id: 'project-1',
+        name: 'Empty Project',
+        description: 'Empty description',
+        createdAt: '2024-01-01',
+        updatedAt: '2024-01-01',
+        fixtureCount: 0,
+        sceneCount: 0,
+        cueListCount: 0
+      };
+
+      mockGraphQLClient.getProjectWithCounts.mockResolvedValue(mockEmptyProject);
+
+      const result = await projectTools.getProject({ projectId: 'project-1' });
+
+      expect(result.project.fixtureCount).toBe(0);
+      expect(result.project.sceneCount).toBe(0);
+      expect(result.project.cueListCount).toBe(0);
     });
   });
 

@@ -71,14 +71,24 @@ class LacyLightsMCPServer {
           // Project Tools
           {
             name: "list_projects",
-            description: "List all available lighting projects",
+            description: `List all projects with optional detail level.
+
+Parameters:
+- includeDetails: When true, includes resource counts for each project. Default false.
+
+Returns:
+- Basic info (id, name, description) always
+- Resource counts (fixtureCount, sceneCount, cueListCount) when includeDetails=true
+
+Use includeDetails=false for quick project listing.
+Use includeDetails=true when you need to understand project sizes.`,
             inputSchema: {
               type: "object",
               properties: {
                 includeDetails: {
                   type: "boolean",
                   default: false,
-                  description: "Include fixture and scene counts",
+                  description: "Include fixture/scene/cue counts",
                 },
               },
             },
@@ -102,8 +112,33 @@ class LacyLightsMCPServer {
             },
           },
           {
+            name: "get_project",
+            description: `Get high-level project information including metadata and counts.
+
+Returns:
+- Project metadata (id, name, description, timestamps)
+- Resource counts (fixtureCount, sceneCount, cueListCount)
+
+Does NOT include:
+- Fixture details (use list_fixtures or get_fixture_inventory)
+- Scene details (use list_scenes)
+- Cue list details (use list_cue_lists or get_cue_list_details)
+
+Use this tool first to understand project scope before drilling down into specific resources.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to retrieve",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
             name: "get_project_details",
-            description: "Get detailed information about a specific project",
+            description: "Get detailed information about a specific project including all fixtures, scenes, and cue lists. This returns a lot of data and should only be used when you need comprehensive project information.",
             inputSchema: {
               type: "object",
               properties: {
@@ -143,6 +178,110 @@ class LacyLightsMCPServer {
             },
           },
           // Fixture Tools
+          {
+            name: "list_fixtures",
+            description: `List fixtures in a project with pagination and filtering.
+
+Returns lightweight fixture information:
+- Basic metadata (id, name, manufacturer, model, type)
+- DMX addressing (universe, startChannel, channelCount)
+- Tags
+
+Does NOT include:
+- Full channel definitions (use get_fixture for that)
+- Scene usage (use get_fixture_usage)
+
+Pagination:
+- Default: 50 items per page
+- Max: 100 items per page
+- Use pagination.hasMore to check if more results exist
+
+Filtering:
+- type: Filter by fixture type (LED_PAR, MOVING_HEAD, etc.)
+- universe: Filter by DMX universe
+- tags: Filter by tags (array)
+- manufacturer: Filter by manufacturer name
+- model: Filter by model name
+
+Example workflow:
+1. list_fixtures(projectId, page=1) - Get first page
+2. If pagination.hasMore, call with page=2, etc.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to list fixtures from",
+                },
+                page: {
+                  type: "number",
+                  default: 1,
+                  description: "Page number (default: 1)",
+                },
+                perPage: {
+                  type: "number",
+                  default: 50,
+                  description: "Items per page (default: 50, max: 100)",
+                },
+                filter: {
+                  type: "object",
+                  properties: {
+                    type: {
+                      type: "string",
+                      enum: ["LED_PAR", "MOVING_HEAD", "STROBE", "DIMMER", "OTHER"],
+                      description: "Filter by fixture type",
+                    },
+                    universe: {
+                      type: "number",
+                      description: "Filter by DMX universe",
+                    },
+                    tags: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "Filter by tags (all must match)",
+                    },
+                    manufacturer: {
+                      type: "string",
+                      description: "Filter by manufacturer name",
+                    },
+                    model: {
+                      type: "string",
+                      description: "Filter by model name",
+                    },
+                  },
+                  description: "Optional filters to apply",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "get_fixture",
+            description: `Get full details for a specific fixture.
+
+Returns:
+- All metadata (id, name, manufacturer, model, type, mode)
+- DMX addressing (universe, startChannel, channelCount)
+- Full channel definitions with types and ranges
+- Tags
+
+Use this tool when you need:
+- Complete channel information for a fixture
+- To understand fixture capabilities in detail
+- Channel types and DMX value ranges
+
+Use list_fixtures instead if you only need basic fixture information.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                fixtureId: {
+                  type: "string",
+                  description: "Fixture ID to retrieve",
+                },
+              },
+              required: ["fixtureId"],
+            },
+          },
           {
             name: "get_fixture_inventory",
             description:
@@ -510,6 +649,122 @@ class LacyLightsMCPServer {
             },
           },
           // Scene Tools
+          // MCP API Refactor - Task 2.4: Scene Query Tools
+          {
+            name: "list_scenes",
+            description: `List scenes in a project with pagination and filtering.
+
+Returns lightweight scene summaries:
+- Metadata (id, name, description)
+- Fixture count
+- Timestamps
+
+Does NOT include:
+- Fixture values (use get_scene for that)
+- Usage information (use get_scene_usage)
+
+This is the most efficient way to browse available scenes.
+
+Filtering:
+- nameContains: Filter by scene name (case-insensitive)
+- usesFixture: Filter to scenes using specific fixture ID
+
+Sorting:
+- name: Alphabetical by name
+- createdAt: Oldest first (default)
+- updatedAt: Recently modified first`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to list scenes from",
+                },
+                page: {
+                  type: "number",
+                  minimum: 1,
+                  default: 1,
+                  description: "Page number (1-based)",
+                },
+                perPage: {
+                  type: "number",
+                  minimum: 1,
+                  maximum: 100,
+                  default: 50,
+                  description: "Items per page (max 100)",
+                },
+                nameContains: {
+                  type: "string",
+                  description: "Filter scenes by name (case-insensitive substring match)",
+                },
+                usesFixture: {
+                  type: "string",
+                  description: "Filter to scenes that use this fixture ID",
+                },
+                sortBy: {
+                  type: "string",
+                  enum: ["NAME", "CREATED_AT", "UPDATED_AT"],
+                  default: "CREATED_AT",
+                  description: "Sort field",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "get_scene",
+            description: `Get full details for a specific scene.
+
+Parameters:
+- sceneId: Scene to retrieve
+- includeFixtureValues: Include all DMX channel values (default: true)
+
+Set includeFixtureValues=false if you only need to know which fixtures
+are in the scene, not their specific values. This is much faster for
+large scenes.
+
+Use get_scene_fixtures instead if you only need fixture metadata.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to retrieve",
+                },
+                includeFixtureValues: {
+                  type: "boolean",
+                  default: true,
+                  description: "Include fixture DMX channel values",
+                },
+              },
+              required: ["sceneId"],
+            },
+          },
+          {
+            name: "get_scene_fixtures",
+            description: `Get just the fixtures used in a scene without their values.
+
+Returns:
+- Fixture IDs, names, and types
+
+This is the fastest way to understand scene composition without
+loading full DMX channel data.
+
+Use cases:
+- "Which fixtures does this scene use?"
+- "What type of fixtures are in this scene?"
+- Quick scene composition analysis`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to get fixtures for",
+                },
+              },
+              required: ["sceneId"],
+            },
+          },
           {
             name: "generate_scene",
             description:
@@ -1560,6 +1815,20 @@ with filters and lookup tables instead.`,
               ],
             };
 
+          case "get_project":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.projectTools.getProject(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
           case "get_project_details":
             return {
               content: [
@@ -1610,6 +1879,34 @@ with filters and lookup tables instead.`,
             };
 
           // Fixture Tools
+          case "list_fixtures":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.listFixtures(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_fixture":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.getFixture(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
           case "get_fixture_inventory":
             return {
               content: [
@@ -1741,6 +2038,49 @@ with filters and lookup tables instead.`,
             };
 
           // Scene Tools
+          // MCP API Refactor - Task 2.4: Scene Query Tool Handlers
+          case "list_scenes":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.listScenes(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_scene":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.getSceneDetails(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_scene_fixtures":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.getSceneFixtures(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
           case "generate_scene":
             return {
               content: [

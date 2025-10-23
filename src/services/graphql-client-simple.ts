@@ -9,10 +9,12 @@ import {
   FixtureUsage,
   SceneUsage,
   SceneComparison,
-  SceneSortField,
-  SceneFixtureSummary
+  SceneSummary,
+  SceneFixtureSummary,
+  SceneSortField
 } from '../types/lighting';
 import { PaginatedResponse } from '../types/pagination';
+import { normalizePaginationParams } from '../utils/pagination';
 
 export class LacyLightsGraphQLClient {
   private endpoint: string;
@@ -173,10 +175,54 @@ export class LacyLightsGraphQLClient {
   }
 
   /**
-   * Get all projects with counts
+   * Get a single project with metadata and counts only (no nested data).
+   * More efficient than getProject when you only need summary information.
    * Part of MCP API Refactor - Task 2.2
    */
-  async getProjectsWithCounts(): Promise<Array<Project & { fixtureCount: number; sceneCount: number; cueListCount: number }>> {
+  async getProjectWithCounts(id: string): Promise<{
+    id: string;
+    name: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+    fixtureCount: number;
+    sceneCount: number;
+    cueListCount: number;
+  } | null> {
+    const query = `
+      query GetProjectWithCounts($id: ID!) {
+        project(id: $id) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureCount
+          sceneCount
+          cueListCount
+        }
+      }
+    `;
+
+    const data = await this.query(query, { id });
+    return data.project;
+  }
+
+  /**
+   * Get all projects with metadata and counts.
+   * Use includeDetails parameter to include counts in the response.
+   * Part of MCP API Refactor - Task 2.2
+   */
+  async getProjectsWithCounts(): Promise<Array<{
+    id: string;
+    name: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+    fixtureCount: number;
+    sceneCount: number;
+    cueListCount: number;
+  }>> {
     const query = `
       query GetProjectsWithCounts {
         projects {
@@ -196,29 +242,6 @@ export class LacyLightsGraphQLClient {
     return data.projects;
   }
 
-  /**
-   * Get a single project with counts
-   * Part of MCP API Refactor - Task 2.2
-   */
-  async getProjectWithCounts(id: string): Promise<(Project & { fixtureCount: number; sceneCount: number; cueListCount: number }) | null> {
-    const query = `
-      query GetProjectWithCounts($id: ID!) {
-        project(id: $id) {
-          id
-          name
-          description
-          createdAt
-          updatedAt
-          fixtureCount
-          sceneCount
-          cueListCount
-        }
-      }
-    `;
-
-    const data = await this.query(query, { id });
-    return data.project;
-  }
 
   async getFixtureDefinitions(): Promise<FixtureDefinition[]> {
     const query = `
@@ -251,6 +274,119 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(query);
     return data.fixtureDefinitions;
+  }
+
+  /**
+   * Get paginated list of fixture instances with filtering
+   * Part of MCP API Refactor - Task 2.3
+   */
+  async getFixtureInstances(args: {
+    projectId: string;
+    page?: number;
+    perPage?: number;
+    filter?: {
+      type?: string;
+      universe?: number;
+      tags?: string[];
+      manufacturer?: string;
+      model?: string;
+    };
+  }): Promise<{
+    fixtures: FixtureInstance[];
+    pagination: {
+      total: number;
+      page: number;
+      perPage: number;
+      totalPages: number;
+      hasMore: boolean;
+    };
+  }> {
+    const query = `
+      query GetFixtureInstances(
+        $projectId: ID!
+        $page: Int
+        $perPage: Int
+        $filter: FixtureFilterInput
+      ) {
+        fixtureInstances(
+          projectId: $projectId
+          page: $page
+          perPage: $perPage
+          filter: $filter
+        ) {
+          fixtures {
+            id
+            name
+            description
+            universe
+            startChannel
+            tags
+            definitionId
+            manufacturer
+            model
+            type
+            modeName
+            channelCount
+            channels {
+              id
+              offset
+              name
+              type
+              minValue
+              maxValue
+              defaultValue
+            }
+          }
+          pagination {
+            total
+            page
+            perPage
+            totalPages
+            hasMore
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, args);
+    return data.fixtureInstances;
+  }
+
+  /**
+   * Get a single fixture instance by ID
+   * Part of MCP API Refactor - Task 2.3
+   */
+  async getFixtureInstance(id: string): Promise<FixtureInstance | null> {
+    const query = `
+      query GetFixtureInstance($id: ID!) {
+        fixtureInstance(id: $id) {
+          id
+          name
+          description
+          universe
+          startChannel
+          tags
+          definitionId
+          manufacturer
+          model
+          type
+          modeName
+          channelCount
+          channels {
+            id
+            offset
+            name
+            type
+            minValue
+            maxValue
+            defaultValue
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { id });
+    return data.fixtureInstance;
   }
 
   async createScene(input: {
@@ -1079,106 +1215,6 @@ export class LacyLightsGraphQLClient {
     return data.scene;
   }
 
-  /**
-   * List scenes with pagination and filtering
-   * Part of MCP API Refactor - Task 2.4
-   */
-  async listScenes(args: {
-    projectId: string;
-    page?: number;
-    perPage?: number;
-    nameContains?: string;
-    usesFixture?: string;
-    sortBy?: SceneSortField;
-  }): Promise<PaginatedResponse<Scene>> {
-    const query = `
-      query ListScenes(
-        $projectId: ID!
-        $page: Int
-        $perPage: Int
-        $nameContains: String
-        $usesFixture: ID
-        $sortBy: SceneSortField
-      ) {
-        scenes(
-          projectId: $projectId
-          page: $page
-          perPage: $perPage
-          nameContains: $nameContains
-          usesFixture: $usesFixture
-          sortBy: $sortBy
-        ) {
-          items {
-            id
-            name
-            description
-            createdAt
-            updatedAt
-            fixtureCount
-          }
-          pagination {
-            total
-            page
-            perPage
-            totalPages
-            hasMore
-          }
-        }
-      }
-    `;
-
-    const data = await this.query(query, args);
-    return data.scenes;
-  }
-
-  /**
-   * Get scene with optional fixture values
-   * Part of MCP API Refactor - Task 2.4
-   */
-  async getSceneWithOptions(sceneId: string, includeFixtureValues: boolean = true): Promise<Scene | null> {
-    const query = `
-      query GetSceneWithOptions($sceneId: ID!, $includeFixtureValues: Boolean!) {
-        scene(id: $sceneId) {
-          id
-          name
-          description
-          createdAt
-          updatedAt
-          fixtureValues @include(if: $includeFixtureValues) {
-            fixture {
-              id
-              name
-            }
-            channelValues
-            sceneOrder
-          }
-        }
-      }
-    `;
-
-    const data = await this.query(query, { sceneId, includeFixtureValues });
-    return data.scene;
-  }
-
-  /**
-   * Get just the fixtures used in a scene (without values)
-   * Part of MCP API Refactor - Task 2.4
-   */
-  async getSceneFixtures(sceneId: string): Promise<SceneFixtureSummary[]> {
-    const query = `
-      query GetSceneFixtures($sceneId: ID!) {
-        sceneFixtures(sceneId: $sceneId) {
-          fixtureId
-          fixtureName
-          fixtureType
-        }
-      }
-    `;
-
-    const data = await this.query(query, { sceneId });
-    return data.sceneFixtures;
-  }
-
   async getCurrentActiveScene(): Promise<Scene | null> {
     const query = `
       query GetCurrentActiveScene {
@@ -1205,6 +1241,111 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(query);
     return data.currentActiveScene;
+  }
+
+  // MCP API Refactor - Task 2.4: Scene Query Tools
+
+  /**
+   * List scenes in a project with pagination and filtering (Task 2.4)
+   * Returns lightweight scene summaries without fixture values
+   */
+  async listScenes(params: {
+    projectId: string;
+    page?: number;
+    perPage?: number;
+    nameContains?: string;
+    usesFixture?: string;
+    sortBy?: SceneSortField;
+  }): Promise<PaginatedResponse<SceneSummary>> {
+    const { page: normalizedPage, perPage: normalizedPerPage } = normalizePaginationParams(params.page, params.perPage);
+
+    const query = `
+      query ListScenes($projectId: ID!, $page: Int!, $perPage: Int!, $filter: SceneFilterInput, $sortBy: SceneSortField) {
+        scenes(projectId: $projectId, page: $page, perPage: $perPage, filter: $filter, sortBy: $sortBy) {
+          scenes {
+            id
+            name
+            description
+            fixtureCount
+            createdAt
+            updatedAt
+          }
+          pagination {
+            total
+            page
+            perPage
+            totalPages
+            hasMore
+          }
+        }
+      }
+    `;
+
+    const filter: any = {};
+    if (params.nameContains) filter.nameContains = params.nameContains;
+    if (params.usesFixture) filter.usesFixture = params.usesFixture;
+
+    const variables = {
+      projectId: params.projectId,
+      page: normalizedPage,
+      perPage: normalizedPerPage,
+      filter: Object.keys(filter).length > 0 ? filter : undefined,
+      sortBy: params.sortBy || SceneSortField.CREATED_AT
+    };
+
+    const data = await this.query(query, variables);
+    return {
+      items: data.scenes.scenes,
+      pagination: data.scenes.pagination
+    };
+  }
+
+  /**
+   * Get full scene details with optional fixture values (Task 2.4)
+   * Set includeFixtureValues=false for faster queries when values not needed
+   */
+  async getSceneWithOptions(id: string, includeFixtureValues: boolean = true): Promise<Scene | null> {
+    const query = `
+      query GetSceneWithOptions($id: ID!, $includeFixtureValues: Boolean!) {
+        scene(id: $id, includeFixtureValues: $includeFixtureValues) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureValues @include(if: $includeFixtureValues) {
+            fixture {
+              id
+              name
+            }
+            channelValues
+            sceneOrder
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { id, includeFixtureValues });
+    return data.scene;
+  }
+
+  /**
+   * Get just the fixtures used in a scene without their values (Task 2.4)
+   * Fastest way to understand scene composition
+   */
+  async getSceneFixtures(sceneId: string): Promise<SceneFixtureSummary[]> {
+    const query = `
+      query GetSceneFixtures($sceneId: ID!) {
+        sceneFixtures(sceneId: $sceneId) {
+          fixtureId
+          fixtureName
+          fixtureType
+        }
+      }
+    `;
+
+    const data = await this.query(query, { sceneId });
+    return data.sceneFixtures;
   }
 
   async getCue(id: string): Promise<Cue | null> {
