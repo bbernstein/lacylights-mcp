@@ -1,5 +1,18 @@
 import fetch from 'cross-fetch';
-import { Project, FixtureDefinition, FixtureInstance, Scene, CueList, Cue, FixtureUsage, SceneUsage, SceneComparison } from '../types/lighting';
+import {
+  Project,
+  FixtureDefinition,
+  FixtureInstance,
+  Scene,
+  CueList,
+  Cue,
+  FixtureUsage,
+  SceneUsage,
+  SceneComparison,
+  SceneSortField,
+  SceneFixtureSummary
+} from '../types/lighting';
+import { PaginatedResponse } from '../types/pagination';
 
 export class LacyLightsGraphQLClient {
   private endpoint: string;
@@ -151,6 +164,54 @@ export class LacyLightsGraphQLClient {
               }
             }
           }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { id });
+    return data.project;
+  }
+
+  /**
+   * Get all projects with counts
+   * Part of MCP API Refactor - Task 2.2
+   */
+  async getProjectsWithCounts(): Promise<Array<Project & { fixtureCount: number; sceneCount: number; cueListCount: number }>> {
+    const query = `
+      query GetProjectsWithCounts {
+        projects {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureCount
+          sceneCount
+          cueListCount
+        }
+      }
+    `;
+
+    const data = await this.query(query);
+    return data.projects;
+  }
+
+  /**
+   * Get a single project with counts
+   * Part of MCP API Refactor - Task 2.2
+   */
+  async getProjectWithCounts(id: string): Promise<(Project & { fixtureCount: number; sceneCount: number; cueListCount: number }) | null> {
+    const query = `
+      query GetProjectWithCounts($id: ID!) {
+        project(id: $id) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureCount
+          sceneCount
+          cueListCount
         }
       }
     `;
@@ -1016,6 +1077,106 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(query, { id });
     return data.scene;
+  }
+
+  /**
+   * List scenes with pagination and filtering
+   * Part of MCP API Refactor - Task 2.4
+   */
+  async listScenes(args: {
+    projectId: string;
+    page?: number;
+    perPage?: number;
+    nameContains?: string;
+    usesFixture?: string;
+    sortBy?: SceneSortField;
+  }): Promise<PaginatedResponse<Scene>> {
+    const query = `
+      query ListScenes(
+        $projectId: ID!
+        $page: Int
+        $perPage: Int
+        $nameContains: String
+        $usesFixture: ID
+        $sortBy: SceneSortField
+      ) {
+        scenes(
+          projectId: $projectId
+          page: $page
+          perPage: $perPage
+          nameContains: $nameContains
+          usesFixture: $usesFixture
+          sortBy: $sortBy
+        ) {
+          items {
+            id
+            name
+            description
+            createdAt
+            updatedAt
+            fixtureCount
+          }
+          pagination {
+            total
+            page
+            perPage
+            totalPages
+            hasMore
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, args);
+    return data.scenes;
+  }
+
+  /**
+   * Get scene with optional fixture values
+   * Part of MCP API Refactor - Task 2.4
+   */
+  async getSceneWithOptions(sceneId: string, includeFixtureValues: boolean = true): Promise<Scene | null> {
+    const query = `
+      query GetSceneWithOptions($sceneId: ID!, $includeFixtureValues: Boolean!) {
+        scene(id: $sceneId) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureValues @include(if: $includeFixtureValues) {
+            fixture {
+              id
+              name
+            }
+            channelValues
+            sceneOrder
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { sceneId, includeFixtureValues });
+    return data.scene;
+  }
+
+  /**
+   * Get just the fixtures used in a scene (without values)
+   * Part of MCP API Refactor - Task 2.4
+   */
+  async getSceneFixtures(sceneId: string): Promise<SceneFixtureSummary[]> {
+    const query = `
+      query GetSceneFixtures($sceneId: ID!) {
+        sceneFixtures(sceneId: $sceneId) {
+          fixtureId
+          fixtureName
+          fixtureType
+        }
+      }
+    `;
+
+    const data = await this.query(query, { sceneId });
+    return data.sceneFixtures;
   }
 
   async getCurrentActiveScene(): Promise<Scene | null> {

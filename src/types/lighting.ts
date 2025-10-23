@@ -206,7 +206,6 @@ export interface CueSequence {
   reasoning: string;
 }
 
-<<<<<<< HEAD
 // Relationship Query Types (Task 2.7)
 
 export interface CueUsageSummary {

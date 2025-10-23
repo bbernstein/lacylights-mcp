@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
 import { RAGService } from '../services/rag-service-simple';
 import { AILightingService } from '../services/ai-lighting';
-import { LightingDesignRequest } from '../types/lighting';
+import { LightingDesignRequest, SceneSortField } from '../types/lighting';
 
 // Type definitions for better type safety
 interface SceneActivationResult {
@@ -148,6 +148,25 @@ const UpdateScenePartialSchema = z.object({
     sceneOrder: z.number().optional()
   })).optional(),
   mergeFixtures: z.boolean().default(true)
+});
+
+// MCP API Refactor - Task 2.4: Scene Query Schemas
+const ListScenesSchema = z.object({
+  projectId: z.string(),
+  page: z.number().min(1).optional(),
+  perPage: z.number().min(1).max(100).optional(),
+  nameContains: z.string().optional(),
+  usesFixture: z.string().optional(),
+  sortBy: z.nativeEnum(SceneSortField).optional()
+});
+
+const GetSceneSchema = z.object({
+  sceneId: z.string(),
+  includeFixtureValues: z.boolean().default(true)
+});
+
+const GetSceneFixturesSchema = z.object({
+  sceneId: z.string()
 });
 
 export class SceneTools {
@@ -780,6 +799,101 @@ export class SceneTools {
       };
     } catch (error) {
       throw new Error(`Failed to update scene partially: ${error}`);
+    }
+  }
+
+  // MCP API Refactor - Task 2.4: Scene Query Tools
+
+  /**
+   * List scenes in a project with pagination and filtering
+   * Returns lightweight scene summaries without fixture values
+   */
+  async listScenes(args: z.infer<typeof ListScenesSchema>) {
+    const { projectId, page, perPage, nameContains, usesFixture, sortBy } = ListScenesSchema.parse(args);
+
+    try {
+      const result = await this.graphqlClient.listScenes({
+        projectId,
+        page,
+        perPage,
+        nameContains,
+        usesFixture,
+        sortBy
+      });
+
+      return {
+        scenes: result.items,
+        pagination: result.pagination,
+        message: `Found ${result.pagination.total} scenes in project (page ${result.pagination.page} of ${result.pagination.totalPages})`
+      };
+    } catch (error) {
+      throw new Error(`Failed to list scenes: ${error}`);
+    }
+  }
+
+  /**
+   * Get full scene details with optional fixture values
+   * Set includeFixtureValues=false for faster queries when values not needed
+   */
+  async getSceneDetails(args: z.infer<typeof GetSceneSchema>) {
+    const { sceneId, includeFixtureValues } = GetSceneSchema.parse(args);
+
+    try {
+      const scene = await this.graphqlClient.getSceneWithOptions(sceneId, includeFixtureValues);
+
+      if (!scene) {
+        throw new Error(`Scene with ID ${sceneId} not found`);
+      }
+
+      return {
+        scene: {
+          id: scene.id,
+          name: scene.name,
+          description: scene.description,
+          createdAt: scene.createdAt,
+          updatedAt: scene.updatedAt,
+          fixtureValues: includeFixtureValues ? scene.fixtureValues.map(fv => ({
+            fixture: {
+              id: fv.fixture.id,
+              name: fv.fixture.name
+            },
+            channelValues: fv.channelValues,
+            sceneOrder: fv.sceneOrder
+          })) : undefined
+        },
+        includeFixtureValues,
+        fixtureCount: includeFixtureValues ? scene.fixtureValues.length : undefined,
+        message: includeFixtureValues
+          ? `Retrieved scene "${scene.name}" with ${scene.fixtureValues.length} fixtures`
+          : `Retrieved scene "${scene.name}" metadata (fixture values excluded for performance)`
+      };
+    } catch (error) {
+      throw new Error(`Failed to get scene details: ${error}`);
+    }
+  }
+
+  /**
+   * Get just the fixtures used in a scene without their values
+   * Fastest way to understand scene composition
+   */
+  async getSceneFixtures(args: z.infer<typeof GetSceneFixturesSchema>) {
+    const { sceneId } = GetSceneFixturesSchema.parse(args);
+
+    try {
+      const fixtures = await this.graphqlClient.getSceneFixtures(sceneId);
+
+      return {
+        sceneId,
+        fixtures: fixtures.map(f => ({
+          fixtureId: f.fixtureId,
+          fixtureName: f.fixtureName,
+          fixtureType: f.fixtureType
+        })),
+        fixtureCount: fixtures.length,
+        message: `Scene uses ${fixtures.length} fixtures`
+      };
+    } catch (error) {
+      throw new Error(`Failed to get scene fixtures: ${error}`);
     }
   }
 }

@@ -67,10 +67,12 @@ describe('ProjectTools', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     mockGraphQLClient = {
       getProjects: jest.fn(),
       getProject: jest.fn(),
+      getProjectsWithCounts: jest.fn(),
+      getProjectWithCounts: jest.fn(),
       createProject: jest.fn(),
       deleteProject: jest.fn(),
     } as any;
@@ -99,10 +101,25 @@ describe('ProjectTools', () => {
     });
 
     it('should list projects with details', async () => {
-      mockGraphQLClient.getProjects.mockResolvedValue([mockProject]);
+      const projectWithCounts = {
+        id: 'project-1',
+        name: 'Test Project',
+        description: 'Test description',
+        createdAt: '2024-01-01',
+        updatedAt: '2024-01-01',
+        fixtures: [],
+        scenes: [],
+        cueLists: [],
+        fixtureCount: 2,
+        sceneCount: 1,
+        cueListCount: 1
+      };
+
+      mockGraphQLClient.getProjectsWithCounts.mockResolvedValue([projectWithCounts as any]);
 
       const result = await projectTools.listProjects({ includeDetails: true });
 
+      expect(mockGraphQLClient.getProjectsWithCounts).toHaveBeenCalled();
       expect(result).toEqual({
         projects: [
           {
@@ -111,11 +128,9 @@ describe('ProjectTools', () => {
             description: 'Test description',
             createdAt: '2024-01-01',
             updatedAt: '2024-01-01',
-            stats: {
-              fixtureCount: 2,
-              sceneCount: 1,
-              cueListCount: 1
-            }
+            fixtureCount: 2,
+            sceneCount: 1,
+            cueListCount: 1
           }
         ],
         totalProjects: 1

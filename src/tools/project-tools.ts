@@ -11,6 +11,10 @@ const CreateProjectSchema = z.object({
   description: z.string().optional().describe('Project description')
 });
 
+const GetProjectSchema = z.object({
+  projectId: z.string().describe('Project ID to get')
+});
+
 const GetProjectDetailsSchema = z.object({
   projectId: z.string().describe('Project ID to get details for')
 });
@@ -29,9 +33,9 @@ export class ProjectTools {
     const { includeDetails } = ListProjectsSchema.parse(args);
 
     try {
-      const projects = await this.graphqlClient.getProjects();
-      
       if (includeDetails) {
+        // Use efficient count query
+        const projects = await this.graphqlClient.getProjectsWithCounts();
         return {
           projects: projects.map(project => ({
             id: project.id,
@@ -39,16 +43,16 @@ export class ProjectTools {
             description: project.description,
             createdAt: project.createdAt,
             updatedAt: project.updatedAt,
-            stats: {
-              fixtureCount: project.fixtures.length,
-              sceneCount: project.scenes.length,
-              cueListCount: project.cueLists.length
-            }
+            fixtureCount: project.fixtureCount,
+            sceneCount: project.sceneCount,
+            cueListCount: project.cueListCount
           })),
           totalProjects: projects.length
         };
       }
 
+      // Lightweight query without counts
+      const projects = await this.graphqlClient.getProjects();
       return {
         projects: projects.map(project => ({
           id: project.id,
@@ -62,8 +66,35 @@ export class ProjectTools {
     }
   }
 
+  async getProject(args: z.infer<typeof GetProjectSchema>) {
+    const { projectId } = GetProjectSchema.parse(args);
+
+    try {
+      const project = await this.graphqlClient.getProjectWithCounts(projectId);
+
+      if (!project) {
+        throw new Error(`Project with ID ${projectId} not found`);
+      }
+
+      return {
+        project: {
+          id: project.id,
+          name: project.name,
+          description: project.description,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+          fixtureCount: project.fixtureCount,
+          sceneCount: project.sceneCount,
+          cueListCount: project.cueListCount
+        }
+      };
+    } catch (error) {
+      throw new Error(`Failed to get project: ${error}`);
+    }
+  }
+
   async createProject(args: z.infer<typeof CreateProjectSchema>) {
-    const { name, description } = CreateProjectSchema.parse(args);
+    const { name, description} = CreateProjectSchema.parse(args);
 
     try {
       const project = await this.graphqlClient.createProject({
@@ -90,7 +121,7 @@ export class ProjectTools {
 
     try {
       const project = await this.graphqlClient.getProject(projectId);
-      
+
       if (!project) {
         throw new Error(`Project with ID ${projectId} not found`);
       }
@@ -168,7 +199,7 @@ export class ProjectTools {
 
     try {
       const success = await this.graphqlClient.deleteProject(projectId);
-      
+
       return {
         success,
         message: success ? `Project ${projectId} deleted successfully` : 'Failed to delete project'
@@ -180,14 +211,14 @@ export class ProjectTools {
 
   private calculateChannelRanges(fixtures: any[]): string {
     if (fixtures.length === 0) return 'None';
-    
+
     const ranges: Array<{ start: number; end: number }> = [];
-    
+
     fixtures.forEach(fixture => {
       const start = fixture.startChannel;
       const channelCount = fixture.channelCount;
       const end = start + channelCount - 1;
-      
+
       // Check if this range can be merged with the last one
       if (ranges.length > 0) {
         const lastRange = ranges[ranges.length - 1];
@@ -197,11 +228,11 @@ export class ProjectTools {
           return;
         }
       }
-      
+
       // Add new range
       ranges.push({ start, end });
     });
-    
+
     return ranges.map(r => r.start === r.end ? `${r.start}` : `${r.start}-${r.end}`).join(', ');
   }
 
