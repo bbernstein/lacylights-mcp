@@ -261,6 +261,7 @@ export interface SceneSummary {
 }
 
 // MCP API Refactor - Task 2.4: Scene Query Types
+
 export interface SceneFixtureSummary {
   fixtureId: string;
   fixtureName: string;
