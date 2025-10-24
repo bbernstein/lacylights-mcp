@@ -1,5 +1,18 @@
 import fetch from 'cross-fetch';
-import { Project, FixtureDefinition, FixtureInstance, Scene, CueList, Cue, FixtureUsage, SceneUsage, SceneComparison } from '../types/lighting';
+import {
+  Project,
+  FixtureDefinition,
+  FixtureInstance,
+  Scene,
+  CueList,
+  Cue,
+  FixtureUsage,
+  SceneUsage,
+  SceneComparison,
+  SceneSortField,
+  SceneFixtureSummary
+} from '../types/lighting';
+import { PaginatedResponse } from '../types/pagination';
 
 export class LacyLightsGraphQLClient {
   private endpoint: string;
@@ -151,6 +164,54 @@ export class LacyLightsGraphQLClient {
               }
             }
           }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { id });
+    return data.project;
+  }
+
+  /**
+   * Get all projects with counts
+   * Part of MCP API Refactor - Task 2.2
+   */
+  async getProjectsWithCounts(): Promise<Array<Project & { fixtureCount: number; sceneCount: number; cueListCount: number }>> {
+    const query = `
+      query GetProjectsWithCounts {
+        projects {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureCount
+          sceneCount
+          cueListCount
+        }
+      }
+    `;
+
+    const data = await this.query(query);
+    return data.projects;
+  }
+
+  /**
+   * Get a single project with counts
+   * Part of MCP API Refactor - Task 2.2
+   */
+  async getProjectWithCounts(id: string): Promise<(Project & { fixtureCount: number; sceneCount: number; cueListCount: number }) | null> {
+    const query = `
+      query GetProjectWithCounts($id: ID!) {
+        project(id: $id) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureCount
+          sceneCount
+          cueListCount
         }
       }
     `;
@@ -381,6 +442,114 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(query, { id });
     return data.cueList;
+  }
+
+  /**
+   * Get lightweight cue list summaries for a project
+   * Part of Task 2.5 (Cue List Query Tools) - MCP API Refactor
+   */
+  async getCueLists(projectId: string): Promise<any[]> {
+    // For now, use the existing project query to get cue lists
+    // This will be replaced with a dedicated cueLists query once backend pagination support is added
+    const project = await this.getProject(projectId);
+    if (!project || !project.cueLists) {
+      return [];
+    }
+
+    // Return lightweight summaries
+    return project.cueLists.map((cueList: any) => ({
+      id: cueList.id,
+      name: cueList.name,
+      description: cueList.description,
+      cueCount: cueList.cues?.length || 0,
+      totalDuration: this.estimateCueListDuration(cueList.cues || []),
+      loop: cueList.loop || false,
+      createdAt: cueList.createdAt,
+    }));
+  }
+
+  /**
+   * Get cue list with paginated cues
+   * Part of Task 2.5 (Cue List Query Tools) - MCP API Refactor
+   */
+  async getCueListWithPagination(
+    cueListId: string,
+    page: number = 1,
+    perPage: number = 50,
+    includeSceneDetails: boolean = false
+  ): Promise<any> {
+    // For now, use the existing getCueList and apply client-side pagination
+    // This will be replaced with a backend paginated query once backend pagination support is added
+    const cueList = await this.getCueList(cueListId);
+    if (!cueList) {
+      return null;
+    }
+
+    const cues = cueList.cues || [];
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+    const paginatedCues = cues.slice(start, end);
+
+    // Format cues with optional scene details
+    const formattedCues = paginatedCues.map((cue: any) => {
+      const baseCue = {
+        id: cue.id,
+        name: cue.name,
+        cueNumber: cue.cueNumber,
+        fadeInTime: cue.fadeInTime,
+        fadeOutTime: cue.fadeOutTime,
+        followTime: cue.followTime,
+        notes: cue.notes,
+        sceneId: cue.scene.id,
+        sceneName: cue.scene.name,
+      };
+
+      if (includeSceneDetails) {
+        return {
+          ...baseCue,
+          scene: cue.scene,
+        };
+      }
+
+      return baseCue;
+    });
+
+    const totalPages = Math.ceil(cues.length / perPage);
+
+    return {
+      id: cueList.id,
+      name: cueList.name,
+      description: cueList.description,
+      loop: (cueList as any).loop || false,
+      cues: formattedCues,
+      pagination: {
+        total: cues.length,
+        page,
+        perPage,
+        totalPages,
+        hasMore: page < totalPages,
+      },
+      cueCount: cues.length,
+      totalDuration: this.estimateCueListDuration(cues),
+      createdAt: cueList.createdAt,
+      updatedAt: cueList.updatedAt,
+    };
+  }
+
+  /**
+   * Helper to estimate cue list duration
+   */
+  private estimateCueListDuration(cues: any[]): number {
+    let totalTime = 0;
+    for (const cue of cues) {
+      totalTime += cue.fadeInTime || 0;
+      if (cue.followTime) {
+        totalTime += cue.followTime;
+      } else {
+        totalTime += 5; // Assume 5 seconds for manual advance
+      }
+    }
+    return totalTime;
   }
 
   async createCueList(input: {
@@ -908,6 +1077,106 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(query, { id });
     return data.scene;
+  }
+
+  /**
+   * List scenes with pagination and filtering
+   * Part of MCP API Refactor - Task 2.4
+   */
+  async listScenes(args: {
+    projectId: string;
+    page?: number;
+    perPage?: number;
+    nameContains?: string;
+    usesFixture?: string;
+    sortBy?: SceneSortField;
+  }): Promise<PaginatedResponse<Scene>> {
+    const query = `
+      query ListScenes(
+        $projectId: ID!
+        $page: Int
+        $perPage: Int
+        $nameContains: String
+        $usesFixture: ID
+        $sortBy: SceneSortField
+      ) {
+        scenes(
+          projectId: $projectId
+          page: $page
+          perPage: $perPage
+          nameContains: $nameContains
+          usesFixture: $usesFixture
+          sortBy: $sortBy
+        ) {
+          items {
+            id
+            name
+            description
+            createdAt
+            updatedAt
+            fixtureCount
+          }
+          pagination {
+            total
+            page
+            perPage
+            totalPages
+            hasMore
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, args);
+    return data.scenes;
+  }
+
+  /**
+   * Get scene with optional fixture values
+   * Part of MCP API Refactor - Task 2.4
+   */
+  async getSceneWithOptions(sceneId: string, includeFixtureValues: boolean = true): Promise<Scene | null> {
+    const query = `
+      query GetSceneWithOptions($sceneId: ID!, $includeFixtureValues: Boolean!) {
+        scene(id: $sceneId) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureValues @include(if: $includeFixtureValues) {
+            fixture {
+              id
+              name
+            }
+            channelValues
+            sceneOrder
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { sceneId, includeFixtureValues });
+    return data.scene;
+  }
+
+  /**
+   * Get just the fixtures used in a scene (without values)
+   * Part of MCP API Refactor - Task 2.4
+   */
+  async getSceneFixtures(sceneId: string): Promise<SceneFixtureSummary[]> {
+    const query = `
+      query GetSceneFixtures($sceneId: ID!) {
+        sceneFixtures(sceneId: $sceneId) {
+          fixtureId
+          fixtureName
+          fixtureType
+        }
+      }
+    `;
+
+    const data = await this.query(query, { sceneId });
+    return data.sceneFixtures;
   }
 
   async getCurrentActiveScene(): Promise<Scene | null> {

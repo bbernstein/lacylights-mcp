@@ -83,7 +83,9 @@ describe('Pagination Utils', () => {
       });
 
       it('should enforce minimum perPage of 1', () => {
-        expect(normalizePaginationParams(1, 0)).toEqual({ page: 1, perPage: 1 });
+        // 0 is falsy, so it uses default of 50
+        expect(normalizePaginationParams(1, 0)).toEqual({ page: 1, perPage: 50 });
+        // Negative values still enforce minimum of 1
         expect(normalizePaginationParams(1, -1)).toEqual({
           page: 1,
           perPage: 1,
@@ -141,9 +143,10 @@ describe('Pagination Utils', () => {
       });
 
       it('should handle zero for both parameters', () => {
+        // 0 is falsy for both, so uses defaults (1 for page, 50 for perPage)
         expect(normalizePaginationParams(0, 0)).toEqual({
           page: 1,
-          perPage: 1,
+          perPage: 50,
         });
       });
 

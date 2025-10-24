@@ -1250,10 +1250,68 @@ class LacyLightsMCPServer {
               required: ["cueListId", "cueReordering"],
             },
           },
+          // Cue List Query Tools (Task 2.5 - included in this PR)
+          {
+            name: "list_cue_lists",
+            description: `List all cue lists in a project with lightweight summaries.
+
+Returns:
+- Metadata (id, name, description)
+- Cue count
+- Total duration estimate
+- Loop setting
+
+Does NOT include:
+- Individual cues (use get_cue_list_details)
+- Scene details (use get_scene)
+
+This is the most efficient way to browse available cue lists.
+Projects typically have < 10 cue lists, so no pagination needed.
+
+Use cases:
+- "What cue lists are available?"
+- "Show me all cue lists in this project"
+- Quick cue list overview`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to list cue lists from",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
           {
             name: "get_cue_list_details",
-            description:
-              "Query and analyze cues in a cue list with filtering, sorting, and lookup tables",
+            description: `Get cue list with its cues, optionally paginated.
+
+Parameters:
+- cueListId: Cue list to retrieve
+- page: Page number (default: 1)
+- perPage: Items per page (default: 50, max: 100)
+- includeSceneDetails: Include full scene data for each cue (default: false)
+- sortBy: Sort cues by cueNumber, name, or sceneName
+- filterBy: Optional filters (cueNumberRange, nameContains, etc.)
+
+By default, each cue includes sceneId and sceneName but NOT full scene
+fixture values. Set includeSceneDetails=true only if you need full scene
+data for every cue (this can be very large).
+
+For large cue lists (50+ cues), use pagination to avoid context overflow.
+
+Returns:
+- Cue list metadata
+- Paginated cues array
+- Pagination info (total, page, perPage, hasMore)
+- Statistics (averages, counts, ranges)
+- Lookup tables for quick reference
+
+Example workflow:
+1. list_cue_lists(projectId) - Find available cue lists
+2. get_cue_list_details(cueListId, page=1) - Get first page of cues
+3. If pagination.hasMore, call with page=2, etc.`,
             inputSchema: {
               type: "object",
               properties: {
@@ -1261,11 +1319,21 @@ class LacyLightsMCPServer {
                   type: "string",
                   description: "Cue list ID to query",
                 },
+                page: {
+                  type: "number",
+                  default: 1,
+                  description: "Page number for pagination (min 1)",
+                },
+                perPage: {
+                  type: "number",
+                  default: 50,
+                  description: "Items per page (min 1, max 100)",
+                },
                 includeSceneDetails: {
                   type: "boolean",
-                  default: true,
+                  default: false,
                   description:
-                    "Include detailed scene information for each cue",
+                    "Include full scene data for each cue (default: false for performance)",
                 },
                 sortBy: {
                   type: "string",
@@ -1312,6 +1380,35 @@ class LacyLightsMCPServer {
                 },
               },
               required: ["cueListId"],
+            },
+          },
+          {
+            name: "get_cue",
+            description: `Get full details for a specific cue by ID.
+
+Returns:
+- Cue metadata (name, number, fade times, follow time, notes)
+- Scene information (id, name, description)
+- Cue list information (id, name)
+
+Use this when you need to inspect a single cue in detail.
+
+Use cases:
+- "Show me details for cue 5.5"
+- "What scene does this cue use?"
+- "What are the fade times for this cue?"
+
+Note: To look up a cue by number or name, use get_cue_list_details
+with filters and lookup tables instead.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueId: {
+                  type: "string",
+                  description: "Cue ID to retrieve",
+                },
+              },
+              required: ["cueId"],
             },
           },
           {
@@ -1955,6 +2052,21 @@ class LacyLightsMCPServer {
               ],
             };
 
+          // Cue List Query Tools (Task 2.5 - included in this PR)
+          case "list_cue_lists":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.listCueLists(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
           case "get_cue_list_details":
             return {
               content: [
@@ -1962,6 +2074,20 @@ class LacyLightsMCPServer {
                   type: "text",
                   text: JSON.stringify(
                     await this.cueTools.getCueListDetails(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_cue":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.getCue(args as any),
                     null,
                     2,
                   ),

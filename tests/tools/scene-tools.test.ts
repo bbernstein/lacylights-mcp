@@ -1568,4 +1568,260 @@ describe('SceneTools', () => {
     });
   });
 
+  // MCP API Refactor - Task 2.4: Scene Query Tools Tests
+  describe('Scene Query Tools', () => {
+    beforeEach(() => {
+      // Add new query methods to mock GraphQL client
+      mockGraphQLClient.listScenes = jest.fn();
+      mockGraphQLClient.getSceneWithOptions = jest.fn();
+      mockGraphQLClient.getSceneFixtures = jest.fn();
+    });
+
+    describe('listScenes', () => {
+      it('should list scenes with pagination', async () => {
+        const mockSceneList = {
+          items: [
+            {
+              id: 'scene-1',
+              name: 'Scene 1',
+              description: 'First scene',
+              fixtureCount: 3,
+              createdAt: '2023-01-01T00:00:00Z',
+              updatedAt: '2023-01-01T00:00:00Z'
+            },
+            {
+              id: 'scene-2',
+              name: 'Scene 2',
+              description: 'Second scene',
+              fixtureCount: 5,
+              createdAt: '2023-01-02T00:00:00Z',
+              updatedAt: '2023-01-02T00:00:00Z'
+            }
+          ],
+          pagination: {
+            total: 10,
+            page: 1,
+            perPage: 50,
+            totalPages: 1,
+            hasMore: false
+          }
+        };
+
+        mockGraphQLClient.listScenes = jest.fn().mockResolvedValue(mockSceneList);
+
+        const result = await sceneTools.listScenes({
+          projectId: 'project-1',
+          page: 1,
+          perPage: 50
+        });
+
+        expect(mockGraphQLClient.listScenes).toHaveBeenCalledWith({
+          projectId: 'project-1',
+          page: 1,
+          perPage: 50,
+          nameContains: undefined,
+          usesFixture: undefined,
+          sortBy: undefined
+        });
+        expect(result.scenes).toHaveLength(2);
+        expect(result.pagination.total).toBe(10);
+        expect(result.message).toContain('Found 10 scenes');
+      });
+
+      it('should list scenes with filtering by name', async () => {
+        const mockSceneList = {
+          items: [{
+            id: 'scene-1',
+            name: 'Romantic Scene',
+            description: null,
+            fixtureCount: 3,
+            createdAt: '2023-01-01T00:00:00Z',
+            updatedAt: '2023-01-01T00:00:00Z'
+          }],
+          pagination: {
+            total: 1,
+            page: 1,
+            perPage: 50,
+            totalPages: 1,
+            hasMore: false
+          }
+        };
+
+        mockGraphQLClient.listScenes = jest.fn().mockResolvedValue(mockSceneList);
+
+        const result = await sceneTools.listScenes({
+          projectId: 'project-1',
+          nameContains: 'romantic'
+        });
+
+        expect(mockGraphQLClient.listScenes).toHaveBeenCalledWith(
+          expect.objectContaining({
+            projectId: 'project-1',
+            nameContains: 'romantic'
+          })
+        );
+        expect(result.scenes).toHaveLength(1);
+        expect(result.scenes[0].name).toBe('Romantic Scene');
+      });
+
+      it('should list scenes with sorting', async () => {
+        const mockSceneList = {
+          items: [],
+          pagination: {
+            total: 0,
+            page: 1,
+            perPage: 50,
+            totalPages: 0,
+            hasMore: false
+          }
+        };
+
+        mockGraphQLClient.listScenes = jest.fn().mockResolvedValue(mockSceneList);
+
+        await sceneTools.listScenes({
+          projectId: 'project-1',
+          sortBy: 'NAME' as any
+        });
+
+        expect(mockGraphQLClient.listScenes).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sortBy: 'NAME'
+          })
+        );
+      });
+
+      it('should handle list scenes errors', async () => {
+        mockGraphQLClient.listScenes = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.listScenes({
+          projectId: 'project-1'
+        })).rejects.toThrow('Failed to list scenes: Error: GraphQL error');
+      });
+    });
+
+    describe('getSceneDetails', () => {
+      it('should get scene with fixture values', async () => {
+        const mockScene = {
+          id: 'scene-1',
+          name: 'Test Scene',
+          description: 'Test description',
+          createdAt: '2023-01-01T00:00:00Z',
+          updatedAt: '2023-01-01T00:00:00Z',
+          fixtureValues: [
+            {
+              fixture: { id: 'fixture-1', name: 'LED Par 1' },
+              channelValues: [255, 128, 64],
+              sceneOrder: 1
+            }
+          ]
+        };
+
+        mockGraphQLClient.getSceneWithOptions = jest.fn().mockResolvedValue(mockScene);
+
+        const result = await sceneTools.getSceneDetails({
+          sceneId: 'scene-1',
+          includeFixtureValues: true
+        });
+
+        expect(mockGraphQLClient.getSceneWithOptions).toHaveBeenCalledWith('scene-1', true);
+        expect(result.scene.id).toBe('scene-1');
+        expect(result.scene.fixtureValues).toHaveLength(1);
+        expect(result.fixtureCount).toBe(1);
+        expect(result.message).toContain('with 1 fixtures');
+      });
+
+      it('should get scene without fixture values', async () => {
+        const mockScene = {
+          id: 'scene-1',
+          name: 'Test Scene',
+          description: 'Test description',
+          createdAt: '2023-01-01T00:00:00Z',
+          updatedAt: '2023-01-01T00:00:00Z',
+          fixtureValues: []
+        };
+
+        mockGraphQLClient.getSceneWithOptions = jest.fn().mockResolvedValue(mockScene);
+
+        const result = await sceneTools.getSceneDetails({
+          sceneId: 'scene-1',
+          includeFixtureValues: false
+        });
+
+        expect(mockGraphQLClient.getSceneWithOptions).toHaveBeenCalledWith('scene-1', false);
+        expect(result.scene.fixtureValues).toBeUndefined();
+        expect(result.fixtureCount).toBeUndefined();
+        expect(result.message).toContain('fixture values excluded for performance');
+      });
+
+      it('should handle scene not found', async () => {
+        mockGraphQLClient.getSceneWithOptions = jest.fn().mockResolvedValue(null);
+
+        await expect(sceneTools.getSceneDetails({
+          sceneId: 'non-existent',
+          includeFixtureValues: true
+        })).rejects.toThrow('Scene with ID non-existent not found');
+      });
+
+      it('should handle get scene errors', async () => {
+        mockGraphQLClient.getSceneWithOptions = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.getSceneDetails({
+          sceneId: 'scene-1',
+          includeFixtureValues: true
+        })).rejects.toThrow('Failed to get scene details: Error: GraphQL error');
+      });
+    });
+
+    describe('getSceneFixtures', () => {
+      it('should get scene fixtures', async () => {
+        const mockFixtures = [
+          {
+            fixtureId: 'fixture-1',
+            fixtureName: 'LED Par 1',
+            fixtureType: 'LED_PAR' as any
+          },
+          {
+            fixtureId: 'fixture-2',
+            fixtureName: 'Moving Head 1',
+            fixtureType: 'MOVING_HEAD' as any
+          }
+        ];
+
+        mockGraphQLClient.getSceneFixtures = jest.fn().mockResolvedValue(mockFixtures);
+
+        const result = await sceneTools.getSceneFixtures({
+          sceneId: 'scene-1'
+        });
+
+        expect(mockGraphQLClient.getSceneFixtures).toHaveBeenCalledWith('scene-1');
+        expect(result.fixtures).toHaveLength(2);
+        expect(result.fixtures[0].fixtureId).toBe('fixture-1');
+        expect(result.fixtures[0].fixtureName).toBe('LED Par 1');
+        expect(result.fixtures[0].fixtureType).toBe('LED_PAR');
+        expect(result.fixtureCount).toBe(2);
+        expect(result.message).toContain('Scene uses 2 fixtures');
+      });
+
+      it('should handle empty scene fixtures', async () => {
+        mockGraphQLClient.getSceneFixtures = jest.fn().mockResolvedValue([]);
+
+        const result = await sceneTools.getSceneFixtures({
+          sceneId: 'scene-1'
+        });
+
+        expect(result.fixtures).toHaveLength(0);
+        expect(result.fixtureCount).toBe(0);
+        expect(result.message).toContain('Scene uses 0 fixtures');
+      });
+
+      it('should handle get scene fixtures errors', async () => {
+        mockGraphQLClient.getSceneFixtures = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.getSceneFixtures({
+          sceneId: 'scene-1'
+        })).rejects.toThrow('Failed to get scene fixtures: Error: GraphQL error');
+      });
+    });
+  });
+
 });
