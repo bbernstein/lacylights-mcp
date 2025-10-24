@@ -202,3 +202,57 @@ export interface CueSequence {
   }>;
   reasoning: string;
 }
+
+// Relationship Query Types (Task 2.7)
+
+export interface CueUsageSummary {
+  cueId: string;
+  cueNumber: number;
+  cueName: string;
+  cueListId: string;
+  cueListName: string;
+}
+
+export interface FixtureUsage {
+  fixtureId: string;
+  fixtureName: string;
+  scenes: SceneSummary[];
+  cues: CueUsageSummary[];
+}
+
+export interface SceneUsage {
+  sceneId: string;
+  sceneName: string;
+  cues: CueUsageSummary[];
+}
+
+export enum DifferenceType {
+  VALUES_CHANGED = 'VALUES_CHANGED',
+  ONLY_IN_SCENE1 = 'ONLY_IN_SCENE1',
+  ONLY_IN_SCENE2 = 'ONLY_IN_SCENE2'
+}
+
+export interface SceneDifference {
+  fixtureId: string;
+  fixtureName: string;
+  differenceType: DifferenceType;
+  scene1Values?: number[];
+  scene2Values?: number[];
+}
+
+export interface SceneComparison {
+  scene1: SceneSummary;
+  scene2: SceneSummary;
+  differences: SceneDifference[];
+  identicalFixtureCount: number;
+  differentFixtureCount: number;
+}
+
+export interface SceneSummary {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  fixtureCount?: number;
+}
