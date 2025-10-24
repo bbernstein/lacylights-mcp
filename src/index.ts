@@ -1250,7 +1250,7 @@ class LacyLightsMCPServer {
               required: ["cueListId", "cueReordering"],
             },
           },
-          // Cue List Query Tools (Task 2.5)
+          // Cue List Query Tools (Task 2.5 - included in this PR)
           {
             name: "list_cue_lists",
             description: `List all cue lists in a project with lightweight summaries.
@@ -2052,7 +2052,7 @@ with filters and lookup tables instead.`,
               ],
             };
 
-          // Cue List Query Tools (Task 2.5)
+          // Cue List Query Tools (Task 2.5 - included in this PR)
           case "list_cue_lists":
             return {
               content: [

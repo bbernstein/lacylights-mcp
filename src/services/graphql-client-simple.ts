@@ -446,11 +446,11 @@ export class LacyLightsGraphQLClient {
 
   /**
    * Get lightweight cue list summaries for a project
-   * Part of Task 2.5 - MCP API Refactor
+   * Part of Task 2.5 (Cue List Query Tools) - MCP API Refactor
    */
   async getCueLists(projectId: string): Promise<any[]> {
     // For now, use the existing project query to get cue lists
-    // This will be replaced with a dedicated cueLists query once Task 1.4 backend changes are merged
+    // This will be replaced with a dedicated cueLists query once backend pagination support is added
     const project = await this.getProject(projectId);
     if (!project || !project.cueLists) {
       return [];
@@ -470,7 +470,7 @@ export class LacyLightsGraphQLClient {
 
   /**
    * Get cue list with paginated cues
-   * Part of Task 2.5 - MCP API Refactor
+   * Part of Task 2.5 (Cue List Query Tools) - MCP API Refactor
    */
   async getCueListWithPagination(
     cueListId: string,
@@ -479,7 +479,7 @@ export class LacyLightsGraphQLClient {
     includeSceneDetails: boolean = false
   ): Promise<any> {
     // For now, use the existing getCueList and apply client-side pagination
-    // This will be replaced with a backend paginated query once Task 1.4 is merged
+    // This will be replaced with a backend paginated query once backend pagination support is added
     const cueList = await this.getCueList(cueListId);
     if (!cueList) {
       return null;

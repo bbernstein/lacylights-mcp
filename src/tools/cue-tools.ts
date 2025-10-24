@@ -1586,7 +1586,7 @@ export class CueTools {
 
   /**
    * List all cue lists in a project (lightweight summaries)
-   * Part of Task 2.5 - MCP API Refactor
+   * Part of Task 2.5 (Cue List Query Tools) - MCP API Refactor
    */
   async listCueLists(args: { projectId: string }) {
     const { projectId } = args;
@@ -1614,7 +1614,7 @@ export class CueTools {
 
   /**
    * Get detailed cue list with paginated cues
-   * Part of Task 2.5 - MCP API Refactor
+   * Part of Task 2.5 (Cue List Query Tools) - MCP API Refactor
    */
   async getCueListDetails(args: {
     cueListId: string;
@@ -1798,7 +1798,7 @@ export class CueTools {
 
   /**
    * Get a single cue by ID
-   * Part of Task 2.5 - MCP API Refactor
+   * Part of Task 2.5 (Cue List Query Tools) - MCP API Refactor
    */
   async getCue(args: { cueId: string }) {
     const { cueId } = args;

@@ -110,7 +110,7 @@ export interface Cue {
   name: string;
   cueNumber: number;
   scene: Scene;
-  cueList?: { id: string; name: string }; // Added for Task 2.5
+  cueList?: { id: string; name: string }; // Added for Task 2.5 (Cue List Query Tools)
   fadeInTime: number;
   fadeOutTime: number;
   followTime?: number;
