@@ -5,6 +5,7 @@
 import {
   normalizePaginationParams,
   formatPaginationInfo,
+  PAGINATION_DEFAULTS,
 } from '../../src/utils/pagination';
 
 describe('Pagination Utils', () => {
@@ -165,6 +166,17 @@ describe('Pagination Utils', () => {
   });
 
   describe('formatPaginationInfo', () => {
+    describe('input validation', () => {
+      it('should throw error when perPage is zero', () => {
+        expect(() => formatPaginationInfo(100, 1, 0)).toThrow('perPage must be positive');
+      });
+
+      it('should throw error when perPage is negative', () => {
+        expect(() => formatPaginationInfo(100, 1, -1)).toThrow('perPage must be positive');
+        expect(() => formatPaginationInfo(100, 1, -50)).toThrow('perPage must be positive');
+      });
+    });
+
     describe('basic pagination calculations', () => {
       it('should calculate correct pagination for first page', () => {
         const result = formatPaginationInfo(100, 1, 50);

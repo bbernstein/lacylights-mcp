@@ -1,6 +1,7 @@
 import { FixtureTools } from '../../src/tools/fixture-tools';
 import { LacyLightsGraphQLClient } from '../../src/services/graphql-client-simple';
 import { FixtureType, ChannelType, FixtureDefinition, FixtureInstance } from '../../src/types/lighting';
+import { PAGINATION_DEFAULTS } from '../../src/utils/pagination';
 
 // Mock the GraphQL client
 jest.mock('../../src/services/graphql-client-simple');
@@ -198,14 +199,14 @@ describe('FixtureTools', () => {
 
       await fixtureTools.listFixtures({
         projectId: 'project-1',
-        page: -1,  // Should normalize to 1
-        perPage: 200  // Should normalize to 100 (max)
+        page: -1,  // Should normalize to MIN_PAGE
+        perPage: 200  // Should normalize to MAX_PER_PAGE
       });
 
       expect(mockGraphQLClient.getFixtureInstances).toHaveBeenCalledWith({
         projectId: 'project-1',
-        page: 1,
-        perPage: 100,
+        page: PAGINATION_DEFAULTS.MIN_PAGE,
+        perPage: PAGINATION_DEFAULTS.MAX_PER_PAGE,
         filter: undefined
       });
     });

@@ -6,6 +6,20 @@
 import { PaginationInfo } from '../types/pagination';
 
 /**
+ * Pagination constants - exported for use in tests and other modules
+ */
+export const PAGINATION_DEFAULTS = {
+  /** Default number of items per page */
+  DEFAULT_PER_PAGE: 50,
+  /** Minimum number of items per page */
+  MIN_PER_PAGE: 1,
+  /** Maximum number of items per page */
+  MAX_PER_PAGE: 100,
+  /** Minimum page number */
+  MIN_PAGE: 1
+} as const;
+
+/**
  * Normalize and validate pagination parameters
  * @param page - Requested page number (1-based)
  * @param perPage - Items per page
@@ -16,8 +30,11 @@ export function normalizePaginationParams(
   perPage?: number
 ): { page: number; perPage: number } {
   return {
-    page: Math.max(1, page || 1),
-    perPage: Math.min(100, Math.max(1, perPage || 50))
+    page: Math.max(PAGINATION_DEFAULTS.MIN_PAGE, page || PAGINATION_DEFAULTS.MIN_PAGE),
+    perPage: Math.min(
+      PAGINATION_DEFAULTS.MAX_PER_PAGE,
+      Math.max(PAGINATION_DEFAULTS.MIN_PER_PAGE, perPage || PAGINATION_DEFAULTS.DEFAULT_PER_PAGE)
+    )
   };
 }
 
@@ -27,12 +44,16 @@ export function normalizePaginationParams(
  * @param page - Current page number
  * @param perPage - Items per page
  * @returns Formatted pagination info
+ * @throws Error if perPage is not positive (prevents division by zero)
  */
 export function formatPaginationInfo(
   total: number,
   page: number,
   perPage: number
 ): PaginationInfo {
+  if (perPage <= 0) {
+    throw new Error('perPage must be positive');
+  }
   const totalPages = Math.ceil(total / perPage);
   return {
     total,
