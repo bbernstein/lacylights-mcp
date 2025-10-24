@@ -4,6 +4,22 @@ import { RAGService } from "../services/rag-service-simple";
 import { AILightingService } from "../services/ai-lighting";
 import { GeneratedScene } from "../types/lighting";
 
+/**
+ * Type for paginated cue format returned by getCueListWithPagination
+ */
+interface PaginatedCue {
+  id: string;
+  name: string;
+  cueNumber: number;
+  fadeInTime: number;
+  fadeOutTime: number;
+  followTime?: number;
+  notes?: string;
+  sceneId: string;
+  sceneName: string;
+  scene?: any; // Full scene object when includeSceneDetails is true
+}
+
 const CreateCueSequenceSchema = z.object({
   projectId: z.string(),
   scriptContext: z.string(),
@@ -1652,34 +1668,35 @@ export class CueTools {
         throw new Error(`Cue list with ID ${cueListId} not found`);
       }
 
-      let cues = cueList.cues;
+      let cues: PaginatedCue[] = cueList.cues;
 
       // Apply filters if provided
       if (filterBy) {
         if (filterBy.cueNumberRange) {
+          const cueNumberRange = filterBy.cueNumberRange;
           cues = cues.filter(
-            (cue: any) =>
-              cue.cueNumber >= filterBy.cueNumberRange!.min &&
-              cue.cueNumber <= filterBy.cueNumberRange!.max
+            (cue) =>
+              cue.cueNumber >= cueNumberRange.min &&
+              cue.cueNumber <= cueNumberRange.max
           );
         }
 
         if (filterBy.nameContains) {
           const search = filterBy.nameContains.toLowerCase();
-          cues = cues.filter((cue: any) =>
+          cues = cues.filter((cue) =>
             cue.name.toLowerCase().includes(search)
           );
         }
 
         if (filterBy.sceneNameContains) {
           const search = filterBy.sceneNameContains.toLowerCase();
-          cues = cues.filter((cue: any) =>
+          cues = cues.filter((cue) =>
             cue.sceneName.toLowerCase().includes(search)
           );
         }
 
         if (filterBy.hasFollowTime !== undefined) {
-          cues = cues.filter((cue: any) =>
+          cues = cues.filter((cue) =>
             filterBy.hasFollowTime
               ? cue.followTime !== null && cue.followTime !== undefined
               : cue.followTime === null || cue.followTime === undefined
@@ -1687,10 +1704,11 @@ export class CueTools {
         }
 
         if (filterBy.fadeTimeRange) {
+          const fadeTimeRange = filterBy.fadeTimeRange;
           cues = cues.filter(
-            (cue: any) =>
-              cue.fadeInTime >= filterBy.fadeTimeRange!.min &&
-              cue.fadeInTime <= filterBy.fadeTimeRange!.max
+            (cue) =>
+              cue.fadeInTime >= fadeTimeRange.min &&
+              cue.fadeInTime <= fadeTimeRange.max
           );
         }
       }
@@ -1698,13 +1716,13 @@ export class CueTools {
       // Apply sorting
       switch (sortBy) {
         case "cueNumber":
-          cues.sort((a: any, b: any) => a.cueNumber - b.cueNumber);
+          cues.sort((a, b) => a.cueNumber - b.cueNumber);
           break;
         case "name":
-          cues.sort((a: any, b: any) => a.name.localeCompare(b.name));
+          cues.sort((a, b) => a.name.localeCompare(b.name));
           break;
         case "sceneName":
-          cues.sort((a: any, b: any) =>
+          cues.sort((a, b) =>
             a.sceneName.localeCompare(b.sceneName)
           );
           break;

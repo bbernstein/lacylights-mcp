@@ -14,6 +14,12 @@ import {
 } from '../types/lighting';
 import { PaginatedResponse } from '../types/pagination';
 
+/**
+ * Default time (in seconds) assumed for manual cue advance when followTime is not specified.
+ * This is used when estimating total cue list duration.
+ */
+const DEFAULT_MANUAL_ADVANCE_TIME = 5;
+
 export class LacyLightsGraphQLClient {
   private endpoint: string;
 
@@ -546,7 +552,7 @@ export class LacyLightsGraphQLClient {
       if (cue.followTime) {
         totalTime += cue.followTime;
       } else {
-        totalTime += 5; // Assume 5 seconds for manual advance
+        totalTime += DEFAULT_MANUAL_ADVANCE_TIME;
       }
     }
     return totalTime;
