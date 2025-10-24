@@ -1,6 +1,7 @@
 import { FixtureTools } from '../../src/tools/fixture-tools';
 import { LacyLightsGraphQLClient } from '../../src/services/graphql-client-simple';
 import { FixtureType, ChannelType, FixtureDefinition, FixtureInstance } from '../../src/types/lighting';
+import { PAGINATION_DEFAULTS } from '../../src/utils/pagination';
 
 // Mock the GraphQL client
 jest.mock('../../src/services/graphql-client-simple');
@@ -75,6 +76,223 @@ describe('FixtureTools', () => {
   describe('constructor', () => {
     it('should create FixtureTools instance', () => {
       expect(fixtureTools).toBeInstanceOf(FixtureTools);
+    });
+  });
+
+  describe('listFixtures', () => {
+    const mockPaginatedResponse = {
+      fixtures: [
+        {
+          id: 'fixture-1',
+          name: 'LED Par 1',
+          description: 'Test fixture',
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          type: FixtureType.LED_PAR,
+          modeName: 'Standard',
+          channelCount: 3,
+          universe: 1,
+          startChannel: 1,
+          tags: ['wash'],
+          definitionId: 'def-1',
+          channels: [
+            { id: 'ch1', offset: 0, name: 'Red', type: ChannelType.RED, minValue: 0, maxValue: 255, defaultValue: 0 },
+            { id: 'ch2', offset: 1, name: 'Green', type: ChannelType.GREEN, minValue: 0, maxValue: 255, defaultValue: 0 },
+            { id: 'ch3', offset: 2, name: 'Blue', type: ChannelType.BLUE, minValue: 0, maxValue: 255, defaultValue: 0 }
+          ]
+        },
+        {
+          id: 'fixture-2',
+          name: 'Moving Head 1',
+          description: 'Test moving head',
+          manufacturer: 'Test Manufacturer 2',
+          model: 'Test Model 2',
+          type: FixtureType.MOVING_HEAD,
+          modeName: 'Extended',
+          channelCount: 16,
+          universe: 1,
+          startChannel: 10,
+          tags: ['spot'],
+          definitionId: 'def-2',
+          channels: []
+        }
+      ],
+      pagination: {
+        total: 2,
+        page: 1,
+        perPage: 50,
+        totalPages: 1,
+        hasMore: false
+      }
+    };
+
+    beforeEach(() => {
+      mockGraphQLClient.getFixtureInstances = jest.fn();
+    });
+
+    it('should list fixtures with default pagination', async () => {
+      mockGraphQLClient.getFixtureInstances.mockResolvedValue(mockPaginatedResponse);
+
+      const result = await fixtureTools.listFixtures({
+        projectId: 'project-1'
+      });
+
+      expect(mockGraphQLClient.getFixtureInstances).toHaveBeenCalledWith({
+        projectId: 'project-1',
+        page: 1,
+        perPage: 50,
+        filter: undefined
+      });
+
+      expect(result.fixtures).toHaveLength(2);
+      expect(result.pagination.total).toBe(2);
+      expect(result.pagination.hasMore).toBe(false);
+      expect(result.fixtures[0].id).toBe('fixture-1');
+      expect(result.fixtures[0].name).toBe('LED Par 1');
+    });
+
+    it('should list fixtures with custom pagination', async () => {
+      mockGraphQLClient.getFixtureInstances.mockResolvedValue(mockPaginatedResponse);
+
+      await fixtureTools.listFixtures({
+        projectId: 'project-1',
+        page: 2,
+        perPage: 25
+      });
+
+      expect(mockGraphQLClient.getFixtureInstances).toHaveBeenCalledWith({
+        projectId: 'project-1',
+        page: 2,
+        perPage: 25,
+        filter: undefined
+      });
+    });
+
+    it('should list fixtures with filters', async () => {
+      mockGraphQLClient.getFixtureInstances.mockResolvedValue(mockPaginatedResponse);
+
+      await fixtureTools.listFixtures({
+        projectId: 'project-1',
+        filter: {
+          type: 'LED_PAR',
+          universe: 1,
+          tags: ['wash'],
+          manufacturer: 'Test Manufacturer'
+        }
+      });
+
+      expect(mockGraphQLClient.getFixtureInstances).toHaveBeenCalledWith({
+        projectId: 'project-1',
+        page: 1,
+        perPage: 50,
+        filter: {
+          type: 'LED_PAR',
+          universe: 1,
+          tags: ['wash'],
+          manufacturer: 'Test Manufacturer'
+        }
+      });
+    });
+
+    it('should normalize pagination parameters', async () => {
+      mockGraphQLClient.getFixtureInstances.mockResolvedValue(mockPaginatedResponse);
+
+      await fixtureTools.listFixtures({
+        projectId: 'project-1',
+        page: -1,  // Should normalize to MIN_PAGE
+        perPage: 200  // Should normalize to MAX_PER_PAGE
+      });
+
+      expect(mockGraphQLClient.getFixtureInstances).toHaveBeenCalledWith({
+        projectId: 'project-1',
+        page: PAGINATION_DEFAULTS.MIN_PAGE,
+        perPage: PAGINATION_DEFAULTS.MAX_PER_PAGE,
+        filter: undefined
+      });
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockGraphQLClient.getFixtureInstances.mockRejectedValue(new Error('GraphQL Error'));
+
+      await expect(
+        fixtureTools.listFixtures({ projectId: 'project-1' })
+      ).rejects.toThrow('Failed to list fixtures');
+    });
+  });
+
+  describe('getFixture', () => {
+    const mockFixture = {
+      id: 'fixture-1',
+      name: 'LED Par 1',
+      description: 'Test fixture',
+      manufacturer: 'Test Manufacturer',
+      model: 'Test Model',
+      type: FixtureType.LED_PAR,
+      modeName: 'Standard',
+      channelCount: 3,
+      universe: 1,
+      startChannel: 1,
+      tags: ['wash'],
+      definitionId: 'def-1',
+      channels: [
+        { id: 'ch1', offset: 0, name: 'Red', type: ChannelType.RED, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch2', offset: 1, name: 'Green', type: ChannelType.GREEN, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch3', offset: 2, name: 'Blue', type: ChannelType.BLUE, minValue: 0, maxValue: 255, defaultValue: 0 }
+      ]
+    };
+
+    beforeEach(() => {
+      mockGraphQLClient.getFixtureInstance = jest.fn();
+    });
+
+    it('should get a single fixture by ID', async () => {
+      mockGraphQLClient.getFixtureInstance.mockResolvedValue(mockFixture as any);
+
+      const result = await fixtureTools.getFixture({
+        fixtureId: 'fixture-1'
+      });
+
+      expect(mockGraphQLClient.getFixtureInstance).toHaveBeenCalledWith('fixture-1');
+      expect(result.fixture.id).toBe('fixture-1');
+      expect(result.fixture.name).toBe('LED Par 1');
+      expect(result.fixture.channels).toHaveLength(3);
+      expect(result.fixture.channels[0].type).toBe(ChannelType.RED);
+    });
+
+    it('should include all fixture details', async () => {
+      mockGraphQLClient.getFixtureInstance.mockResolvedValue(mockFixture as any);
+
+      const result = await fixtureTools.getFixture({
+        fixtureId: 'fixture-1'
+      });
+
+      expect(result.fixture).toHaveProperty('id');
+      expect(result.fixture).toHaveProperty('name');
+      expect(result.fixture).toHaveProperty('manufacturer');
+      expect(result.fixture).toHaveProperty('model');
+      expect(result.fixture).toHaveProperty('type');
+      expect(result.fixture).toHaveProperty('mode');
+      expect(result.fixture).toHaveProperty('universe');
+      expect(result.fixture).toHaveProperty('startChannel');
+      expect(result.fixture).toHaveProperty('channelCount');
+      expect(result.fixture).toHaveProperty('tags');
+      expect(result.fixture).toHaveProperty('channels');
+    });
+
+    it('should handle fixture not found', async () => {
+      mockGraphQLClient.getFixtureInstance.mockResolvedValue(null);
+
+      await expect(
+        fixtureTools.getFixture({ fixtureId: 'non-existent' })
+      ).rejects.toThrow('Fixture with ID non-existent not found');
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockGraphQLClient.getFixtureInstance.mockRejectedValue(new Error('GraphQL Error'));
+
+      await expect(
+        fixtureTools.getFixture({ fixtureId: 'fixture-1' })
+      ).rejects.toThrow('Failed to get fixture');
     });
   });
 
