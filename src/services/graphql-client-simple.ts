@@ -1119,7 +1119,7 @@ export class LacyLightsGraphQLClient {
     return data.importProjectFromQLC;
   }*/
 
-  // Relationship Query Methods (Task 2.7)
+
 
   /**
    * Get fixture usage information - shows which scenes and cues use this fixture
@@ -1218,5 +1218,221 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(query, { sceneId1, sceneId2 });
     return data.compareScenes;
+  }
+
+  // Search methods
+  async searchFixtures(
+    projectId: string,
+    query: string,
+    filter?: {
+      type?: string;
+      universe?: number;
+      tags?: string[];
+      manufacturer?: string;
+      model?: string;
+    },
+    page?: number,
+    perPage?: number
+  ): Promise<{
+    fixtures: FixtureInstance[];
+    pagination: {
+      total: number;
+      page: number;
+      perPage: number;
+      totalPages: number;
+      hasMore: boolean;
+    };
+  }> {
+    const gqlQuery = `
+      query SearchFixtures(
+        $projectId: ID!
+        $query: String!
+        $filter: FixtureFilterInput
+        $page: Int
+        $perPage: Int
+      ) {
+        searchFixtures(
+          projectId: $projectId
+          query: $query
+          filter: $filter
+          page: $page
+          perPage: $perPage
+        ) {
+          fixtures {
+            id
+            name
+            description
+            manufacturer
+            model
+            type
+            modeName
+            channelCount
+            universe
+            startChannel
+            tags
+            channels {
+              id
+              offset
+              name
+              type
+              minValue
+              maxValue
+              defaultValue
+            }
+          }
+          pagination {
+            total
+            page
+            perPage
+            totalPages
+            hasMore
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(gqlQuery, {
+      projectId,
+      query,
+      filter,
+      page,
+      perPage,
+    });
+    return data.searchFixtures;
+  }
+
+  async searchScenes(
+    projectId: string,
+    query: string,
+    filter?: {
+      nameContains?: string;
+      usesFixture?: string;
+    },
+    page?: number,
+    perPage?: number
+  ): Promise<{
+    scenes: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      fixtureCount: number;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      perPage: number;
+      totalPages: number;
+      hasMore: boolean;
+    };
+  }> {
+    const gqlQuery = `
+      query SearchScenes(
+        $projectId: ID!
+        $query: String!
+        $filter: SceneFilterInput
+        $page: Int
+        $perPage: Int
+      ) {
+        searchScenes(
+          projectId: $projectId
+          query: $query
+          filter: $filter
+          page: $page
+          perPage: $perPage
+        ) {
+          scenes {
+            id
+            name
+            description
+            fixtureCount
+            createdAt
+            updatedAt
+          }
+          pagination {
+            total
+            page
+            perPage
+            totalPages
+            hasMore
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(gqlQuery, {
+      projectId,
+      query,
+      filter,
+      page,
+      perPage,
+    });
+    return data.searchScenes;
+  }
+
+  async searchCues(
+    cueListId: string,
+    query: string,
+    page?: number,
+    perPage?: number
+  ): Promise<{
+    cues: Cue[];
+    pagination: {
+      total: number;
+      page: number;
+      perPage: number;
+      totalPages: number;
+      hasMore: boolean;
+    };
+  }> {
+    const gqlQuery = `
+      query SearchCues(
+        $cueListId: ID!
+        $query: String!
+        $page: Int
+        $perPage: Int
+      ) {
+        searchCues(
+          cueListId: $cueListId
+          query: $query
+          page: $page
+          perPage: $perPage
+        ) {
+          cues {
+            id
+            name
+            cueNumber
+            fadeInTime
+            fadeOutTime
+            followTime
+            notes
+            scene {
+              id
+              name
+            }
+            cueList {
+              id
+              name
+            }
+          }
+          pagination {
+            total
+            page
+            perPage
+            totalPages
+            hasMore
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(gqlQuery, {
+      cueListId,
+      query,
+      page,
+      perPage,
+    });
+    return data.searchCues;
   }
 }
