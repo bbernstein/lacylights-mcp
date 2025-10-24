@@ -1,5 +1,5 @@
 import fetch from 'cross-fetch';
-import { Project, FixtureDefinition, FixtureInstance, Scene, CueList, Cue } from '../types/lighting';
+import { Project, FixtureDefinition, FixtureInstance, Scene, CueList, Cue, FixtureUsage, SceneUsage, SceneComparison } from '../types/lighting';
 
 export class LacyLightsGraphQLClient {
   private endpoint: string;
@@ -1118,6 +1118,107 @@ export class LacyLightsGraphQLClient {
     const data = await this.query(mutation, { xmlContent, originalFileName });
     return data.importProjectFromQLC;
   }*/
+
+
+
+  /**
+   * Get fixture usage information - shows which scenes and cues use this fixture
+   * Part of MCP API Refactor - Task 2.7
+   */
+  async getFixtureUsage(fixtureId: string): Promise<FixtureUsage> {
+    const query = `
+      query GetFixtureUsage($fixtureId: ID!) {
+        fixtureUsage(fixtureId: $fixtureId) {
+          fixtureId
+          fixtureName
+          scenes {
+            id
+            name
+            description
+            createdAt
+            updatedAt
+            fixtureCount
+          }
+          cues {
+            cueId
+            cueNumber
+            cueName
+            cueListId
+            cueListName
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { fixtureId });
+    return data.fixtureUsage;
+  }
+
+  /**
+   * Get scene usage information - shows which cues use this scene
+   * Part of MCP API Refactor - Task 2.7
+   */
+  async getSceneUsage(sceneId: string): Promise<SceneUsage> {
+    const query = `
+      query GetSceneUsage($sceneId: ID!) {
+        sceneUsage(sceneId: $sceneId) {
+          sceneId
+          sceneName
+          cues {
+            cueId
+            cueNumber
+            cueName
+            cueListId
+            cueListName
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query, { sceneId });
+    return data.sceneUsage;
+  }
+
+  /**
+   * Compare two scenes to identify differences
+   * Part of MCP API Refactor - Task 2.7
+   */
+  async compareScenes(sceneId1: string, sceneId2: string): Promise<SceneComparison> {
+    const query = `
+      query CompareScenes($sceneId1: ID!, $sceneId2: ID!) {
+        compareScenes(sceneId1: $sceneId1, sceneId2: $sceneId2) {
+          scene1 {
+            id
+            name
+            description
+            createdAt
+            updatedAt
+            fixtureCount
+          }
+          scene2 {
+            id
+            name
+            description
+            createdAt
+            updatedAt
+            fixtureCount
+          }
+          differences {
+            fixtureId
+            fixtureName
+            differenceType
+            scene1Values
+            scene2Values
+          }
+          identicalFixtureCount
+          differentFixtureCount
+        }
+      }
+    `;
+
+    const data = await this.query(query, { sceneId1, sceneId2 });
+    return data.compareScenes;
+  }
 
   // Search methods
   async searchFixtures(
