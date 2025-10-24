@@ -102,6 +102,7 @@ describe('CueTools', () => {
       getProject: jest.fn(),
       getProjects: jest.fn(),
       getCueList: jest.fn(),
+      getCueListWithPagination: jest.fn(),
       createCueList: jest.fn(),
       updateCueList: jest.fn(),
       deleteCueList: jest.fn(),
@@ -811,12 +812,23 @@ describe('CueTools', () => {
         ...mockProject.cueLists[0],
         id: 'cuelist-1',
         cues: [
-          ...mockProject.cueLists[0].cues,
+          {
+            id: 'cue-1',
+            name: 'Lights Up',
+            cueNumber: 1.0,
+            sceneId: 'scene-1',
+            sceneName: 'Opening Scene',
+            fadeInTime: 3,
+            fadeOutTime: 3,
+            followTime: undefined,
+            notes: 'Opening cue'
+          },
           {
             id: 'cue-2',
             name: 'Follow Cue',
             cueNumber: 2.0,
-            scene: { id: 'scene-2', name: 'Dramatic Scene' },
+            sceneId: 'scene-2',
+            sceneName: 'Dramatic Scene',
             fadeInTime: 2,
             fadeOutTime: 4,
             followTime: 5,
@@ -824,7 +836,7 @@ describe('CueTools', () => {
           }
         ]
       };
-      mockGraphQLClient.getCueList.mockResolvedValue(mockCueList as any);
+      mockGraphQLClient.getCueListWithPagination.mockResolvedValue(mockCueList as any);
 
       const result = await cueTools.getCueListDetails({
         cueListId: 'cuelist-1',
@@ -842,8 +854,22 @@ describe('CueTools', () => {
     });
 
     it('should handle different filter options', async () => {
-      const mockCueListWithId = { ...mockProject.cueLists[0], id: 'cuelist-1' };
-      mockGraphQLClient.getCueList.mockResolvedValue(mockCueListWithId as any);
+      const mockCueListWithId = {
+        ...mockProject.cueLists[0],
+        id: 'cuelist-1',
+        cues: [{
+          id: 'cue-1',
+          name: 'Lights Up',
+          cueNumber: 1.0,
+          sceneId: 'scene-1',
+          sceneName: 'Opening Scene',
+          fadeInTime: 3,
+          fadeOutTime: 3,
+          followTime: undefined,
+          notes: 'Opening cue'
+        }]
+      };
+      mockGraphQLClient.getCueListWithPagination.mockResolvedValue(mockCueListWithId as any);
 
       // Test name filter
       await cueTools.getCueListDetails({
@@ -869,15 +895,29 @@ describe('CueTools', () => {
         }
       });
 
-      expect(mockGraphQLClient.getCueList).toHaveBeenCalledTimes(3);
+      expect(mockGraphQLClient.getCueListWithPagination).toHaveBeenCalledTimes(3);
     });
 
     it('should handle different sort options', async () => {
-      const mockCueListWithId = { ...mockProject.cueLists[0], id: 'cuelist-1' };
-      mockGraphQLClient.getCueList.mockResolvedValue(mockCueListWithId as any);
+      const mockCueListWithId = {
+        ...mockProject.cueLists[0],
+        id: 'cuelist-1',
+        cues: [{
+          id: 'cue-1',
+          name: 'Lights Up',
+          cueNumber: 1.0,
+          sceneId: 'scene-1',
+          sceneName: 'Opening Scene',
+          fadeInTime: 3,
+          fadeOutTime: 3,
+          followTime: undefined,
+          notes: 'Opening cue'
+        }]
+      };
+      mockGraphQLClient.getCueListWithPagination.mockResolvedValue(mockCueListWithId as any);
 
       const sortOptions = ['cueNumber', 'name', 'sceneName'] as const;
-      
+
       for (const sortBy of sortOptions) {
         await cueTools.getCueListDetails({
           cueListId: 'cuelist-1',
@@ -885,11 +925,11 @@ describe('CueTools', () => {
         });
       }
 
-      expect(mockGraphQLClient.getCueList).toHaveBeenCalledTimes(3);
+      expect(mockGraphQLClient.getCueListWithPagination).toHaveBeenCalledTimes(3);
     });
 
     it('should handle cue list not found', async () => {
-      mockGraphQLClient.getCueList.mockResolvedValue(null);
+      mockGraphQLClient.getCueListWithPagination.mockResolvedValue(null);
 
       await expect(cueTools.getCueListDetails({
         cueListId: 'non-existent'
@@ -897,7 +937,7 @@ describe('CueTools', () => {
     });
 
     it('should handle GraphQL errors', async () => {
-      mockGraphQLClient.getCueList.mockRejectedValue(new Error('GraphQL error'));
+      mockGraphQLClient.getCueListWithPagination.mockRejectedValue(new Error('GraphQL error'));
 
       await expect(cueTools.getCueListDetails({
         cueListId: 'cuelist-1'
