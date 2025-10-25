@@ -12,10 +12,10 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   coverageThreshold: {
     global: {
-      branches: 50,
-      functions: 65,
-      lines: 70,
-      statements: 70,
+      branches: 54,
+      functions: 82,
+      lines: 76,
+      statements: 75,
     },
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
