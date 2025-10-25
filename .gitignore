@@ -53,3 +53,5 @@ temp/
 
 # Secrets
 mcpconfig.json
+
+.claude/
