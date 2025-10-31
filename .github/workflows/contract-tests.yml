@@ -1,0 +1,106 @@
+name: Contract Tests
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'codegen.yml'
+      - 'package.json'
+  push:
+    branches: [main]
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lacylights_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout MCP repo
+        uses: actions/checkout@v4
+        with:
+          path: lacylights-mcp
+
+      - name: Checkout backend repo
+        uses: actions/checkout@v4
+        with:
+          repository: bbernstein/lacylights-node
+          path: lacylights-node
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            lacylights-mcp/package-lock.json
+            lacylights-node/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: lacylights-node
+        run: npm ci
+
+      - name: Run backend migrations
+        working-directory: lacylights-node
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lacylights_test
+        run: npx prisma migrate deploy
+
+      - name: Start backend server
+        working-directory: lacylights-node
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lacylights_test
+          ARTNET_ENABLED: false
+          NON_INTERACTIVE: true
+        run: npm start &
+
+      - name: Wait for backend to be ready
+        run: |
+          echo "Waiting for backend GraphQL endpoint..."
+          for i in {1..30}; do
+            if curl -sf http://localhost:4000/graphql > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Backend not ready yet, waiting..."
+            sleep 2
+          done
+          echo "Backend failed to start within 60 seconds"
+          exit 1
+
+      - name: Install MCP dependencies
+        working-directory: lacylights-mcp
+        run: npm ci
+
+      - name: Run GraphQL codegen
+        working-directory: lacylights-mcp
+        env:
+          GRAPHQL_ENDPOINT: http://localhost:4000/graphql
+        run: npm run codegen
+
+      - name: Run contract tests
+        working-directory: lacylights-mcp
+        env:
+          GRAPHQL_ENDPOINT: http://localhost:4000/graphql
+        run: npm run test:contracts
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-test-results
+          path: lacylights-mcp/coverage/
+          retention-days: 7
