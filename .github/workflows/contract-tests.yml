@@ -58,8 +58,7 @@ jobs:
           NON_INTERACTIVE: true
           SKIP_FIXTURE_IMPORT: true
         run: |
-          node dist/index.js > backend.log 2>&1 &
-          echo $! > backend.pid
+          setsid node dist/index.js > backend.log 2>&1 < /dev/null &
           sleep 3
 
       - name: Wait for backend to be ready
