@@ -7,8 +7,6 @@
     "codegen": "graphql-codegen --config codegen.yml",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "prebuild": "npm run codegen",
-    "predev": "npm run codegen",
     "start": "node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
