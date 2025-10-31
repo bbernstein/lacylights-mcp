@@ -39,6 +39,10 @@ jobs:
         working-directory: lacylights-node
         run: npm ci
 
+      - name: Build backend
+        working-directory: lacylights-node
+        run: npm run build
+
       - name: Run backend migrations
         working-directory: lacylights-node
         env:
