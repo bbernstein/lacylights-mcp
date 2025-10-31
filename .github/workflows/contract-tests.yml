@@ -57,7 +57,7 @@ jobs:
           ARTNET_ENABLED: false
           NON_INTERACTIVE: true
           SKIP_FIXTURE_IMPORT: true
-        run: npm start &
+        run: nohup npm start > backend.log 2>&1 &
 
       - name: Wait for backend to be ready
         run: |
