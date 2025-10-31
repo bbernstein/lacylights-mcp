@@ -62,8 +62,8 @@ jobs:
 
       - name: Initialize database
         run: |
-          echo "Running database migrations..."
-          docker exec --user root backend npx prisma migrate deploy
+          echo "Creating database schema..."
+          docker exec --user root backend npx prisma db push --accept-data-loss
           echo "Database initialized successfully"
 
       - name: Setup Node.js
