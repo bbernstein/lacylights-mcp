@@ -70,7 +70,7 @@ jobs:
         run: npm audit --audit-level=moderate
 
       - name: Run dependency check
-        run: npx depcheck --ignores="@types/*,jest,tsx,ts-jest,@apollo/client,@modelcontextprotocol/sdk,graphql"
+        run: npx depcheck --ignores="@types/*,jest,tsx,ts-jest,@apollo/client,@modelcontextprotocol/sdk,graphql,@graphql-codegen/*"
 
   mcp-validation:
     name: MCP Server Validation
