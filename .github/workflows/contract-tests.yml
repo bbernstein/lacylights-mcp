@@ -65,7 +65,9 @@ jobs:
         run: |
           echo "Waiting for backend GraphQL endpoint..."
           for i in {1..30}; do
-            if curl -sf http://localhost:4000/graphql > /dev/null 2>&1; then
+            # Try IPv6 first (backend binds to ::), then IPv4
+            if curl -g -6 -sf http://[::1]:4000/graphql > /dev/null 2>&1 || \
+               curl -4 -sf http://127.0.0.1:4000/graphql > /dev/null 2>&1; then
               echo "Backend is ready!"
               exit 0
             fi
