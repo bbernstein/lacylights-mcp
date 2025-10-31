@@ -18,87 +18,77 @@ jobs:
     steps:
       - name: Checkout MCP repo
         uses: actions/checkout@v4
-        with:
-          path: lacylights-mcp
 
       - name: Checkout backend repo
         uses: actions/checkout@v4
         with:
           repository: bbernstein/lacylights-node
-          path: lacylights-node
+          path: backend
+
+      - name: Build backend Docker image
+        working-directory: backend
+        run: docker build -t lacylights-backend:test .
+
+      - name: Start backend container
+        run: |
+          docker run -d \
+            --name backend \
+            -p 4000:4000 \
+            -e DATABASE_URL="file:/app/test-contract.db" \
+            -e ARTNET_ENABLED=false \
+            -e NON_INTERACTIVE=true \
+            -e SKIP_FIXTURE_IMPORT=true \
+            --health-cmd="node dist/healthcheck.js" \
+            --health-interval=5s \
+            --health-timeout=3s \
+            --health-retries=10 \
+            lacylights-backend:test
+
+      - name: Wait for backend to be healthy
+        run: |
+          echo "Waiting for backend container to be healthy..."
+          for i in {1..30}; do
+            if [ "$(docker inspect -f '{{.State.Health.Status}}' backend)" == "healthy" ]; then
+              echo "Backend is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Backend not healthy yet (status: $(docker inspect -f '{{.State.Health.Status}}' backend 2>/dev/null || echo 'unknown')), waiting..."
+            sleep 2
+          done
+          echo "Backend failed to become healthy within 60 seconds"
+          echo "Container logs:"
+          docker logs backend
+          exit 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: |
-            lacylights-mcp/package-lock.json
-            lacylights-node/package-lock.json
-
-      - name: Install backend dependencies
-        working-directory: lacylights-node
-        run: npm ci
-
-      - name: Build backend
-        working-directory: lacylights-node
-        run: npm run build
-
-      - name: Run backend migrations
-        working-directory: lacylights-node
-        env:
-          DATABASE_URL: file:./test-contract.db
-        run: npx prisma migrate deploy
-
-      - name: Start backend server
-        working-directory: lacylights-node
-        env:
-          DATABASE_URL: file:./test-contract.db
-          ARTNET_ENABLED: false
-          NON_INTERACTIVE: true
-          SKIP_FIXTURE_IMPORT: true
-        run: |
-          setsid node dist/index.js > backend.log 2>&1 < /dev/null &
-          sleep 3
-
-      - name: Wait for backend to be ready
-        run: |
-          echo "Waiting for backend GraphQL endpoint..."
-          for i in {1..30}; do
-            # Try IPv6 first (backend binds to ::), then IPv4
-            if curl -g -6 -sf http://[::1]:4000/graphql > /dev/null 2>&1 || \
-               curl -4 -sf http://127.0.0.1:4000/graphql > /dev/null 2>&1; then
-              echo "Backend is ready!"
-              exit 0
-            fi
-            echo "Attempt $i/30: Backend not ready yet, waiting..."
-            sleep 2
-          done
-          echo "Backend failed to start within 60 seconds"
-          echo "Backend log:"
-          cat lacylights-node/backend.log || echo "No backend log found"
-          exit 1
 
       - name: Install MCP dependencies
-        working-directory: lacylights-mcp
         run: npm ci
 
       - name: Run GraphQL codegen
-        working-directory: lacylights-mcp
         env:
           GRAPHQL_ENDPOINT: http://localhost:4000/graphql
         run: npm run codegen
 
       - name: Run contract tests
-        working-directory: lacylights-mcp
         env:
           GRAPHQL_ENDPOINT: http://localhost:4000/graphql
         run: npm run test:contracts
+
+      - name: Stop backend container
+        if: always()
+        run: |
+          docker stop backend || true
+          docker rm backend || true
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: contract-test-results
-          path: lacylights-mcp/coverage/
+          path: coverage/
           retention-days: 7
