@@ -58,10 +58,13 @@ jobs:
           NON_INTERACTIVE: true
           SKIP_FIXTURE_IMPORT: true
         run: |
+          set +e
           npm start > backend.log 2>&1 &
-          echo $! > backend.pid
-          disown
+          BG_PID=$!
+          echo $BG_PID > backend.pid
           sleep 5
+          ps -p $BG_PID || echo "Backend process not running!"
+          exit 0
 
       - name: Wait for backend to be ready
         run: |
