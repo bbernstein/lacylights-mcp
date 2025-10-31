@@ -4,12 +4,16 @@
   "description": "MCP Server for AI-powered theatrical lighting design",
   "main": "dist/index.js",
   "scripts": {
+    "codegen": "graphql-codegen --config codegen.yml",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "prebuild": "npm run codegen",
+    "predev": "npm run codegen",
     "start": "node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:contracts": "jest --testMatch='**/*.contract.test.ts' --runInBand --testTimeout=30000",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },
@@ -32,6 +36,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
+    "@graphql-codegen/cli": "^6.0.1",
+    "@graphql-codegen/typescript": "^5.0.2",
+    "@graphql-codegen/typescript-operations": "^5.0.2",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.8.1",
     "eslint": "^9.37.0",

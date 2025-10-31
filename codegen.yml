@@ -1,0 +1,11 @@
+schema: 'http://localhost:4000/graphql'
+generates:
+  ./src/generated/graphql.ts:
+    plugins:
+      - typescript
+    config:
+      strictScalars: true
+      scalars:
+        ID: string
+        DateTime: string
+      enumsAsTypes: true
