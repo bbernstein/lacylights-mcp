@@ -63,7 +63,7 @@ jobs:
       - name: Initialize database
         run: |
           echo "Running database migrations..."
-          docker exec backend npx prisma migrate deploy
+          docker exec --user root backend npx prisma migrate deploy
           echo "Database initialized successfully"
 
       - name: Setup Node.js
