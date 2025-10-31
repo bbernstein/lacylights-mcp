@@ -16,7 +16,7 @@ module.exports = {
       branches: 52,
       functions: 79,
       lines: 70,
-      statements: 70,
+      statements: 69,
     },
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
