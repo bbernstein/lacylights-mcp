@@ -14,20 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      postgres:
-        image: postgres:14
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: lacylights_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - name: Checkout MCP repo
         uses: actions/checkout@v4
@@ -56,13 +42,13 @@ jobs:
       - name: Run backend migrations
         working-directory: lacylights-node
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lacylights_test
+          DATABASE_URL: file:./test-contract.db
         run: npx prisma migrate deploy
 
       - name: Start backend server
         working-directory: lacylights-node
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lacylights_test
+          DATABASE_URL: file:./test-contract.db
           ARTNET_ENABLED: false
           NON_INTERACTIVE: true
         run: npm start &
