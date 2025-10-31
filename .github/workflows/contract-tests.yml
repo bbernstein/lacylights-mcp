@@ -60,6 +60,12 @@ jobs:
           docker logs backend
           exit 1
 
+      - name: Initialize database
+        run: |
+          echo "Running database migrations..."
+          docker exec backend npx prisma migrate deploy
+          echo "Database initialized successfully"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
