@@ -148,10 +148,9 @@ jobs:
           tar -czf lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz \
             --exclude='.git' \
             --exclude='.github' \
-            --exclude='node_modules/.cache' \
             --exclude='*.test.ts' \
             --exclude='__tests__' \
-            src/ dist/ build/ node_modules/ package.json package-lock.json
+            src/ dist/ build/ package.json package-lock.json
 
       - name: Upload release asset
         env:
