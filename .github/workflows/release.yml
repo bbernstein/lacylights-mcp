@@ -138,6 +138,28 @@ jobs:
               generate_release_notes: true
             });
 
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Create release archive
+        run: |
+          tar -czf lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='*.test.ts' \
+            --exclude='__tests__' \
+            src/ dist/ build/ package.json package-lock.json
+
+      - name: Upload release asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          gh release upload v${{ steps.new_version.outputs.version }} \
+            lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz \
+            --clobber
+
       - name: Summary
         run: |
           echo "## Release Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
@@ -147,3 +169,4 @@ jobs:
           echo "**Previous Version:** v${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/v${{ steps.new_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Release Asset:** lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz" >> $GITHUB_STEP_SUMMARY
