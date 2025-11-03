@@ -152,13 +152,17 @@ jobs:
 
       - name: Create release archive
         run: |
+          # Create directory structure for extraction
+          mkdir -p lacylights-mcp
+          cp -r src/ dist/ node_modules/ package.json package-lock.json lacylights-mcp/
           tar -czf lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules/.cache' \
             --exclude='*.test.ts' \
             --exclude='__tests__' \
-            src/ dist/ node_modules/ package.json package-lock.json
+            lacylights-mcp/
+          rm -rf lacylights-mcp
 
       - name: Upload release asset
         env:
