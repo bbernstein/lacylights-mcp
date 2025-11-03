@@ -158,7 +158,7 @@ jobs:
             --exclude='node_modules/.cache' \
             --exclude='*.test.ts' \
             --exclude='__tests__' \
-            src/ dist/ build/ node_modules/ package.json package-lock.json
+            src/ dist/ node_modules/ package.json package-lock.json
 
       - name: Upload release asset
         env:
