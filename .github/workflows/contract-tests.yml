@@ -17,10 +17,10 @@ jobs:
 
     steps:
       - name: Checkout MCP repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Checkout backend repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: bbernstein/lacylights-node
           path: backend
@@ -67,7 +67,7 @@ jobs:
           echo "Database initialized successfully"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '18'
           cache: 'npm'
@@ -93,7 +93,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: contract-test-results
           path: coverage/
