@@ -150,6 +150,25 @@ export type CreateProjectInput = {
   name: Scalars['String']['input'];
 };
 
+export type CreateSceneBoardButtonInput = {
+  color?: InputMaybe<Scalars['String']['input']>;
+  height?: InputMaybe<Scalars['Float']['input']>;
+  label?: InputMaybe<Scalars['String']['input']>;
+  layoutX: Scalars['Float']['input'];
+  layoutY: Scalars['Float']['input'];
+  sceneBoardId: Scalars['ID']['input'];
+  sceneId: Scalars['ID']['input'];
+  width?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type CreateSceneBoardInput = {
+  defaultFadeTime?: InputMaybe<Scalars['Float']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  gridSize?: InputMaybe<Scalars['Int']['input']>;
+  name: Scalars['String']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
 export type CreateSceneInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   fixtureValues: Array<FixtureValueInput>;
@@ -484,7 +503,9 @@ export type ModeChannel = {
 
 export type Mutation = {
   __typename?: 'Mutation';
+  activateSceneFromBoard: Scalars['Boolean']['output'];
   addFixturesToScene: Scene;
+  addSceneToBoard: SceneBoardButton;
   bulkCreateFixtures: Array<FixtureInstance>;
   bulkUpdateCues: Array<Cue>;
   bulkUpdateFixtures: Array<FixtureInstance>;
@@ -498,12 +519,14 @@ export type Mutation = {
   createFixtureInstance: FixtureInstance;
   createProject: Project;
   createScene: Scene;
+  createSceneBoard: SceneBoard;
   deleteCue: Scalars['Boolean']['output'];
   deleteCueList: Scalars['Boolean']['output'];
   deleteFixtureDefinition: Scalars['Boolean']['output'];
   deleteFixtureInstance: Scalars['Boolean']['output'];
   deleteProject: Scalars['Boolean']['output'];
   deleteScene: Scalars['Boolean']['output'];
+  deleteSceneBoard: Scalars['Boolean']['output'];
   disconnectWiFi: WiFiConnectionResult;
   duplicateScene: Scene;
   exportProject: ExportResult;
@@ -518,6 +541,7 @@ export type Mutation = {
   playCue: Scalars['Boolean']['output'];
   previousCue: Scalars['Boolean']['output'];
   removeFixturesFromScene: Scene;
+  removeSceneFromBoard: Scalars['Boolean']['output'];
   reorderCues: Scalars['Boolean']['output'];
   reorderProjectFixtures: Scalars['Boolean']['output'];
   reorderSceneFixtures: Scalars['Boolean']['output'];
@@ -535,8 +559,18 @@ export type Mutation = {
   updatePreviewChannel: Scalars['Boolean']['output'];
   updateProject: Project;
   updateScene: Scene;
+  updateSceneBoard: SceneBoard;
+  updateSceneBoardButton: SceneBoardButton;
+  updateSceneBoardButtonPositions: Scalars['Boolean']['output'];
   updateScenePartial: Scene;
   updateSetting: Setting;
+};
+
+
+export type MutationActivateSceneFromBoardArgs = {
+  fadeTimeOverride?: InputMaybe<Scalars['Float']['input']>;
+  sceneBoardId: Scalars['ID']['input'];
+  sceneId: Scalars['ID']['input'];
 };
 
 
@@ -544,6 +578,11 @@ export type MutationAddFixturesToSceneArgs = {
   fixtureValues: Array<FixtureValueInput>;
   overwriteExisting?: InputMaybe<Scalars['Boolean']['input']>;
   sceneId: Scalars['ID']['input'];
+};
+
+
+export type MutationAddSceneToBoardArgs = {
+  input: CreateSceneBoardButtonInput;
 };
 
 
@@ -614,6 +653,11 @@ export type MutationCreateSceneArgs = {
 };
 
 
+export type MutationCreateSceneBoardArgs = {
+  input: CreateSceneBoardInput;
+};
+
+
 export type MutationDeleteCueArgs = {
   id: Scalars['ID']['input'];
 };
@@ -640,6 +684,11 @@ export type MutationDeleteProjectArgs = {
 
 
 export type MutationDeleteSceneArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteSceneBoardArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -717,6 +766,11 @@ export type MutationPreviousCueArgs = {
 export type MutationRemoveFixturesFromSceneArgs = {
   fixtureIds: Array<Scalars['ID']['input']>;
   sceneId: Scalars['ID']['input'];
+};
+
+
+export type MutationRemoveSceneFromBoardArgs = {
+  buttonId: Scalars['ID']['input'];
 };
 
 
@@ -820,6 +874,23 @@ export type MutationUpdateSceneArgs = {
 };
 
 
+export type MutationUpdateSceneBoardArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateSceneBoardInput;
+};
+
+
+export type MutationUpdateSceneBoardButtonArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateSceneBoardButtonInput;
+};
+
+
+export type MutationUpdateSceneBoardButtonPositionsArgs = {
+  positions: Array<SceneBoardButtonPositionInput>;
+};
+
+
 export type MutationUpdateScenePartialArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   fixtureValues?: InputMaybe<Array<FixtureValueInput>>;
@@ -871,6 +942,7 @@ export type Project = {
   fixtures: Array<FixtureInstance>;
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
+  sceneBoards: Array<SceneBoard>;
   sceneCount: Scalars['Int']['output'];
   scenes: Array<Scene>;
   updatedAt: Scalars['String']['output'];
@@ -955,6 +1027,9 @@ export type Query = {
   projects: Array<Project>;
   savedWifiNetworks: Array<WiFiNetwork>;
   scene?: Maybe<Scene>;
+  sceneBoard?: Maybe<SceneBoard>;
+  sceneBoardButton?: Maybe<SceneBoardButton>;
+  sceneBoards: Array<SceneBoard>;
   sceneFixtures: Array<SceneFixtureSummary>;
   sceneUsage: SceneUsage;
   scenes: ScenePage;
@@ -1059,6 +1134,21 @@ export type QuerySceneArgs = {
 };
 
 
+export type QuerySceneBoardArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QuerySceneBoardButtonArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QuerySceneBoardsArgs = {
+  projectId: Scalars['ID']['input'];
+};
+
+
 export type QuerySceneFixturesArgs = {
   sceneId: Scalars['ID']['input'];
 };
@@ -1128,6 +1218,40 @@ export type Scene = {
   name: Scalars['String']['output'];
   project: Project;
   updatedAt: Scalars['String']['output'];
+};
+
+export type SceneBoard = {
+  __typename?: 'SceneBoard';
+  buttons: Array<SceneBoardButton>;
+  createdAt: Scalars['String']['output'];
+  defaultFadeTime: Scalars['Float']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  gridSize?: Maybe<Scalars['Int']['output']>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  project: Project;
+  updatedAt: Scalars['String']['output'];
+};
+
+export type SceneBoardButton = {
+  __typename?: 'SceneBoardButton';
+  color?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['String']['output'];
+  height?: Maybe<Scalars['Float']['output']>;
+  id: Scalars['ID']['output'];
+  label?: Maybe<Scalars['String']['output']>;
+  layoutX: Scalars['Float']['output'];
+  layoutY: Scalars['Float']['output'];
+  scene: Scene;
+  sceneBoard: SceneBoard;
+  updatedAt: Scalars['String']['output'];
+  width?: Maybe<Scalars['Float']['output']>;
+};
+
+export type SceneBoardButtonPositionInput = {
+  buttonId: Scalars['ID']['input'];
+  layoutX: Scalars['Float']['input'];
+  layoutY: Scalars['Float']['input'];
 };
 
 export type SceneComparison = {
@@ -1260,6 +1384,22 @@ export type UpdateFixtureInstanceInput = {
   startChannel?: InputMaybe<Scalars['Int']['input']>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   universe?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type UpdateSceneBoardButtonInput = {
+  color?: InputMaybe<Scalars['String']['input']>;
+  height?: InputMaybe<Scalars['Float']['input']>;
+  label?: InputMaybe<Scalars['String']['input']>;
+  layoutX?: InputMaybe<Scalars['Float']['input']>;
+  layoutY?: InputMaybe<Scalars['Float']['input']>;
+  width?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type UpdateSceneBoardInput = {
+  defaultFadeTime?: InputMaybe<Scalars['Float']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  gridSize?: InputMaybe<Scalars['Int']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateSceneInput = {
