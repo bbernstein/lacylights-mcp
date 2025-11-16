@@ -16,6 +16,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# Extracted release directories (e.g., lacylights-mcp-1.2.4/)
+lacylights-mcp-*/
+
 # IDE/Editor files
 .vscode/
 .idea/
