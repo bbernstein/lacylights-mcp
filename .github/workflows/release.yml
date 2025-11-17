@@ -177,12 +177,22 @@ jobs:
         run: |
           ARTIFACT="lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz"
           SHA256=$(sha256sum "$ARTIFACT" | awk '{print $1}')
-          FILE_SIZE=$(stat -c%s "$ARTIFACT")
+          FILE_SIZE=$(wc -c < "$ARTIFACT" | tr -d ' ')
+
+          # Check if this is a prerelease
+          VERSION="${{ steps.new_version.outputs.version }}"
+          IS_PRERELEASE="false"
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            IS_PRERELEASE="true"
+          fi
+
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
           echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
           echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
           echo "SHA256: $SHA256"
           echo "File Size: $FILE_SIZE bytes"
+          echo "Is Prerelease: $IS_PRERELEASE"
 
       - name: Upload to S3
         env:
@@ -212,15 +222,12 @@ jobs:
           ARTIFACT="${{ steps.checksum.outputs.artifact }}"
           SHA256="${{ steps.checksum.outputs.sha256 }}"
           FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
+          IS_PRERELEASE="${{ steps.checksum.outputs.is_prerelease }}"
 
-          # Check if this is a prerelease
-          IS_PRERELEASE="false"
-          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
-            IS_PRERELEASE="true"
-          fi
-
-          # Create latest.json
-          cat > latest.json <<EOF
+          # Only update latest.json for stable releases, not prereleases
+          if [[ "$IS_PRERELEASE" == "false" ]]; then
+            # Create latest.json
+            cat > latest.json <<EOF
           {
             "version": "$VERSION",
             "url": "https://dist.lacylights.com/releases/${COMPONENT}/$ARTIFACT",
@@ -231,13 +238,16 @@ jobs:
           }
           EOF
 
-          echo "Uploading latest.json..."
-          aws s3 cp latest.json \
-            "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/latest.json" \
-            --content-type "application/json" \
-            --metadata-directive REPLACE
+            echo "Uploading latest.json..."
+            aws s3 cp latest.json \
+              "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/latest.json" \
+              --content-type "application/json" \
+              --metadata-directive REPLACE
 
-          echo "✓ latest.json updated"
+            echo "✓ latest.json updated"
+          else
+            echo "Skipping latest.json upload for prerelease ($VERSION)"
+          fi
 
       - name: Update DynamoDB
         env:
@@ -250,12 +260,7 @@ jobs:
           ARTIFACT="${{ steps.checksum.outputs.artifact }}"
           SHA256="${{ steps.checksum.outputs.sha256 }}"
           FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
-
-          # Check if this is a prerelease
-          IS_PRERELEASE="false"
-          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
-            IS_PRERELEASE="true"
-          fi
+          IS_PRERELEASE="${{ steps.checksum.outputs.is_prerelease }}"
 
           echo "Updating DynamoDB..."
           aws dynamodb put-item \
