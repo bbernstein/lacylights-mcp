@@ -172,6 +172,111 @@ jobs:
             lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz \
             --clobber
 
+      - name: Calculate SHA256 checksum
+        id: checksum
+        run: |
+          ARTIFACT="lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz"
+          SHA256=$(sha256sum "$ARTIFACT" | awk '{print $1}')
+          FILE_SIZE=$(wc -c < "$ARTIFACT" | tr -d ' ')
+
+          # Check if this is a prerelease
+          VERSION="${{ steps.new_version.outputs.version }}"
+          IS_PRERELEASE="false"
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            IS_PRERELEASE="true"
+          fi
+
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
+          echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "SHA256: $SHA256"
+          echo "File Size: $FILE_SIZE bytes"
+          echo "Is Prerelease: $IS_PRERELEASE"
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          COMPONENT="mcp"
+          VERSION="${{ steps.new_version.outputs.version }}"
+          ARTIFACT="${{ steps.checksum.outputs.artifact }}"
+
+          echo "Uploading $ARTIFACT to S3..."
+          aws s3 cp "$ARTIFACT" \
+            "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/$ARTIFACT" \
+            --content-type "application/gzip"
+
+          echo "✓ Upload successful"
+
+      - name: Update latest.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          COMPONENT="mcp"
+          VERSION="${{ steps.new_version.outputs.version }}"
+          ARTIFACT="${{ steps.checksum.outputs.artifact }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
+          IS_PRERELEASE="${{ steps.checksum.outputs.is_prerelease }}"
+
+          # Only update latest.json for stable releases, not prereleases
+          if [[ "$IS_PRERELEASE" == "false" ]]; then
+            # Create latest.json
+            cat > latest.json <<EOF
+          {
+            "version": "$VERSION",
+            "url": "https://dist.lacylights.com/releases/${COMPONENT}/$ARTIFACT",
+            "sha256": "$SHA256",
+            "releaseDate": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "isPrerelease": $IS_PRERELEASE,
+            "fileSize": $FILE_SIZE
+          }
+          EOF
+
+            echo "Uploading latest.json..."
+            aws s3 cp latest.json \
+              "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/latest.json" \
+              --content-type "application/json" \
+              --metadata-directive REPLACE
+
+            echo "✓ latest.json updated"
+          else
+            echo "Skipping latest.json upload for prerelease ($VERSION)"
+          fi
+
+      - name: Update DynamoDB
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          COMPONENT="mcp"
+          VERSION="${{ steps.new_version.outputs.version }}"
+          ARTIFACT="${{ steps.checksum.outputs.artifact }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
+          IS_PRERELEASE="${{ steps.checksum.outputs.is_prerelease }}"
+
+          echo "Updating DynamoDB..."
+          aws dynamodb put-item \
+            --table-name lacylights-releases \
+            --item "{
+              \"component\": {\"S\": \"$COMPONENT\"},
+              \"version\": {\"S\": \"$VERSION\"},
+              \"url\": {\"S\": \"https://dist.lacylights.com/releases/${COMPONENT}/$ARTIFACT\"},
+              \"sha256\": {\"S\": \"$SHA256\"},
+              \"releaseDate\": {\"S\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"},
+              \"isPrerelease\": {\"BOOL\": $IS_PRERELEASE},
+              \"fileSize\": {\"N\": \"$FILE_SIZE\"}
+            }"
+
+          echo "✓ DynamoDB updated: component=$COMPONENT, version=$VERSION"
+
       - name: Summary
         run: |
           echo "## Release Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
@@ -182,3 +287,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/v${{ steps.new_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Release Asset:** lacylights-mcp-${{ steps.new_version.outputs.version }}.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Distribution" >> $GITHUB_STEP_SUMMARY
+          echo "**Download URL:** https://dist.lacylights.com/releases/mcp/${{ steps.checksum.outputs.artifact }}" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA256:** \`${{ steps.checksum.outputs.sha256 }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API Endpoints:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Latest: https://dist.lacylights.com/releases/mcp/latest.json" >> $GITHUB_STEP_SUMMARY
