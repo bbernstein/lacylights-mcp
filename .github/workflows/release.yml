@@ -279,6 +279,7 @@ jobs:
           echo "✓ Upload successful"
 
       - name: Update latest.json
+        if: steps.prerelease_check.outputs.is_prerelease == 'false'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
