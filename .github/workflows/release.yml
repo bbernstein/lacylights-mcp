@@ -278,6 +278,41 @@ jobs:
 
           echo "✓ Upload successful"
 
+      - name: Create version-specific metadata JSON
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          set -e
+          COMPONENT="mcp"
+          VERSION="${{ steps.new_version.outputs.version }}"
+          ARTIFACT="${{ steps.checksum.outputs.artifact }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
+          IS_PRERELEASE="${{ steps.checksum.outputs.is_prerelease }}"
+
+          # Create version-specific metadata JSON
+          cat > "${VERSION}.json" <<EOF
+          {
+            "version": "$VERSION",
+            "url": "https://dist.lacylights.com/releases/${COMPONENT}/$ARTIFACT",
+            "sha256": "$SHA256",
+            "releaseDate": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "isPrerelease": $IS_PRERELEASE,
+            "fileSize": $FILE_SIZE
+          }
+          EOF
+
+          echo "Uploading ${VERSION}.json..."
+          aws s3 cp "${VERSION}.json" \
+            "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/${VERSION}.json" \
+            --content-type "application/json" \
+            --cache-control "max-age=31536000, immutable" \
+            --metadata-directive REPLACE
+
+          echo "✓ ${VERSION}.json uploaded"
+
       - name: Update latest.json
         if: steps.prerelease_check.outputs.is_prerelease == 'false'
         env:
