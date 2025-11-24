@@ -1,5 +1,9 @@
 # LacyLights MCP Server
 
+[![GitHub Release](https://img.shields.io/github/v/release/bbernstein/lacylights-mcp?label=stable)](https://github.com/bbernstein/lacylights-mcp/releases/latest)
+[![GitHub Pre-release](https://img.shields.io/github/v/release/bbernstein/lacylights-mcp?include_prereleases&label=beta)](https://github.com/bbernstein/lacylights-mcp/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 An MCP (Model Context Protocol) server that provides AI-powered theatrical lighting design capabilities for the LacyLights system. This server enables AI assistants to create, manage, and control professional theatrical lighting designs through natural language interactions.
 
 ## What is LacyLights MCP?
@@ -151,6 +155,127 @@ Add this server to your Claude configuration:
 - Use the absolute path to `run-mcp.js` in your configuration
 - If the above doesn't work, find your Node.js path with: `which node`
 - The wrapper script ensures proper CommonJS module loading
+
+## Releases & Versioning
+
+### Release Channels
+
+LacyLights MCP supports two release channels:
+
+1. **Stable Releases** (e.g., `1.4.0`, `1.5.0`)
+   - Production-ready versions
+   - Fully tested and validated
+   - Listed as "Latest" on GitHub
+   - Updates `latest.json` for automatic discovery
+
+2. **Beta Releases** (e.g., `1.4.1b1`, `1.5.0b2`)
+   - Pre-release versions for testing
+   - New features and experimental changes
+   - Marked as "Pre-release" on GitHub
+   - Does not affect stable `latest.json`
+
+### Version Format
+
+- **Stable:** `X.Y.Z` (semantic versioning)
+  - `X` = Major version (breaking changes)
+  - `Y` = Minor version (new features)
+  - `Z` = Patch version (bug fixes)
+
+- **Beta:** `X.Y.Zb[N]` (beta with iteration)
+  - `b` = Beta identifier
+  - `[N]` = Beta iteration number (1, 2, 3, ...)
+
+### Installing Specific Versions
+
+#### Install Latest Stable (Recommended)
+```bash
+# Download latest stable release
+curl -s https://dist.lacylights.com/releases/mcp/latest.json | jq -r '.url' | xargs curl -LO
+
+# Extract archive
+tar -xzf lacylights-mcp-*.tar.gz
+cd lacylights-mcp
+
+# Install and run
+npm ci --omit=dev
+npm start
+```
+
+#### Install Specific Version
+```bash
+# Download specific version (replace X.Y.Z with actual version)
+VERSION="1.4.0"  # or "1.4.1b1" for beta
+curl -LO https://dist.lacylights.com/releases/mcp/lacylights-mcp-${VERSION}.tar.gz
+
+# Verify SHA256 checksum (optional but recommended)
+curl -s https://dist.lacylights.com/releases/mcp/latest.json | jq -r '.sha256'
+sha256sum lacylights-mcp-${VERSION}.tar.gz
+
+# Extract and run
+tar -xzf lacylights-mcp-${VERSION}.tar.gz
+cd lacylights-mcp
+npm ci --omit=dev
+npm start
+```
+
+#### Install Beta for Testing
+```bash
+# Download latest beta (check GitHub releases for version)
+VERSION="1.5.0b2"
+curl -LO https://dist.lacylights.com/releases/mcp/lacylights-mcp-${VERSION}.tar.gz
+
+# Extract and test
+tar -xzf lacylights-mcp-${VERSION}.tar.gz
+cd lacylights-mcp
+npm ci --omit=dev
+npm start
+```
+
+### Release Distribution
+
+All releases are distributed through multiple channels:
+
+1. **GitHub Releases:** https://github.com/bbernstein/lacylights-mcp/releases
+   - Source code
+   - Pre-built archives
+   - Release notes
+
+2. **S3 Distribution:** https://dist.lacylights.com/releases/mcp/
+   - Direct archive downloads
+   - SHA256 checksums
+   - `latest.json` metadata
+
+3. **DynamoDB Registry:**
+   - Version tracking
+   - Release metadata
+   - Prerelease flags
+
+### Beta Testing Program
+
+Want to help test new features? Install beta releases:
+
+1. **Check for betas:** Visit [GitHub Releases](https://github.com/bbernstein/lacylights-mcp/releases)
+   - Look for releases marked "Pre-release"
+   - Version format: `X.Y.Zb[N]`
+
+2. **Install beta:**
+   ```bash
+   # See "Install Beta for Testing" above
+   ```
+
+3. **Report issues:**
+   - Open issues on GitHub
+   - Include version number
+   - Provide reproduction steps
+
+### Release Process
+
+For maintainers: See [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for complete release documentation including:
+- Beta release workflows
+- Stable release procedures
+- Version management
+- Distribution verification
+- Troubleshooting and rollback
 
 ## Complete Example: Lighting Design for Macbeth
 
