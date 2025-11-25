@@ -150,8 +150,15 @@ jobs:
       - name: Create Git tag
         run: |
           set -e
-          git tag -a "v${{ steps.new_version.outputs.version }}" -m "Release v${{ steps.new_version.outputs.version }}"
-          git push origin "v${{ steps.new_version.outputs.version }}"
+          VERSION="${{ steps.new_version.outputs.version }}"
+
+          # Delete existing tag if present (local and remote)
+          git tag -d "v${VERSION}" 2>/dev/null || true
+          git push origin ":refs/tags/v${VERSION}" 2>/dev/null || true
+
+          # Create and push new tag
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin "v${VERSION}"
 
       - name: Determine release name
         id: release_name
