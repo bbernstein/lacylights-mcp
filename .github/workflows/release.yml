@@ -152,7 +152,10 @@ jobs:
           set -e
           VERSION="${{ steps.new_version.outputs.version }}"
 
-          # Check if tag exists, skip creation if it does (idempotent)
+          # Fetch latest tags to ensure we have current state
+          git fetch --tags
+
+          # Check if tag exists remotely, skip creation if it does (idempotent)
           if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
             echo "Tag v${VERSION} already exists. Skipping creation."
           else
