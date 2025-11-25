@@ -152,12 +152,9 @@ jobs:
           set -e
           VERSION="${{ steps.new_version.outputs.version }}"
 
-          # Fetch latest tags to ensure we have current state
-          git fetch --tags
-
-          # Check if tag exists remotely, skip creation if it does (idempotent)
-          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${VERSION} already exists. Skipping creation."
+          # Check if tag exists on remote (skip if exists - idempotent)
+          if git ls-remote --tags origin "refs/tags/v${VERSION}" | grep -q "v${VERSION}"; then
+            echo "Tag v${VERSION} already exists on remote. Skipping creation."
           else
             git tag -a "v${VERSION}" -m "Release v${VERSION}"
             git push origin "v${VERSION}"
