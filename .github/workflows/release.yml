@@ -59,13 +59,23 @@ jobs:
           CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
           IS_PRERELEASE="${{ inputs.is_prerelease }}"
 
-          # Check if current version is already a beta (format: X.Y.Zb[1-9][0-9]* or X.Y.Z-b[1-9][0-9]*)
+          # Normalize old format to new format if needed (self-correction)
+          # Old format: X.Y.Zb[N] or X.Y.Z-b[N]
+          # New format: X.Y.Z-beta.[N]
+          if [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-?b([0-9]+)$ ]]; then
+            echo "⚠️  Old format detected: $CURRENT_VERSION"
+            BASE_VERSION="${BASH_REMATCH[1]}"
+            BETA_NUM="${BASH_REMATCH[2]}"
+            CURRENT_VERSION="${BASE_VERSION}-beta.${BETA_NUM}"
+            echo "✓ Normalized to: $CURRENT_VERSION"
+          fi
+
+          # Check if current version is beta (standard semver format: X.Y.Z-beta.[N])
           CURRENT_IS_BETA=false
-          if [[ "$CURRENT_VERSION" =~ -?b[1-9][0-9]*$ ]]; then
+          if [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-beta\.([0-9]+)$ ]]; then
             CURRENT_IS_BETA=true
-            # Extract base version and beta number (handle both formats: Xb1 and X-b1)
-            BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-\?b[1-9][0-9]*$//')
-            BETA_NUM=$(echo "$CURRENT_VERSION" | grep -oE 'b[1-9][0-9]*$' | sed 's/b//')
+            BASE_VERSION="${BASH_REMATCH[1]}"
+            BETA_NUM="${BASH_REMATCH[2]}"
           else
             BASE_VERSION="$CURRENT_VERSION"
             BETA_NUM=0
@@ -99,21 +109,21 @@ jobs:
             esac
           }
 
-          # Smart beta logic handles 4 scenarios:
-          # 1. Beta -> Beta: Increment beta number only (e.g., 1.0.0b1 -> 1.0.0b2)
-          # 2. Stable -> Beta: Apply version bump + add b1 (e.g., 1.0.0 -> 1.0.1b1 for patch)
-          # 3. Beta -> Stable: Remove beta suffix to finalize (e.g., 1.0.0b2 -> 1.0.0)
+          # Smart beta logic handles 4 scenarios (semver-compatible):
+          # 1. Beta -> Beta: Increment beta number only (e.g., 1.0.0-beta.1 -> 1.0.0-beta.2)
+          # 2. Stable -> Beta: Apply version bump + add -beta.1 (e.g., 1.0.0 -> 1.0.1-beta.1 for patch)
+          # 3. Beta -> Stable: Remove beta suffix to finalize (e.g., 1.0.0-beta.2 -> 1.0.0)
           # 4. Stable -> Stable: Apply normal version bump (e.g., 1.0.0 -> 1.0.1 for patch)
           if [[ "$IS_PRERELEASE" == "true" ]]; then
             if [[ "$CURRENT_IS_BETA" == "true" ]]; then
               # Scenario 1: Beta -> Beta: Increment beta number
               BETA_NUM=$((BETA_NUM + 1))
-              NEW_VERSION="${BASE_VERSION}b${BETA_NUM}"
+              NEW_VERSION="${BASE_VERSION}-beta.${BETA_NUM}"
               echo "Incrementing beta: $CURRENT_VERSION -> $NEW_VERSION"
             else
-              # Scenario 2: Stable -> Beta: Apply version bump + b1
+              # Scenario 2: Stable -> Beta: Apply version bump + -beta.1
               apply_version_bump
-              NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}b1"
+              NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-beta.1"
               echo "Creating first beta: $CURRENT_VERSION -> $NEW_VERSION"
             fi
           else
@@ -174,7 +184,8 @@ jobs:
         run: |
           VERSION="${{ steps.new_version.outputs.version }}"
           IS_PRERELEASE="false"
-          if [[ "$VERSION" =~ b[1-9][0-9]*$ ]]; then
+          # Check for semver-compatible beta format: X.Y.Z-beta.[N]
+          if [[ "$VERSION" =~ -beta\.[0-9]+$ ]]; then
             IS_PRERELEASE="true"
           fi
           echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
@@ -253,10 +264,10 @@ jobs:
           SHA256=$(sha256sum "$ARTIFACT" | awk '{print $1}')
           FILE_SIZE=$(wc -c < "$ARTIFACT" | tr -d ' ')
 
-          # Check if this is a prerelease (beta format: b[1-9][0-9]*)
+          # Check if this is a prerelease (semver beta format: X.Y.Z-beta.[N])
           VERSION="${{ steps.new_version.outputs.version }}"
           IS_PRERELEASE="false"
-          if [[ "$VERSION" =~ b[1-9][0-9]*$ ]]; then
+          if [[ "$VERSION" =~ -beta\.[0-9]+$ ]]; then
             IS_PRERELEASE="true"
           fi
 
