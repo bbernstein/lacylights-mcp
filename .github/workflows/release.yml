@@ -150,8 +150,15 @@ jobs:
       - name: Create Git tag
         run: |
           set -e
-          git tag -a "v${{ steps.new_version.outputs.version }}" -m "Release v${{ steps.new_version.outputs.version }}"
-          git push origin "v${{ steps.new_version.outputs.version }}"
+          VERSION="${{ steps.new_version.outputs.version }}"
+
+          # Check if tag exists on remote (skip if exists - idempotent)
+          if git ls-remote --tags origin "refs/tags/v${VERSION}" | grep -q "v${VERSION}"; then
+            echo "Tag v${VERSION} already exists on remote. Skipping creation."
+          else
+            git tag -a "v${VERSION}" -m "Release v${VERSION}"
+            git push origin "v${VERSION}"
+          fi
 
       - name: Determine release name
         id: release_name
