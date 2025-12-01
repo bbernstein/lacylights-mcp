@@ -17,10 +17,10 @@ jobs:
 
     steps:
       - name: Checkout MCP repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Checkout backend repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: bbernstein/lacylights-node
           path: backend
