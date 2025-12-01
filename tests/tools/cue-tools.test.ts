@@ -110,6 +110,11 @@ describe('CueTools', () => {
       updateCue: jest.fn(),
       deleteCue: jest.fn(),
       bulkUpdateCues: jest.fn(),
+      bulkCreateCues: jest.fn(),
+      bulkDeleteCues: jest.fn(),
+      bulkCreateCueLists: jest.fn(),
+      bulkUpdateCueLists: jest.fn(),
+      bulkDeleteCueLists: jest.fn(),
       playCue: jest.fn(),
       fadeToBlack: jest.fn(),
       // New backend playback control methods
@@ -155,7 +160,7 @@ describe('CueTools', () => {
     it('should create cue sequence from scenes', async () => {
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockAILightingService.generateCueSequence.mockResolvedValue(mockCueSequence);
-      
+
       const mockCreatedCueList = {
         id: 'cuelist-new',
         name: 'Act 1 Cues',
@@ -163,16 +168,27 @@ describe('CueTools', () => {
         cues: []
       };
       mockGraphQLClient.createCueList.mockResolvedValue(mockCreatedCueList as any);
-      
-      const mockCreatedCue = {
-        id: 'cue-new',
-        name: 'Lights Up',
-        cueNumber: 1.0,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
-        fadeInTime: 3,
-        fadeOutTime: 3
-      };
-      mockGraphQLClient.createCue.mockResolvedValue(mockCreatedCue as any);
+
+      // Mock bulk create cues response
+      const mockBulkCreatedCues = [
+        {
+          id: 'cue-new-1',
+          name: 'Lights Up',
+          cueNumber: 1.0,
+          scene: { id: 'scene-1', name: 'Opening Scene' },
+          fadeInTime: 3,
+          fadeOutTime: 3
+        },
+        {
+          id: 'cue-new-2',
+          name: 'Dramatic Change',
+          cueNumber: 2.0,
+          scene: { id: 'scene-2', name: 'Dramatic Scene' },
+          fadeInTime: 5,
+          fadeOutTime: 2
+        }
+      ];
+      mockGraphQLClient.bulkCreateCues.mockResolvedValue(mockBulkCreatedCues as any);
 
       const result = await cueTools.createCueSequence({
         projectId: 'project-1',
@@ -190,7 +206,7 @@ describe('CueTools', () => {
       expect(mockGraphQLClient.getProject).toHaveBeenCalledWith('project-1');
       expect(mockAILightingService.generateCueSequence).toHaveBeenCalled();
       expect(mockGraphQLClient.createCueList).toHaveBeenCalled();
-      expect(mockGraphQLClient.createCue).toHaveBeenCalledTimes(2);
+      expect(mockGraphQLClient.bulkCreateCues).toHaveBeenCalledTimes(1);
       expect(result.cueList.name).toBe('Act 1 Cues');
       expect(result.cueList.totalCues).toBe(2);
       expect(result.cues).toHaveLength(2);
@@ -205,17 +221,28 @@ describe('CueTools', () => {
         description: 'Cue sequence for Act 1',
         cues: []
       } as any);
-      const mockCreatedCue = {
-        id: 'cue-new',
-        name: 'Lights Up',
-        cueNumber: 1.0,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
-        fadeInTime: 3,
-        fadeOutTime: 3,
-        followTime: undefined,
-        notes: 'Opening cue'
-      };
-      mockGraphQLClient.createCue.mockResolvedValue(mockCreatedCue as any);
+      // Mock bulk create cues response
+      const mockBulkCreatedCues = [
+        {
+          id: 'cue-new-1',
+          name: 'Lights Up',
+          cueNumber: 1.0,
+          scene: { id: 'scene-1', name: 'Opening Scene' },
+          fadeInTime: 3,
+          fadeOutTime: 3,
+          followTime: undefined,
+          notes: 'Opening cue'
+        },
+        {
+          id: 'cue-new-2',
+          name: 'Dramatic Change',
+          cueNumber: 2.0,
+          scene: { id: 'scene-2', name: 'Dramatic Scene' },
+          fadeInTime: 5,
+          fadeOutTime: 2
+        }
+      ];
+      mockGraphQLClient.bulkCreateCues.mockResolvedValue(mockBulkCreatedCues as any);
 
       const result = await cueTools.createCueSequence({
         projectId: 'project-1',

@@ -96,6 +96,48 @@ const BulkUpdateCuesSchema = z.object({
   easingType: z.string().optional(),
 });
 
+const BulkCreateCuesSchema = z.object({
+  cues: z.array(z.object({
+    name: z.string(),
+    cueNumber: z.number(),
+    cueListId: z.string(),
+    sceneId: z.string(),
+    fadeInTime: z.number().default(3),
+    fadeOutTime: z.number().default(3),
+    followTime: z.number().optional(),
+    notes: z.string().optional(),
+  })),
+});
+
+const BulkDeleteCuesSchema = z.object({
+  cueIds: z.array(z.string()),
+  confirmDelete: z.boolean(),
+});
+
+// Bulk Cue List Schemas
+const BulkCreateCueListsSchema = z.object({
+  cueLists: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    projectId: z.string(),
+    loop: z.boolean().default(false),
+  })),
+});
+
+const BulkUpdateCueListsSchema = z.object({
+  cueLists: z.array(z.object({
+    cueListId: z.string(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    loop: z.boolean().optional(),
+  })),
+});
+
+const BulkDeleteCueListsSchema = z.object({
+  cueListIds: z.array(z.string()),
+  confirmDelete: z.boolean(),
+});
+
 // Type for bulk update data
 interface BulkUpdateData {
   fadeInTime?: number;
@@ -206,10 +248,8 @@ export class CueTools {
         projectId,
       });
 
-      // Create individual cues
-      const createdCues = [];
-      for (let i = 0; i < cueSequence.cues.length; i++) {
-        const cueData = cueSequence.cues[i];
+      // Prepare cue data for bulk creation
+      const cueInputs = cueSequence.cues.map((cueData, i) => {
         // The AI returns sceneId as a string that might be an index or scene reference
         // Try to parse it as an index first
         let sceneId: string;
@@ -231,7 +271,7 @@ export class CueTools {
               : sceneIds[Math.min(i, sceneIds.length - 1)]; // Fallback to corresponding index or last scene
         }
 
-        const cue = await this.graphqlClient.createCue({
+        return {
           name: cueData.name,
           cueNumber: cueData.cueNumber,
           cueListId: cueList.id,
@@ -240,10 +280,13 @@ export class CueTools {
           fadeOutTime: cueData.fadeOutTime,
           followTime: cueData.followTime,
           notes: cueData.notes,
-        });
+        };
+      });
 
-        createdCues.push(cue);
-      }
+      // Use bulk create for all cues in a single operation
+      const createdCues = await this.graphqlClient.bulkCreateCues({
+        cues: cueInputs,
+      });
 
       return {
         cueListId: cueList.id,
@@ -1039,6 +1082,185 @@ export class CueTools {
       };
     } catch (error) {
       throw new Error(`Failed to bulk update cues: ${error}`);
+    }
+  }
+
+  async bulkCreateCues(args: z.infer<typeof BulkCreateCuesSchema>) {
+    const { cues } = BulkCreateCuesSchema.parse(args);
+
+    try {
+      if (cues.length === 0) {
+        throw new Error("No cues provided for bulk creation");
+      }
+
+      // Use the GraphQL client's bulk create method
+      const createdCues = await this.graphqlClient.bulkCreateCues({
+        cues,
+      });
+
+      // Format the response
+      const formattedCues = createdCues.map((cue: CueResponse) => ({
+        cueId: cue.id,
+        name: cue.name,
+        cueNumber: cue.cueNumber,
+        sceneName: cue.scene.name,
+        fadeInTime: cue.fadeInTime,
+        fadeOutTime: cue.fadeOutTime,
+        followTime: cue.followTime,
+        notes: cue.notes,
+      }));
+
+      return {
+        success: true,
+        createdCues: formattedCues,
+        summary: {
+          totalCreated: createdCues.length,
+          cueListIds: [...new Set(cues.map(c => c.cueListId))],
+          averageFadeInTime:
+            formattedCues.reduce((sum, cue) => sum + cue.fadeInTime, 0) /
+            formattedCues.length,
+          averageFadeOutTime:
+            formattedCues.reduce((sum, cue) => sum + cue.fadeOutTime, 0) /
+            formattedCues.length,
+        },
+        message: `Successfully created ${createdCues.length} cues`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk create cues: ${error}`);
+    }
+  }
+
+  async bulkDeleteCues(args: z.infer<typeof BulkDeleteCuesSchema>) {
+    const { cueIds, confirmDelete } = BulkDeleteCuesSchema.parse(args);
+
+    try {
+      if (!confirmDelete) {
+        throw new Error("confirmDelete must be true to delete cues");
+      }
+
+      if (cueIds.length === 0) {
+        throw new Error("No cue IDs provided for bulk deletion");
+      }
+
+      // Use the GraphQL client's bulk delete method
+      const result = await this.graphqlClient.bulkDeleteCues(cueIds);
+
+      return {
+        success: result.successCount > 0,
+        deletedCount: result.successCount,
+        failedIds: result.failedIds,
+        summary: {
+          totalRequested: cueIds.length,
+          successCount: result.successCount,
+          failureCount: result.failedIds.length,
+        },
+        message: result.failedIds.length === 0
+          ? `Successfully deleted ${result.successCount} cues`
+          : `Deleted ${result.successCount} cues, ${result.failedIds.length} failed`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk delete cues: ${error}`);
+    }
+  }
+
+  // Bulk Cue List Operations
+
+  async bulkCreateCueLists(args: z.infer<typeof BulkCreateCueListsSchema>) {
+    const { cueLists } = BulkCreateCueListsSchema.parse(args);
+
+    try {
+      if (cueLists.length === 0) {
+        throw new Error("No cue lists provided for bulk creation");
+      }
+
+      // Use the GraphQL client's bulk create method
+      const createdCueLists = await this.graphqlClient.bulkCreateCueLists({
+        cueLists,
+      });
+
+      return {
+        success: true,
+        createdCueLists: createdCueLists.map(cueList => ({
+          cueListId: cueList.id,
+          name: cueList.name,
+          description: cueList.description,
+          loop: cueList.loop,
+        })),
+        summary: {
+          totalCreated: createdCueLists.length,
+          projectIds: [...new Set(cueLists.map(cl => cl.projectId))],
+        },
+        message: `Successfully created ${createdCueLists.length} cue lists`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk create cue lists: ${error}`);
+    }
+  }
+
+  async bulkUpdateCueLists(args: z.infer<typeof BulkUpdateCueListsSchema>) {
+    const { cueLists } = BulkUpdateCueListsSchema.parse(args);
+
+    try {
+      if (cueLists.length === 0) {
+        throw new Error("No cue lists provided for bulk update");
+      }
+
+      // Use the GraphQL client's bulk update method
+      const updatedCueLists = await this.graphqlClient.bulkUpdateCueLists({
+        cueLists,
+      });
+
+      return {
+        success: true,
+        updatedCueLists: updatedCueLists.map(cueList => ({
+          cueListId: cueList.id,
+          name: cueList.name,
+          description: cueList.description,
+          loop: cueList.loop,
+        })),
+        summary: {
+          totalUpdated: updatedCueLists.length,
+          listsWithNameChange: cueLists.filter(cl => cl.name).length,
+          listsWithDescriptionChange: cueLists.filter(cl => cl.description).length,
+          listsWithLoopChange: cueLists.filter(cl => cl.loop !== undefined).length,
+        },
+        message: `Successfully updated ${updatedCueLists.length} cue lists`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk update cue lists: ${error}`);
+    }
+  }
+
+  async bulkDeleteCueLists(args: z.infer<typeof BulkDeleteCueListsSchema>) {
+    const { cueListIds, confirmDelete } = BulkDeleteCueListsSchema.parse(args);
+
+    try {
+      if (!confirmDelete) {
+        throw new Error("confirmDelete must be true to delete cue lists");
+      }
+
+      if (cueListIds.length === 0) {
+        throw new Error("No cue list IDs provided for bulk deletion");
+      }
+
+      // Use the GraphQL client's bulk delete method
+      const result = await this.graphqlClient.bulkDeleteCueLists(cueListIds);
+
+      return {
+        success: result.successCount > 0,
+        deletedCount: result.successCount,
+        failedIds: result.failedIds,
+        summary: {
+          totalRequested: cueListIds.length,
+          successCount: result.successCount,
+          failureCount: result.failedIds.length,
+        },
+        message: result.failedIds.length === 0
+          ? `Successfully deleted ${result.successCount} cue lists`
+          : `Deleted ${result.successCount} cue lists, ${result.failedIds.length} failed`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk delete cue lists: ${error}`);
     }
   }
 
