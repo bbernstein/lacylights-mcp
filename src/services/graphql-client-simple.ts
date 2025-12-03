@@ -1175,6 +1175,318 @@ export class LacyLightsGraphQLClient {
     return data.bulkCreateFixtures;
   }
 
+  async bulkDeleteFixtures(fixtureIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+    const mutation = `
+      mutation BulkDeleteFixtures($fixtureIds: [ID!]!) {
+        bulkDeleteFixtures(fixtureIds: $fixtureIds) {
+          successCount
+          failedIds
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { fixtureIds });
+    return data.bulkDeleteFixtures;
+  }
+
+  // Bulk Scene Operations
+
+  async bulkCreateScenes(input: {
+    scenes: Array<{
+      name: string;
+      description?: string;
+      projectId: string;
+      fixtureValues: Array<{
+        fixtureId: string;
+        channelValues: number[];
+      }>;
+    }>;
+  }): Promise<Scene[]> {
+    const mutation = `
+      mutation BulkCreateScenes($input: BulkSceneCreateInput!) {
+        bulkCreateScenes(input: $input) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+          fixtureValues {
+            fixture {
+              id
+              name
+            }
+            channelValues
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkCreateScenes;
+  }
+
+  async bulkUpdateScenes(input: {
+    scenes: Array<{
+      sceneId: string;
+      name?: string;
+      description?: string;
+      fixtureValues?: Array<{
+        fixtureId: string;
+        channelValues: number[];
+      }>;
+    }>;
+  }): Promise<Scene[]> {
+    const mutation = `
+      mutation BulkUpdateScenes($input: BulkSceneUpdateInput!) {
+        bulkUpdateScenes(input: $input) {
+          id
+          name
+          description
+          updatedAt
+          fixtureValues {
+            fixture {
+              id
+              name
+            }
+            channelValues
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkUpdateScenes;
+  }
+
+  async bulkDeleteScenes(sceneIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+    const mutation = `
+      mutation BulkDeleteScenes($sceneIds: [ID!]!) {
+        bulkDeleteScenes(sceneIds: $sceneIds) {
+          successCount
+          failedIds
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { sceneIds });
+    return data.bulkDeleteScenes;
+  }
+
+  // Bulk Cue Operations
+
+  async bulkCreateCues(input: {
+    cues: Array<{
+      name: string;
+      cueNumber: number;
+      cueListId: string;
+      sceneId: string;
+      fadeInTime: number;
+      fadeOutTime: number;
+      followTime?: number;
+      notes?: string;
+    }>;
+  }): Promise<Cue[]> {
+    const mutation = `
+      mutation BulkCreateCues($input: BulkCueCreateInput!) {
+        bulkCreateCues(input: $input) {
+          id
+          name
+          cueNumber
+          fadeInTime
+          fadeOutTime
+          followTime
+          notes
+          scene {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkCreateCues;
+  }
+
+  async bulkDeleteCues(cueIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+    const mutation = `
+      mutation BulkDeleteCues($cueIds: [ID!]!) {
+        bulkDeleteCues(cueIds: $cueIds) {
+          successCount
+          failedIds
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { cueIds });
+    return data.bulkDeleteCues;
+  }
+
+  // Bulk Cue List Operations
+
+  async bulkCreateCueLists(input: {
+    cueLists: Array<{
+      name: string;
+      description?: string;
+      projectId: string;
+      loop?: boolean;
+    }>;
+  }): Promise<CueList[]> {
+    const mutation = `
+      mutation BulkCreateCueLists($input: BulkCueListCreateInput!) {
+        bulkCreateCueLists(input: $input) {
+          id
+          name
+          description
+          loop
+          createdAt
+          updatedAt
+          cues {
+            id
+            name
+            cueNumber
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkCreateCueLists;
+  }
+
+  async bulkUpdateCueLists(input: {
+    cueLists: Array<{
+      cueListId: string;
+      name?: string;
+      description?: string;
+      loop?: boolean;
+    }>;
+  }): Promise<CueList[]> {
+    const mutation = `
+      mutation BulkUpdateCueLists($input: BulkCueListUpdateInput!) {
+        bulkUpdateCueLists(input: $input) {
+          id
+          name
+          description
+          loop
+          updatedAt
+          cues {
+            id
+            name
+            cueNumber
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkUpdateCueLists;
+  }
+
+  async bulkDeleteCueLists(cueListIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+    const mutation = `
+      mutation BulkDeleteCueLists($cueListIds: [ID!]!) {
+        bulkDeleteCueLists(cueListIds: $cueListIds) {
+          successCount
+          failedIds
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { cueListIds });
+    return data.bulkDeleteCueLists;
+  }
+
+  // Bulk Project Operations
+
+  async bulkCreateProjects(input: {
+    projects: Array<{
+      name: string;
+      description?: string;
+    }>;
+  }): Promise<Project[]> {
+    const mutation = `
+      mutation BulkCreateProjects($input: BulkProjectCreateInput!) {
+        bulkCreateProjects(input: $input) {
+          id
+          name
+          description
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkCreateProjects;
+  }
+
+  async bulkDeleteProjects(projectIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+    const mutation = `
+      mutation BulkDeleteProjects($projectIds: [ID!]!) {
+        bulkDeleteProjects(projectIds: $projectIds) {
+          successCount
+          failedIds
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { projectIds });
+    return data.bulkDeleteProjects;
+  }
+
+  // Bulk Fixture Definition Operations
+
+  async bulkCreateFixtureDefinitions(input: {
+    definitions: Array<{
+      manufacturer: string;
+      model: string;
+      type: string;
+      channels: Array<{
+        name: string;
+        type: string;
+        offset: number;
+        minValue?: number;
+        maxValue?: number;
+        defaultValue?: number;
+      }>;
+      modes?: Array<{
+        name: string;
+        channelCount: number;
+      }>;
+    }>;
+  }): Promise<FixtureDefinition[]> {
+    const mutation = `
+      mutation BulkCreateFixtureDefinitions($input: BulkFixtureDefinitionCreateInput!) {
+        bulkCreateFixtureDefinitions(input: $input) {
+          id
+          manufacturer
+          model
+          type
+          isBuiltIn
+          channels {
+            id
+            name
+            type
+            offset
+            minValue
+            maxValue
+            defaultValue
+          }
+          modes {
+            id
+            name
+            shortName
+            channelCount
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkCreateFixtureDefinitions;
+  }
+
   async setSceneLive(sceneId: string): Promise<boolean> {
     const mutation = `
       mutation ActivateScene($sceneId: ID!) {

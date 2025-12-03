@@ -169,6 +169,54 @@ Use this tool first to understand project scope before drilling down into specif
               required: ["projectId", "confirmDelete"],
             },
           },
+          // Bulk Project Operations
+          {
+            name: "bulk_create_projects",
+            description: "Create multiple projects in a single operation.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projects: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "Project name",
+                      },
+                      description: {
+                        type: "string",
+                        description: "Project description",
+                      },
+                    },
+                    required: ["name"],
+                  },
+                  description: "Array of projects to create",
+                },
+              },
+              required: ["projects"],
+            },
+          },
+          {
+            name: "bulk_delete_projects",
+            description: "Delete multiple projects in a single operation. Returns count of successfully deleted projects and any failed IDs.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Array of project IDs to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  description: "Confirm deletion (required to be true for safety)",
+                },
+              },
+              required: ["projectIds", "confirmDelete"],
+            },
+          },
           {
             name: "qlc_import_guidance",
             description: "Get information about importing QLC+ (.qxw) files into LacyLights",
@@ -646,6 +694,26 @@ Use list_fixtures instead if you only need basic fixture information.`,
                 },
               },
               required: ["fixtures"],
+            },
+          },
+          {
+            name: "bulk_delete_fixtures",
+            description:
+              "Delete multiple fixture instances in a single operation. Returns count of successfully deleted fixtures and any failed IDs.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                fixtureIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Array of fixture IDs to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  description: "Confirm deletion (required to be true for safety)",
+                },
+              },
+              required: ["fixtureIds", "confirmDelete"],
             },
           },
           // Scene Tools
@@ -1177,6 +1245,120 @@ Use cases:
               required: ["sceneId"],
             },
           },
+          // Bulk Scene Operations
+          {
+            name: "bulk_create_scenes",
+            description: "Create multiple scenes in a single operation. Returns all created scenes with their IDs.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                scenes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "Scene name",
+                      },
+                      description: {
+                        type: "string",
+                        description: "Scene description",
+                      },
+                      projectId: {
+                        type: "string",
+                        description: "Project ID to create scene in",
+                      },
+                      fixtureValues: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            fixtureId: { type: "string" },
+                            channelValues: {
+                              type: "array",
+                              items: { type: "number", minimum: 0, maximum: 255 },
+                            },
+                          },
+                          required: ["fixtureId", "channelValues"],
+                        },
+                        description: "Fixture values for the scene",
+                      },
+                    },
+                    required: ["name", "projectId", "fixtureValues"],
+                  },
+                  description: "Array of scenes to create",
+                },
+              },
+              required: ["scenes"],
+            },
+          },
+          {
+            name: "bulk_update_scenes",
+            description: "Update multiple scenes in a single operation. Supports updating name, description, and fixture values.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                scenes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      sceneId: {
+                        type: "string",
+                        description: "Scene ID to update",
+                      },
+                      name: {
+                        type: "string",
+                        description: "New scene name",
+                      },
+                      description: {
+                        type: "string",
+                        description: "New scene description",
+                      },
+                      fixtureValues: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            fixtureId: { type: "string" },
+                            channelValues: {
+                              type: "array",
+                              items: { type: "number", minimum: 0, maximum: 255 },
+                            },
+                          },
+                          required: ["fixtureId", "channelValues"],
+                        },
+                        description: "New fixture values for the scene",
+                      },
+                    },
+                    required: ["sceneId"],
+                  },
+                  description: "Array of scene updates to apply",
+                },
+              },
+              required: ["scenes"],
+            },
+          },
+          {
+            name: "bulk_delete_scenes",
+            description: "Delete multiple scenes in a single operation. Returns count of successfully deleted scenes and any failed IDs.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Array of scene IDs to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  description: "Confirm deletion (required to be true for safety)",
+                },
+              },
+              required: ["sceneIds", "confirmDelete"],
+            },
+          },
           // Cue Tools
           {
             name: "create_cue_sequence",
@@ -1474,6 +1656,79 @@ Use cases:
             }
           },
           {
+            name: "bulk_create_cues",
+            description: "Create multiple cues in a single operation. All cues are created in one GraphQL call for efficiency.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cues: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "Cue name",
+                      },
+                      cueNumber: {
+                        type: "number",
+                        description: "Cue number (e.g., 1, 1.5, 2)",
+                      },
+                      cueListId: {
+                        type: "string",
+                        description: "Cue list ID to add cue to",
+                      },
+                      sceneId: {
+                        type: "string",
+                        description: "Scene ID for this cue",
+                      },
+                      fadeInTime: {
+                        type: "number",
+                        default: 3,
+                        description: "Fade in time in seconds",
+                      },
+                      fadeOutTime: {
+                        type: "number",
+                        default: 3,
+                        description: "Fade out time in seconds",
+                      },
+                      followTime: {
+                        type: "number",
+                        description: "Auto-follow time in seconds (optional)",
+                      },
+                      notes: {
+                        type: "string",
+                        description: "Notes or description for the cue",
+                      },
+                    },
+                    required: ["name", "cueNumber", "cueListId", "sceneId"],
+                  },
+                  description: "Array of cues to create",
+                },
+              },
+              required: ["cues"],
+            },
+          },
+          {
+            name: "bulk_delete_cues",
+            description: "Delete multiple cues in a single operation. Returns count of successfully deleted cues and any failed IDs.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Array of cue IDs to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  description: "Confirm deletion (required to be true for safety)",
+                },
+              },
+              required: ["cueIds", "confirmDelete"],
+            },
+          },
+          {
             name: "reorder_cues",
             description: "Reorder multiple cues by assigning new cue numbers",
             inputSchema: {
@@ -1685,6 +1940,99 @@ with filters and lookup tables instead.`,
               required: ["cueListId", "confirmDelete"],
             },
           },
+          // Bulk Cue List Operations
+          {
+            name: "bulk_create_cue_lists",
+            description: "Create multiple cue lists in a single operation.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueLists: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: {
+                        type: "string",
+                        description: "Cue list name",
+                      },
+                      description: {
+                        type: "string",
+                        description: "Cue list description",
+                      },
+                      projectId: {
+                        type: "string",
+                        description: "Project ID to create cue list in",
+                      },
+                      loop: {
+                        type: "boolean",
+                        default: false,
+                        description: "Whether to loop the cue list",
+                      },
+                    },
+                    required: ["name", "projectId"],
+                  },
+                  description: "Array of cue lists to create",
+                },
+              },
+              required: ["cueLists"],
+            },
+          },
+          {
+            name: "bulk_update_cue_lists",
+            description: "Update multiple cue lists in a single operation.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueLists: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      cueListId: {
+                        type: "string",
+                        description: "Cue list ID to update",
+                      },
+                      name: {
+                        type: "string",
+                        description: "New cue list name",
+                      },
+                      description: {
+                        type: "string",
+                        description: "New cue list description",
+                      },
+                      loop: {
+                        type: "boolean",
+                        description: "New loop setting",
+                      },
+                    },
+                    required: ["cueListId"],
+                  },
+                  description: "Array of cue list updates to apply",
+                },
+              },
+              required: ["cueLists"],
+            },
+          },
+          {
+            name: "bulk_delete_cue_lists",
+            description: "Delete multiple cue lists in a single operation. Returns count of successfully deleted cue lists and any failed IDs.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueListIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Array of cue list IDs to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  description: "Confirm deletion (required to be true for safety)",
+                },
+              },
+              required: ["cueListIds", "confirmDelete"],
+            },
+          },
           // Cue List Playback Tools
           {
             name: "start_cue_list",
@@ -1850,6 +2198,34 @@ with filters and lookup tables instead.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.projectTools.deleteProject(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_create_projects":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.projectTools.bulkCreateProjects(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_delete_projects":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.projectTools.bulkDeleteProjects(args as any),
                     null,
                     2,
                   ),
@@ -2030,6 +2406,20 @@ with filters and lookup tables instead.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.fixtureTools.bulkCreateFixtures(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_delete_fixtures":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.bulkDeleteFixtures(args as any),
                     null,
                     2,
                   ),
@@ -2250,6 +2640,49 @@ with filters and lookup tables instead.`,
               ],
             };
 
+          // Bulk Scene Operations
+          case "bulk_create_scenes":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.bulkCreateScenes(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_update_scenes":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.bulkUpdateScenes(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_delete_scenes":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.bulkDeleteScenes(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
           // Cue Tools
           case "create_cue_sequence":
             return {
@@ -2378,6 +2811,34 @@ with filters and lookup tables instead.`,
               ],
             };
 
+          case "bulk_create_cues":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.bulkCreateCues(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_delete_cues":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.bulkDeleteCues(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
           case "reorder_cues":
             return {
               content: [
@@ -2442,6 +2903,49 @@ with filters and lookup tables instead.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.cueTools.deleteCueList(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Bulk Cue List Operations
+          case "bulk_create_cue_lists":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.bulkCreateCueLists(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_update_cue_lists":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.bulkUpdateCueLists(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_delete_cue_lists":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.bulkDeleteCueLists(args as any),
                     null,
                     2,
                   ),

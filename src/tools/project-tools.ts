@@ -24,6 +24,19 @@ const DeleteProjectSchema = z.object({
   confirmDelete: z.boolean().default(false).describe('Confirm deletion of project and all its data')
 });
 
+// Bulk operation schemas
+const BulkCreateProjectsSchema = z.object({
+  projects: z.array(z.object({
+    name: z.string().describe('Project name'),
+    description: z.string().optional().describe('Project description')
+  })).describe('Array of projects to create')
+});
+
+const BulkDeleteProjectsSchema = z.object({
+  projectIds: z.array(z.string()).describe('Array of project IDs to delete'),
+  confirmDelete: z.boolean().describe('Confirm deletion of projects and all their data')
+});
+
 // Removed ImportProjectFromQLCSchema - import functionality moved to web UI due to file size constraints
 
 export class ProjectTools {
@@ -206,6 +219,78 @@ export class ProjectTools {
       };
     } catch (error) {
       throw new Error(`Failed to delete project: ${error}`);
+    }
+  }
+
+  // Bulk Operations
+
+  /**
+   * Create multiple projects in a single operation
+   */
+  async bulkCreateProjects(args: z.infer<typeof BulkCreateProjectsSchema>) {
+    const { projects } = BulkCreateProjectsSchema.parse(args);
+
+    try {
+      if (projects.length === 0) {
+        throw new Error('No projects provided for bulk creation');
+      }
+
+      // Use the GraphQL client's bulk create method
+      const createdProjects = await this.graphqlClient.bulkCreateProjects({
+        projects,
+      });
+
+      return {
+        success: true,
+        createdProjects: createdProjects.map(project => ({
+          projectId: project.id,
+          name: project.name,
+          description: project.description,
+          createdAt: project.createdAt,
+        })),
+        summary: {
+          totalCreated: createdProjects.length,
+        },
+        message: `Successfully created ${createdProjects.length} projects`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk create projects: ${error}`);
+    }
+  }
+
+  /**
+   * Delete multiple projects in a single operation
+   */
+  async bulkDeleteProjects(args: z.infer<typeof BulkDeleteProjectsSchema>) {
+    const { projectIds, confirmDelete } = BulkDeleteProjectsSchema.parse(args);
+
+    try {
+      if (!confirmDelete) {
+        throw new Error('confirmDelete must be true to delete projects');
+      }
+
+      if (projectIds.length === 0) {
+        throw new Error('No project IDs provided for bulk deletion');
+      }
+
+      // Use the GraphQL client's bulk delete method
+      const result = await this.graphqlClient.bulkDeleteProjects(projectIds);
+
+      return {
+        success: result.successCount > 0,
+        deletedCount: result.successCount,
+        failedIds: result.failedIds,
+        summary: {
+          totalRequested: projectIds.length,
+          successCount: result.successCount,
+          failureCount: result.failedIds.length,
+        },
+        message: result.failedIds.length === 0
+          ? `Successfully deleted ${result.successCount} projects`
+          : `Deleted ${result.successCount} projects, ${result.failedIds.length} failed`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk delete projects: ${error}`);
     }
   }
 
