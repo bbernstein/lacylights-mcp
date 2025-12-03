@@ -1184,4 +1184,284 @@ describe('CueTools', () => {
     });
   });
 
+  describe('getCue', () => {
+    beforeEach(() => {
+      mockGraphQLClient.getCue = jest.fn();
+    });
+
+    it('should get a single cue by ID', async () => {
+      const mockCue = {
+        id: 'cue-1',
+        name: 'Lights Up',
+        cueNumber: 1.0,
+        fadeInTime: 3,
+        fadeOutTime: 3,
+        followTime: null,
+        notes: 'Opening cue',
+        scene: {
+          id: 'scene-1',
+          name: 'Opening Scene',
+          description: 'Opening scene description',
+          fixtureValues: []
+        },
+        cueList: {
+          id: 'cuelist-1',
+          name: 'Act 1 Cues'
+        }
+      };
+
+      mockGraphQLClient.getCue.mockResolvedValue(mockCue as any);
+
+      const result = await cueTools.getCue({ cueId: 'cue-1' });
+
+      expect(mockGraphQLClient.getCue).toHaveBeenCalledWith('cue-1');
+      expect(result.cueId).toBe('cue-1');
+      expect(result.cue.name).toBe('Lights Up');
+      expect(result.cue.cueNumber).toBe(1.0);
+      expect(result.scene.id).toBe('scene-1');
+      expect(result.scene.name).toBe('Opening Scene');
+      expect(result.cueList?.id).toBe('cuelist-1');
+      expect(result.cueList?.name).toBe('Act 1 Cues');
+    });
+
+    it('should handle cue not found', async () => {
+      mockGraphQLClient.getCue.mockResolvedValue(null);
+
+      await expect(cueTools.getCue({ cueId: 'non-existent' }))
+        .rejects.toThrow('Cue with ID non-existent not found');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      mockGraphQLClient.getCue.mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(cueTools.getCue({ cueId: 'cue-1' }))
+        .rejects.toThrow('Failed to get cue: Error: GraphQL error');
+    });
+
+    it('should return cue without cueList if not present', async () => {
+      const mockCueWithoutCueList = {
+        id: 'cue-1',
+        name: 'Standalone Cue',
+        cueNumber: 1.0,
+        fadeInTime: 3,
+        fadeOutTime: 3,
+        followTime: null,
+        notes: null,
+        scene: {
+          id: 'scene-1',
+          name: 'Scene',
+          description: 'Scene description',
+          fixtureValues: []
+        },
+        cueList: null
+      };
+
+      mockGraphQLClient.getCue.mockResolvedValue(mockCueWithoutCueList as any);
+
+      const result = await cueTools.getCue({ cueId: 'cue-1' });
+
+      expect(result.cueList).toBeUndefined();
+    });
+  });
+
+  describe('listCueLists', () => {
+    beforeEach(() => {
+      mockGraphQLClient.getCueLists = jest.fn();
+    });
+
+    it('should list all cue lists in a project', async () => {
+      const mockCueLists = [
+        {
+          id: 'cuelist-1',
+          name: 'Act 1 Cues',
+          description: 'Cues for Act 1',
+          cueCount: 5,
+          totalDuration: 120,
+          loop: false
+        },
+        {
+          id: 'cuelist-2',
+          name: 'Act 2 Cues',
+          description: 'Cues for Act 2',
+          cueCount: 8,
+          totalDuration: 180,
+          loop: true
+        }
+      ];
+
+      mockGraphQLClient.getCueLists.mockResolvedValue(mockCueLists);
+
+      const result = await cueTools.listCueLists({ projectId: 'project-1' });
+
+      expect(mockGraphQLClient.getCueLists).toHaveBeenCalledWith('project-1');
+      expect(result.projectId).toBe('project-1');
+      expect(result.cueLists).toHaveLength(2);
+      expect(result.totalCount).toBe(2);
+      expect(result.summary.totalCues).toBe(13);
+      expect(result.summary.totalEstimatedDuration).toBe(300);
+      expect(result.summary.loopingCueLists).toBe(1);
+    });
+
+    it('should handle empty cue list', async () => {
+      mockGraphQLClient.getCueLists.mockResolvedValue([]);
+
+      const result = await cueTools.listCueLists({ projectId: 'project-1' });
+
+      expect(result.cueLists).toHaveLength(0);
+      expect(result.totalCount).toBe(0);
+      expect(result.summary.totalCues).toBe(0);
+      expect(result.summary.loopingCueLists).toBe(0);
+    });
+
+    it('should handle GraphQL errors', async () => {
+      mockGraphQLClient.getCueLists.mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(cueTools.listCueLists({ projectId: 'project-1' }))
+        .rejects.toThrow('Failed to list cue lists: Error: GraphQL error');
+    });
+  });
+
+  describe('addCueToCueList with position', () => {
+    it('should add cue before reference cue', async () => {
+      const mockCueList = {
+        id: 'cuelist-1',
+        name: 'Test Cue List',
+        cues: [
+          { id: 'cue-1', cueNumber: 1.0, name: 'Cue 1' },
+          { id: 'cue-2', cueNumber: 2.0, name: 'Cue 2' }
+        ]
+      };
+
+      const mockCreatedCue = {
+        id: 'cue-new',
+        name: 'New Cue',
+        cueNumber: 0.5,
+        scene: { id: 'scene-1', name: 'Opening Scene' },
+        fadeInTime: 3,
+        fadeOutTime: 3,
+        followTime: undefined,
+        notes: undefined
+      };
+
+      mockGraphQLClient.getCueList.mockResolvedValue(mockCueList as any);
+      mockGraphQLClient.createCue.mockResolvedValue(mockCreatedCue as any);
+
+      const result = await cueTools.addCueToCueList({
+        cueListId: 'cuelist-1',
+        name: 'New Cue',
+        cueNumber: 0.5,
+        sceneId: 'scene-1',
+        position: 'before',
+        referenceCueNumber: 1.0
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.cue.cueNumber).toBe(0.5);
+    });
+
+    it('should add cue after reference cue', async () => {
+      const mockCueList = {
+        id: 'cuelist-1',
+        name: 'Test Cue List',
+        cues: [
+          { id: 'cue-1', cueNumber: 1.0, name: 'Cue 1' },
+          { id: 'cue-2', cueNumber: 2.0, name: 'Cue 2' }
+        ]
+      };
+
+      const mockCreatedCue = {
+        id: 'cue-new',
+        name: 'New Cue',
+        cueNumber: 1.5,
+        scene: { id: 'scene-1', name: 'Opening Scene' },
+        fadeInTime: 3,
+        fadeOutTime: 3,
+        followTime: undefined,
+        notes: undefined
+      };
+
+      mockGraphQLClient.getCueList.mockResolvedValue(mockCueList as any);
+      mockGraphQLClient.createCue.mockResolvedValue(mockCreatedCue as any);
+
+      const result = await cueTools.addCueToCueList({
+        cueListId: 'cuelist-1',
+        name: 'New Cue',
+        cueNumber: 1.5,
+        sceneId: 'scene-1',
+        position: 'after',
+        referenceCueNumber: 1.0
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.cue.cueNumber).toBe(1.5);
+    });
+
+    it('should add cue after last cue in the list', async () => {
+      const mockCueList = {
+        id: 'cuelist-1',
+        name: 'Test Cue List',
+        cues: [
+          { id: 'cue-1', cueNumber: 1.0, name: 'Cue 1' },
+          { id: 'cue-2', cueNumber: 2.0, name: 'Cue 2' }
+        ]
+      };
+
+      const mockCreatedCue = {
+        id: 'cue-new',
+        name: 'New Cue',
+        cueNumber: 2.5,
+        scene: { id: 'scene-1', name: 'Opening Scene' },
+        fadeInTime: 3,
+        fadeOutTime: 3,
+        followTime: undefined,
+        notes: undefined
+      };
+
+      mockGraphQLClient.getCueList.mockResolvedValue(mockCueList as any);
+      mockGraphQLClient.createCue.mockResolvedValue(mockCreatedCue as any);
+
+      const result = await cueTools.addCueToCueList({
+        cueListId: 'cuelist-1',
+        name: 'New Cue',
+        cueNumber: 2.5,
+        sceneId: 'scene-1',
+        position: 'after',
+        referenceCueNumber: 2.0
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.cue.cueNumber).toBe(2.5);
+    });
+  });
+
+  describe('updateCueList with loop', () => {
+    it('should update cue list loop setting', async () => {
+      const updatedCueList = {
+        id: 'cuelist-1',
+        name: 'Test Cue List',
+        description: 'Test description',
+        loop: true,
+        cues: []
+      };
+
+      mockGraphQLClient.updateCueList.mockResolvedValue(updatedCueList as any);
+
+      const result = await cueTools.updateCueList({
+        cueListId: 'cuelist-1',
+        loop: true
+      });
+
+      expect(mockGraphQLClient.updateCueList).toHaveBeenCalledWith('cuelist-1', {
+        loop: true
+      });
+      expect(result.cueList.loop).toBe(true);
+    });
+
+    it('should require at least one field to update', async () => {
+      await expect(cueTools.updateCueList({
+        cueListId: 'cuelist-1'
+      })).rejects.toThrow('At least one field (name, description, or loop) must be provided');
+    });
+  });
+
 });
