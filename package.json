@@ -30,7 +30,7 @@
     "cross-fetch": "^4.1.0",
     "graphql": "^16.9.0",
     "openai": "^6.7.0",
-    "zod": "^4.1.12"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",
