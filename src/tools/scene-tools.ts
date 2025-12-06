@@ -169,6 +169,36 @@ const GetSceneFixturesSchema = z.object({
   sceneId: z.string()
 });
 
+// Bulk Scene Operation Schemas
+const BulkCreateScenesSchema = z.object({
+  scenes: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    projectId: z.string(),
+    fixtureValues: z.array(z.object({
+      fixtureId: z.string(),
+      channelValues: z.array(z.number().min(0).max(255)),
+    })),
+  })),
+});
+
+const BulkUpdateScenesSchema = z.object({
+  scenes: z.array(z.object({
+    sceneId: z.string(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    fixtureValues: z.array(z.object({
+      fixtureId: z.string(),
+      channelValues: z.array(z.number().min(0).max(255)),
+    })).optional(),
+  })),
+});
+
+const BulkDeleteScenesSchema = z.object({
+  sceneIds: z.array(z.string()),
+  confirmDelete: z.boolean(),
+});
+
 export class SceneTools {
   constructor(
     private graphqlClient: LacyLightsGraphQLClient,
@@ -894,6 +924,120 @@ export class SceneTools {
       };
     } catch (error) {
       throw new Error(`Failed to get scene fixtures: ${error}`);
+    }
+  }
+
+  // Bulk Scene Operations
+
+  /**
+   * Create multiple scenes in a single operation
+   */
+  async bulkCreateScenes(args: z.infer<typeof BulkCreateScenesSchema>) {
+    const { scenes } = BulkCreateScenesSchema.parse(args);
+
+    try {
+      if (scenes.length === 0) {
+        throw new Error('No scenes provided for bulk creation');
+      }
+
+      // Use the GraphQL client's bulk create method
+      const createdScenes = await this.graphqlClient.bulkCreateScenes({
+        scenes,
+      });
+
+      return {
+        success: true,
+        createdScenes: createdScenes.map(scene => ({
+          sceneId: scene.id,
+          name: scene.name,
+          description: scene.description,
+          fixtureCount: scene.fixtureValues?.length || 0,
+        })),
+        summary: {
+          totalCreated: createdScenes.length,
+          projectIds: [...new Set(scenes.map(s => s.projectId))],
+          totalFixtureValues: createdScenes.reduce(
+            (sum, s) => sum + (s.fixtureValues?.length || 0),
+            0
+          ),
+        },
+        message: `Successfully created ${createdScenes.length} scenes`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk create scenes: ${error}`);
+    }
+  }
+
+  /**
+   * Update multiple scenes in a single operation
+   */
+  async bulkUpdateScenes(args: z.infer<typeof BulkUpdateScenesSchema>) {
+    const { scenes } = BulkUpdateScenesSchema.parse(args);
+
+    try {
+      if (scenes.length === 0) {
+        throw new Error('No scenes provided for bulk update');
+      }
+
+      // Use the GraphQL client's bulk update method
+      const updatedScenes = await this.graphqlClient.bulkUpdateScenes({
+        scenes,
+      });
+
+      return {
+        success: true,
+        updatedScenes: updatedScenes.map(scene => ({
+          sceneId: scene.id,
+          name: scene.name,
+          description: scene.description,
+          fixtureCount: scene.fixtureValues?.length || 0,
+        })),
+        summary: {
+          totalUpdated: updatedScenes.length,
+          scenesWithNameChange: scenes.filter(s => s.name).length,
+          scenesWithDescriptionChange: scenes.filter(s => s.description).length,
+          scenesWithFixtureValueChange: scenes.filter(s => s.fixtureValues).length,
+        },
+        message: `Successfully updated ${updatedScenes.length} scenes`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk update scenes: ${error}`);
+    }
+  }
+
+  /**
+   * Delete multiple scenes in a single operation
+   */
+  async bulkDeleteScenes(args: z.infer<typeof BulkDeleteScenesSchema>) {
+    const { sceneIds, confirmDelete } = BulkDeleteScenesSchema.parse(args);
+
+    try {
+      if (!confirmDelete) {
+        throw new Error('confirmDelete must be true to delete scenes');
+      }
+
+      if (sceneIds.length === 0) {
+        throw new Error('No scene IDs provided for bulk deletion');
+      }
+
+      // Use the GraphQL client's bulk delete method
+      const result = await this.graphqlClient.bulkDeleteScenes(sceneIds);
+
+      return {
+        success: result.successCount > 0,
+        deletedCount: result.successCount,
+        failedIds: result.failedIds,
+        summary: {
+          totalRequested: sceneIds.length,
+          successCount: result.successCount,
+          failureCount: result.failedIds.length,
+        },
+        message: result.failedIds.length === 0
+          ? `Successfully deleted ${result.successCount} scenes`
+          : `Deleted ${result.successCount} scenes, ${result.failedIds.length} failed`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk delete scenes: ${error}`);
     }
   }
 }

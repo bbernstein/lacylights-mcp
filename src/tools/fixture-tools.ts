@@ -154,6 +154,11 @@ const BulkCreateFixturesSchema = z.object({
   })).describe("Array of fixtures to create")
 });
 
+const BulkDeleteFixturesSchema = z.object({
+  fixtureIds: z.array(z.string()).describe("Array of fixture IDs to delete"),
+  confirmDelete: z.boolean().describe("Confirm deletion (required to be true for safety)"),
+});
+
 export class FixtureTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
 
@@ -1653,6 +1658,50 @@ export class FixtureTools {
     });
 
     return response;
+  }
+
+  async bulkDeleteFixtures(args: z.infer<typeof BulkDeleteFixturesSchema>) {
+    const { fixtureIds, confirmDelete } = BulkDeleteFixturesSchema.parse(args);
+
+    if (!confirmDelete) {
+      throw new Error('Delete operation requires confirmDelete: true for safety');
+    }
+
+    try {
+      if (fixtureIds.length === 0) {
+        throw new Error('No fixture IDs provided for bulk deletion');
+      }
+
+      logger.info('Bulk deleting fixtures', { count: fixtureIds.length });
+
+      // Use the GraphQL client's bulk delete method
+      const result = await this.graphqlClient.bulkDeleteFixtures(fixtureIds);
+
+      logger.info('Bulk delete completed', {
+        successCount: result.successCount,
+        failureCount: result.failedIds.length
+      });
+
+      return {
+        success: result.successCount > 0,
+        deletedCount: result.successCount,
+        failedIds: result.failedIds,
+        summary: {
+          totalRequested: fixtureIds.length,
+          successCount: result.successCount,
+          failureCount: result.failedIds.length,
+        },
+        message: result.failedIds.length === 0
+          ? `Successfully deleted ${result.successCount} fixtures`
+          : `Deleted ${result.successCount} fixtures, ${result.failedIds.length} failed`,
+      };
+    } catch (error) {
+      logger.error('Failed to bulk delete fixtures', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw new Error(`Failed to bulk delete fixtures: ${error}`);
+    }
   }
 
   /**
