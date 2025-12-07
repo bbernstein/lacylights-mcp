@@ -1741,4 +1741,208 @@ describe('FixtureTools', () => {
       await expect(fixtureTools.getChannelMap({} as any)).rejects.toThrow();
     });
   });
+
+  describe('bulkDeleteFixtures', () => {
+    it('should successfully bulk delete fixtures', async () => {
+      mockGraphQLClient.bulkDeleteFixtures = jest.fn().mockResolvedValue({
+        successCount: 3,
+        failedIds: []
+      });
+
+      const result = await fixtureTools.bulkDeleteFixtures({
+        fixtureIds: ['fixture-1', 'fixture-2', 'fixture-3'],
+        confirmDelete: true
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.deletedCount).toBe(3);
+      expect(result.failedIds).toEqual([]);
+      expect(result.summary.totalRequested).toBe(3);
+      expect(result.summary.successCount).toBe(3);
+      expect(result.summary.failureCount).toBe(0);
+      expect(result.message).toBe('Successfully deleted 3 fixtures');
+      expect(mockGraphQLClient.bulkDeleteFixtures).toHaveBeenCalledWith(['fixture-1', 'fixture-2', 'fixture-3']);
+    });
+
+    it('should handle partial deletion failures', async () => {
+      mockGraphQLClient.bulkDeleteFixtures = jest.fn().mockResolvedValue({
+        successCount: 2,
+        failedIds: ['fixture-3']
+      });
+
+      const result = await fixtureTools.bulkDeleteFixtures({
+        fixtureIds: ['fixture-1', 'fixture-2', 'fixture-3'],
+        confirmDelete: true
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.deletedCount).toBe(2);
+      expect(result.failedIds).toEqual(['fixture-3']);
+      expect(result.summary.failureCount).toBe(1);
+      expect(result.message).toBe('Deleted 2 fixtures, 1 failed');
+    });
+
+    it('should require confirmDelete to be true', async () => {
+      await expect(fixtureTools.bulkDeleteFixtures({
+        fixtureIds: ['fixture-1'],
+        confirmDelete: false
+      })).rejects.toThrow('Delete operation requires confirmDelete: true for safety');
+    });
+
+    it('should reject empty fixture ID array', async () => {
+      await expect(fixtureTools.bulkDeleteFixtures({
+        fixtureIds: [],
+        confirmDelete: true
+      })).rejects.toThrow('No fixture IDs provided for bulk deletion');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      mockGraphQLClient.bulkDeleteFixtures = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(fixtureTools.bulkDeleteFixtures({
+        fixtureIds: ['fixture-1'],
+        confirmDelete: true
+      })).rejects.toThrow('Failed to bulk delete fixtures: Error: GraphQL error');
+    });
+
+    it('should return success: false when all deletions fail', async () => {
+      mockGraphQLClient.bulkDeleteFixtures = jest.fn().mockResolvedValue({
+        successCount: 0,
+        failedIds: ['fixture-1', 'fixture-2']
+      });
+
+      const result = await fixtureTools.bulkDeleteFixtures({
+        fixtureIds: ['fixture-1', 'fixture-2'],
+        confirmDelete: true
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.deletedCount).toBe(0);
+      expect(result.failedIds).toEqual(['fixture-1', 'fixture-2']);
+    });
+  });
+
+  describe('bulkCreateFixtureDefinitions', () => {
+    it('should successfully bulk create fixture definitions', async () => {
+      const mockCreatedDefinitions = [
+        {
+          id: 'def-1',
+          manufacturer: 'Chauvet',
+          model: 'SlimPAR 64',
+          type: FixtureType.LED_PAR,
+          channels: [
+            { id: 'ch-1', name: 'Red', type: 'COLOR', offset: 0 },
+            { id: 'ch-2', name: 'Green', type: 'COLOR', offset: 1 },
+            { id: 'ch-3', name: 'Blue', type: 'COLOR', offset: 2 }
+          ],
+          modes: [
+            { id: 'mode-1', name: '3-Channel', channelCount: 3 }
+          ]
+        },
+        {
+          id: 'def-2',
+          manufacturer: 'Martin',
+          model: 'Rush MH1',
+          type: FixtureType.MOVING_HEAD,
+          channels: [
+            { id: 'ch-4', name: 'Pan', type: 'PAN', offset: 0 },
+            { id: 'ch-5', name: 'Tilt', type: 'TILT', offset: 1 }
+          ],
+          modes: []
+        }
+      ];
+
+      mockGraphQLClient.bulkCreateFixtureDefinitions = jest.fn().mockResolvedValue(mockCreatedDefinitions);
+
+      const result = await fixtureTools.bulkCreateFixtureDefinitions({
+        definitions: [
+          {
+            manufacturer: 'Chauvet',
+            model: 'SlimPAR 64',
+            type: 'LED_PAR',
+            channels: [
+              { name: 'Red', type: 'COLOR', offset: 0 },
+              { name: 'Green', type: 'COLOR', offset: 1 },
+              { name: 'Blue', type: 'COLOR', offset: 2 }
+            ],
+            modes: [
+              { name: '3-Channel', channelCount: 3 }
+            ]
+          },
+          {
+            manufacturer: 'Martin',
+            model: 'Rush MH1',
+            type: 'MOVING_HEAD',
+            channels: [
+              { name: 'Pan', type: 'PAN', offset: 0 },
+              { name: 'Tilt', type: 'TILT', offset: 1 }
+            ]
+          }
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.createdDefinitions).toHaveLength(2);
+      expect(result.createdDefinitions[0].manufacturer).toBe('Chauvet');
+      expect(result.createdDefinitions[0].channelCount).toBe(3);
+      expect(result.createdDefinitions[1].manufacturer).toBe('Martin');
+      expect(result.summary.totalCreated).toBe(2);
+      expect(result.summary.manufacturers).toEqual(['Chauvet', 'Martin']);
+      expect(result.summary.fixtureTypes).toEqual(['LED_PAR', 'MOVING_HEAD']);
+      expect(result.message).toBe('Successfully created 2 fixture definitions');
+    });
+
+    it('should reject empty definitions array', async () => {
+      await expect(fixtureTools.bulkCreateFixtureDefinitions({
+        definitions: []
+      })).rejects.toThrow('No fixture definitions provided for bulk creation');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      mockGraphQLClient.bulkCreateFixtureDefinitions = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(fixtureTools.bulkCreateFixtureDefinitions({
+        definitions: [
+          {
+            manufacturer: 'Test',
+            model: 'Test Model',
+            type: 'LED_PAR',
+            channels: [
+              { name: 'Dimmer', type: 'INTENSITY', offset: 0 }
+            ]
+          }
+        ]
+      })).rejects.toThrow('Failed to bulk create fixture definitions: Error: GraphQL error');
+    });
+
+    it('should handle definitions with optional modes', async () => {
+      const mockCreatedDefinition = {
+        id: 'def-1',
+        manufacturer: 'Generic',
+        model: 'Dimmer Pack',
+        type: FixtureType.DIMMER,
+        channels: [{ id: 'ch-1', name: 'Dimmer', type: 'INTENSITY', offset: 0 }],
+        modes: []
+      };
+
+      mockGraphQLClient.bulkCreateFixtureDefinitions = jest.fn().mockResolvedValue([mockCreatedDefinition]);
+
+      const result = await fixtureTools.bulkCreateFixtureDefinitions({
+        definitions: [
+          {
+            manufacturer: 'Generic',
+            model: 'Dimmer Pack',
+            type: 'DIMMER',
+            channels: [
+              { name: 'Dimmer', type: 'INTENSITY', offset: 0 }
+            ]
+            // No modes specified
+          }
+        ]
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.createdDefinitions[0].modeCount).toBe(0);
+    });
+  });
 });
