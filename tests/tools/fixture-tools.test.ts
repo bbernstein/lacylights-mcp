@@ -1491,6 +1491,246 @@ describe('FixtureTools', () => {
     });
   });
 
+  describe('deleteFixtureInstance', () => {
+    beforeEach(() => {
+      mockGraphQLClient.deleteFixtureInstance = jest.fn();
+    });
+
+    it('should delete fixture instance successfully', async () => {
+      const mockProjectWithScenes = {
+        ...mockProject,
+        fixtures: [{
+          id: 'fixture-1',
+          name: 'LED Par 1',
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          universe: 1,
+          startChannel: 1,
+          tags: ['wash']
+        }],
+        scenes: [{
+          id: 'scene-1',
+          name: 'Test Scene',
+          fixtureValues: []
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([mockProjectWithScenes] as any);
+      mockGraphQLClient.getProject.mockResolvedValue(mockProjectWithScenes as any);
+      mockGraphQLClient.deleteFixtureInstance.mockResolvedValue(true);
+
+      const result = await fixtureTools.deleteFixtureInstance({
+        fixtureId: 'fixture-1',
+        confirmDelete: true
+      });
+
+      expect(mockGraphQLClient.deleteFixtureInstance).toHaveBeenCalledWith('fixture-1');
+      expect(result.success).toBe(true);
+      expect(result.deletedFixture.id).toBe('fixture-1');
+      expect(result.deletedFixture.name).toBe('LED Par 1');
+      expect(result.message).toContain('Successfully deleted');
+    });
+
+    it('should require confirmDelete to be true', async () => {
+      await expect(fixtureTools.deleteFixtureInstance({
+        fixtureId: 'fixture-1',
+        confirmDelete: false
+      })).rejects.toThrow('Delete operation requires confirmDelete: true');
+    });
+
+    it('should handle fixture not found', async () => {
+      mockGraphQLClient.getProjects.mockResolvedValue([]);
+
+      await expect(fixtureTools.deleteFixtureInstance({
+        fixtureId: 'non-existent',
+        confirmDelete: true
+      })).rejects.toThrow('Fixture with ID non-existent not found');
+    });
+
+    it('should report affected scenes when fixture is in use', async () => {
+      const fixtureInScene = {
+        id: 'fixture-1',
+        name: 'LED Par 1',
+        manufacturer: 'Test Manufacturer',
+        model: 'Test Model',
+        universe: 1,
+        startChannel: 1,
+        tags: []
+      };
+
+      const mockProjectWithFixtureInScene = {
+        ...mockProject,
+        fixtures: [fixtureInScene],
+        scenes: [{
+          id: 'scene-1',
+          name: 'Test Scene',
+          description: 'Scene using fixture',
+          fixtureValues: [{
+            fixture: { id: 'fixture-1' },
+            channelValues: [255, 0, 0]
+          }]
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([mockProjectWithFixtureInScene] as any);
+      mockGraphQLClient.getProject.mockResolvedValue(mockProjectWithFixtureInScene as any);
+      mockGraphQLClient.deleteFixtureInstance.mockResolvedValue(true);
+
+      const result = await fixtureTools.deleteFixtureInstance({
+        fixtureId: 'fixture-1',
+        confirmDelete: true
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.affectedScenes).toHaveLength(1);
+      expect(result.affectedScenes[0].name).toBe('Test Scene');
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0]).toContain('removed from 1 scene');
+    });
+
+    it('should handle deletion failure', async () => {
+      const mockProjectWithFixture = {
+        ...mockProject,
+        fixtures: [{
+          id: 'fixture-1',
+          name: 'LED Par 1',
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          universe: 1,
+          startChannel: 1,
+          tags: []
+        }],
+        scenes: []
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([mockProjectWithFixture] as any);
+      mockGraphQLClient.getProject.mockResolvedValue(mockProjectWithFixture as any);
+      mockGraphQLClient.deleteFixtureInstance.mockResolvedValue(false);
+
+      await expect(fixtureTools.deleteFixtureInstance({
+        fixtureId: 'fixture-1',
+        confirmDelete: true
+      })).rejects.toThrow('Failed to delete fixture instance');
+    });
+
+    it('should handle GraphQL errors during deletion', async () => {
+      const mockProjectWithFixture = {
+        ...mockProject,
+        fixtures: [{
+          id: 'fixture-1',
+          name: 'LED Par 1',
+          manufacturer: 'Test Manufacturer',
+          model: 'Test Model',
+          universe: 1,
+          startChannel: 1,
+          tags: []
+        }],
+        scenes: []
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([mockProjectWithFixture] as any);
+      mockGraphQLClient.getProject.mockResolvedValue(mockProjectWithFixture as any);
+      mockGraphQLClient.deleteFixtureInstance.mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(fixtureTools.deleteFixtureInstance({
+        fixtureId: 'fixture-1',
+        confirmDelete: true
+      })).rejects.toThrow('Failed to delete fixture instance');
+    });
+  });
+
+  describe('updateFixtureInstance complex updates', () => {
+    it('should handle manufacturer change requiring new definition', async () => {
+      const existingFixture = {
+        id: 'fixture-1',
+        name: 'LED Par 1',
+        manufacturer: 'Old Manufacturer',
+        model: 'Test Model',
+        modeName: 'Standard',
+        universe: 1,
+        startChannel: 1,
+        tags: [],
+        definitionId: 'def-1',
+        channelCount: 3,
+        channels: []
+      };
+
+      const updatedFixture = {
+        ...existingFixture,
+        manufacturer: 'New Manufacturer'
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([{ ...mockProject, fixtures: [existingFixture] }] as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue([]);
+      mockGraphQLClient.createFixtureDefinition.mockResolvedValue({
+        id: 'def-new',
+        manufacturer: 'New Manufacturer',
+        model: 'Test Model',
+        type: FixtureType.LED_PAR,
+        channels: [],
+        modes: [],
+        isBuiltIn: false
+      });
+      mockGraphQLClient.updateFixtureInstance.mockResolvedValue(updatedFixture as any);
+
+      const result = await fixtureTools.updateFixtureInstance({
+        fixtureId: 'fixture-1',
+        manufacturer: 'New Manufacturer'
+      });
+
+      expect(mockGraphQLClient.createFixtureDefinition).toHaveBeenCalled();
+      expect(result.fixture.manufacturer).toBe('New Manufacturer');
+    });
+
+    it('should handle mode change', async () => {
+      const existingFixture = {
+        id: 'fixture-1',
+        name: 'LED Par 1',
+        manufacturer: 'Test Manufacturer',
+        model: 'Test Model',
+        modeName: 'Standard',
+        universe: 1,
+        startChannel: 1,
+        tags: [],
+        definitionId: 'def-1',
+        channelCount: 3,
+        channels: []
+      };
+
+      const mockDefinitionWithModes = {
+        ...mockFixtureDefinitions[0],
+        modes: [
+          { id: 'mode-1', name: 'Standard', channelCount: 3 },
+          { id: 'mode-2', name: 'Extended', channelCount: 7 }
+        ]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([{ ...mockProject, fixtures: [existingFixture] }] as any);
+      mockGraphQLClient.getFixtureDefinitions.mockResolvedValue([mockDefinitionWithModes]);
+      mockGraphQLClient.updateFixtureInstance.mockResolvedValue({
+        ...existingFixture,
+        modeName: 'Extended',
+        channelCount: 7
+      } as any);
+
+      const result = await fixtureTools.updateFixtureInstance({
+        fixtureId: 'fixture-1',
+        mode: 'Extended'
+      });
+
+      expect(result.message).toContain('Successfully updated');
+    });
+
+    it('should handle fixture not found during update', async () => {
+      mockGraphQLClient.getProjects.mockResolvedValue([]);
+
+      await expect(fixtureTools.updateFixtureInstance({
+        fixtureId: 'non-existent',
+        manufacturer: 'New Manufacturer'
+      })).rejects.toThrow('Fixture with ID non-existent not found');
+    });
+  });
+
   describe('validation', () => {
     it('should validate input parameters', async () => {
       // Test invalid parameters trigger validation errors

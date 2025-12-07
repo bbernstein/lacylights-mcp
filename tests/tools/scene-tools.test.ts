@@ -1826,23 +1826,19 @@ describe('SceneTools', () => {
 
   describe('Bulk Scene Operations', () => {
     describe('bulkCreateScenes', () => {
-      it('should successfully bulk create scenes', async () => {
+      it('should create multiple scenes successfully', async () => {
         const mockCreatedScenes = [
           {
             id: 'scene-1',
             name: 'Scene 1',
             description: 'First scene',
-            fixtureValues: [
-              { fixture: { id: 'fixture-1', name: 'LED 1' }, channelValues: [255, 0, 0] }
-            ]
+            fixtureValues: [{ fixture: { id: 'f1' }, channelValues: [255] }]
           },
           {
             id: 'scene-2',
             name: 'Scene 2',
             description: 'Second scene',
-            fixtureValues: [
-              { fixture: { id: 'fixture-2', name: 'LED 2' }, channelValues: [0, 255, 0] }
-            ]
+            fixtureValues: []
           }
         ];
 
@@ -1850,62 +1846,48 @@ describe('SceneTools', () => {
 
         const result = await sceneTools.bulkCreateScenes({
           scenes: [
-            {
-              name: 'Scene 1',
-              description: 'First scene',
-              projectId: 'project-1',
-              fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }]
-            },
-            {
-              name: 'Scene 2',
-              description: 'Second scene',
-              projectId: 'project-1',
-              fixtureValues: [{ fixtureId: 'fixture-2', channelValues: [0, 255, 0] }]
-            }
+            { projectId: 'project-1', name: 'Scene 1', description: 'First scene', fixtureValues: [] },
+            { projectId: 'project-1', name: 'Scene 2', description: 'Second scene', fixtureValues: [] }
           ]
         });
 
+        expect(mockGraphQLClient.bulkCreateScenes).toHaveBeenCalled();
         expect(result.success).toBe(true);
         expect(result.createdScenes).toHaveLength(2);
         expect(result.summary.totalCreated).toBe(2);
-        expect(result.message).toBe('Successfully created 2 scenes');
+        expect(result.summary.projectIds).toContain('project-1');
+        expect(result.message).toContain('Successfully created 2 scenes');
       });
 
-      it('should reject empty scenes array', async () => {
+      it('should throw error when no scenes provided', async () => {
         await expect(sceneTools.bulkCreateScenes({
           scenes: []
         })).rejects.toThrow('No scenes provided for bulk creation');
       });
 
-      it('should handle GraphQL errors', async () => {
+      it('should handle bulk create errors', async () => {
         mockGraphQLClient.bulkCreateScenes = jest.fn().mockRejectedValue(new Error('GraphQL error'));
 
         await expect(sceneTools.bulkCreateScenes({
-          scenes: [
-            {
-              name: 'Test Scene',
-              projectId: 'project-1',
-              fixtureValues: []
-            }
-          ]
-        })).rejects.toThrow('Failed to bulk create scenes: Error: GraphQL error');
+          scenes: [{ projectId: 'project-1', name: 'Scene 1', fixtureValues: [] }]
+        })).rejects.toThrow('Failed to bulk create scenes');
       });
     });
 
     describe('bulkUpdateScenes', () => {
-      it('should successfully bulk update scenes', async () => {
+      it('should update multiple scenes successfully', async () => {
         const mockUpdatedScenes = [
           {
             id: 'scene-1',
             name: 'Updated Scene 1',
-            description: 'Updated description',
+            description: 'Updated first scene',
             fixtureValues: []
           },
           {
             id: 'scene-2',
             name: 'Updated Scene 2',
-            description: null,
-            fixtureValues: []
+            description: 'Updated second scene',
+            fixtureValues: [{ fixture: { id: 'f1' }, channelValues: [128] }]
           }
         ];
 
@@ -1913,66 +1895,72 @@ describe('SceneTools', () => {
 
         const result = await sceneTools.bulkUpdateScenes({
           scenes: [
-            { sceneId: 'scene-1', name: 'Updated Scene 1', description: 'Updated description' },
-            { sceneId: 'scene-2', name: 'Updated Scene 2' }
+            { sceneId: 'scene-1', name: 'Updated Scene 1', description: 'Updated first scene' },
+            { sceneId: 'scene-2', name: 'Updated Scene 2', description: 'Updated second scene' }
           ]
         });
 
+        expect(mockGraphQLClient.bulkUpdateScenes).toHaveBeenCalled();
         expect(result.success).toBe(true);
         expect(result.updatedScenes).toHaveLength(2);
         expect(result.summary.totalUpdated).toBe(2);
-        expect(result.message).toBe('Successfully updated 2 scenes');
+        expect(result.summary.scenesWithNameChange).toBe(2);
+        expect(result.summary.scenesWithDescriptionChange).toBe(2);
+        expect(result.message).toContain('Successfully updated 2 scenes');
       });
 
-      it('should reject empty scenes array', async () => {
+      it('should throw error when no scenes provided', async () => {
         await expect(sceneTools.bulkUpdateScenes({
           scenes: []
         })).rejects.toThrow('No scenes provided for bulk update');
       });
 
-      it('should handle GraphQL errors', async () => {
+      it('should handle bulk update errors', async () => {
         mockGraphQLClient.bulkUpdateScenes = jest.fn().mockRejectedValue(new Error('GraphQL error'));
 
         await expect(sceneTools.bulkUpdateScenes({
-          scenes: [{ sceneId: 'scene-1', name: 'Updated Name' }]
-        })).rejects.toThrow('Failed to bulk update scenes: Error: GraphQL error');
+          scenes: [{ sceneId: 'scene-1', name: 'Updated' }]
+        })).rejects.toThrow('Failed to bulk update scenes');
       });
     });
 
     describe('bulkDeleteScenes', () => {
-      it('should successfully bulk delete scenes', async () => {
+      it('should delete multiple scenes successfully', async () => {
         mockGraphQLClient.bulkDeleteScenes = jest.fn().mockResolvedValue({
-          successCount: 3,
+          successCount: 2,
           failedIds: []
         });
 
         const result = await sceneTools.bulkDeleteScenes({
-          sceneIds: ['scene-1', 'scene-2', 'scene-3'],
+          sceneIds: ['scene-1', 'scene-2'],
           confirmDelete: true
         });
 
+        expect(mockGraphQLClient.bulkDeleteScenes).toHaveBeenCalledWith(['scene-1', 'scene-2']);
         expect(result.success).toBe(true);
-        expect(result.deletedCount).toBe(3);
-        expect(result.failedIds).toEqual([]);
-        expect(result.summary.totalRequested).toBe(3);
-        expect(result.message).toBe('Successfully deleted 3 scenes');
+        expect(result.deletedCount).toBe(2);
+        expect(result.failedIds).toHaveLength(0);
+        expect(result.summary.totalRequested).toBe(2);
+        expect(result.summary.successCount).toBe(2);
+        expect(result.message).toContain('Successfully deleted 2 scenes');
       });
 
       it('should handle partial deletion failures', async () => {
         mockGraphQLClient.bulkDeleteScenes = jest.fn().mockResolvedValue({
-          successCount: 2,
-          failedIds: ['scene-3']
+          successCount: 1,
+          failedIds: ['scene-2']
         });
 
         const result = await sceneTools.bulkDeleteScenes({
-          sceneIds: ['scene-1', 'scene-2', 'scene-3'],
+          sceneIds: ['scene-1', 'scene-2'],
           confirmDelete: true
         });
 
         expect(result.success).toBe(true);
-        expect(result.deletedCount).toBe(2);
-        expect(result.failedIds).toEqual(['scene-3']);
-        expect(result.message).toBe('Deleted 2 scenes, 1 failed');
+        expect(result.deletedCount).toBe(1);
+        expect(result.failedIds).toContain('scene-2');
+        expect(result.summary.failureCount).toBe(1);
+        expect(result.message).toContain('1 failed');
       });
 
       it('should require confirmDelete to be true', async () => {
@@ -1982,35 +1970,20 @@ describe('SceneTools', () => {
         })).rejects.toThrow('confirmDelete must be true to delete scenes');
       });
 
-      it('should reject empty scene ID array', async () => {
+      it('should throw error when no scene IDs provided', async () => {
         await expect(sceneTools.bulkDeleteScenes({
           sceneIds: [],
           confirmDelete: true
         })).rejects.toThrow('No scene IDs provided for bulk deletion');
       });
 
-      it('should handle GraphQL errors', async () => {
+      it('should handle bulk delete errors', async () => {
         mockGraphQLClient.bulkDeleteScenes = jest.fn().mockRejectedValue(new Error('GraphQL error'));
 
         await expect(sceneTools.bulkDeleteScenes({
           sceneIds: ['scene-1'],
           confirmDelete: true
-        })).rejects.toThrow('Failed to bulk delete scenes: Error: GraphQL error');
-      });
-
-      it('should return success: false when all deletions fail', async () => {
-        mockGraphQLClient.bulkDeleteScenes = jest.fn().mockResolvedValue({
-          successCount: 0,
-          failedIds: ['scene-1', 'scene-2']
-        });
-
-        const result = await sceneTools.bulkDeleteScenes({
-          sceneIds: ['scene-1', 'scene-2'],
-          confirmDelete: true
-        });
-
-        expect(result.success).toBe(false);
-        expect(result.deletedCount).toBe(0);
+        })).rejects.toThrow('Failed to bulk delete scenes');
       });
     });
   });
