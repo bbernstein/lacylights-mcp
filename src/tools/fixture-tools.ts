@@ -159,6 +159,26 @@ const BulkDeleteFixturesSchema = z.object({
   confirmDelete: z.boolean().describe("Confirm deletion (required to be true for safety)"),
 });
 
+const BulkCreateFixtureDefinitionsSchema = z.object({
+  definitions: z.array(z.object({
+    manufacturer: z.string().describe('Fixture manufacturer (e.g., "Chauvet", "Martin", "ETC")'),
+    model: z.string().describe("Fixture model name"),
+    type: z.string().describe('Fixture type (e.g., "LED_PAR", "MOVING_HEAD", "STROBE", "DIMMER", "OTHER")'),
+    channels: z.array(z.object({
+      name: z.string().describe("Channel name (e.g., \"Dimmer\", \"Red\", \"Pan\")"),
+      type: z.string().describe('Channel type (e.g., "INTENSITY", "COLOR", "PAN", "TILT", "STROBE")'),
+      offset: z.number().describe("Channel offset from fixture start address (0-based)"),
+      minValue: z.number().optional().describe("Minimum DMX value (0-255, default 0)"),
+      maxValue: z.number().optional().describe("Maximum DMX value (0-255, default 255)"),
+      defaultValue: z.number().optional().describe("Default DMX value (0-255, default 0)"),
+    })).describe("Array of channel definitions for the fixture"),
+    modes: z.array(z.object({
+      name: z.string().describe("Mode name (e.g., \"4-Channel\", \"8-Channel\")"),
+      channelCount: z.number().describe("Number of DMX channels in this mode"),
+    })).optional().describe("Optional array of operating modes for the fixture"),
+  })).describe("Array of fixture definitions to create"),
+});
+
 export class FixtureTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
 
@@ -1682,6 +1702,8 @@ export class FixtureTools {
         failureCount: result.failedIds.length
       });
 
+      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
+      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
       return {
         success: result.successCount > 0,
         deletedCount: result.successCount,
@@ -1701,6 +1723,54 @@ export class FixtureTools {
         stack: error instanceof Error ? error.stack : undefined,
       });
       throw new Error(`Failed to bulk delete fixtures: ${error}`);
+    }
+  }
+
+  /**
+   * Create multiple fixture definitions in a single operation
+   */
+  async bulkCreateFixtureDefinitions(args: z.infer<typeof BulkCreateFixtureDefinitionsSchema>) {
+    const { definitions } = BulkCreateFixtureDefinitionsSchema.parse(args);
+
+    try {
+      if (definitions.length === 0) {
+        throw new Error('No fixture definitions provided for bulk creation');
+      }
+
+      logger.info('Bulk creating fixture definitions', { count: definitions.length });
+
+      // Use the GraphQL client's bulk create method
+      const createdDefinitions = await this.graphqlClient.bulkCreateFixtureDefinitions({
+        definitions,
+      });
+
+      logger.info('Bulk fixture definition creation completed', {
+        createdCount: createdDefinitions.length
+      });
+
+      return {
+        success: true,
+        createdDefinitions: createdDefinitions.map(def => ({
+          definitionId: def.id,
+          manufacturer: def.manufacturer,
+          model: def.model,
+          type: def.type,
+          channelCount: def.channels?.length || 0,
+          modeCount: def.modes?.length || 0,
+        })),
+        summary: {
+          totalCreated: createdDefinitions.length,
+          manufacturers: [...new Set(definitions.map(d => d.manufacturer))],
+          fixtureTypes: [...new Set(definitions.map(d => d.type))],
+        },
+        message: `Successfully created ${createdDefinitions.length} fixture definitions`,
+      };
+    } catch (error) {
+      logger.error('Failed to bulk create fixture definitions', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw new Error(`Failed to bulk create fixture definitions: ${error}`);
     }
   }
 

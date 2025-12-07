@@ -716,6 +716,91 @@ Use list_fixtures instead if you only need basic fixture information.`,
               required: ["fixtureIds", "confirmDelete"],
             },
           },
+          {
+            name: "bulk_create_fixture_definitions",
+            description:
+              "Create multiple fixture definitions in a single operation. Use this to efficiently add multiple fixture types (manufacturer/model combinations) to the system at once.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                definitions: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      manufacturer: {
+                        type: "string",
+                        description: 'Fixture manufacturer (e.g., "Chauvet", "Martin", "ETC")',
+                      },
+                      model: {
+                        type: "string",
+                        description: "Fixture model name",
+                      },
+                      type: {
+                        type: "string",
+                        description: 'Fixture type (e.g., "LED_PAR", "MOVING_HEAD", "STROBE", "DIMMER", "OTHER")',
+                      },
+                      channels: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: {
+                              type: "string",
+                              description: 'Channel name (e.g., "Dimmer", "Red", "Pan")',
+                            },
+                            type: {
+                              type: "string",
+                              description: 'Channel type (e.g., "INTENSITY", "COLOR", "PAN", "TILT", "STROBE")',
+                            },
+                            offset: {
+                              type: "number",
+                              description: "Channel offset from fixture start address (0-based)",
+                            },
+                            minValue: {
+                              type: "number",
+                              description: "Minimum DMX value (0-255, default 0)",
+                            },
+                            maxValue: {
+                              type: "number",
+                              description: "Maximum DMX value (0-255, default 255)",
+                            },
+                            defaultValue: {
+                              type: "number",
+                              description: "Default DMX value (0-255, default 0)",
+                            },
+                          },
+                          required: ["name", "type", "offset"],
+                        },
+                        description: "Array of channel definitions for the fixture",
+                      },
+                      modes: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            name: {
+                              type: "string",
+                              description: 'Mode name (e.g., "4-Channel", "8-Channel")',
+                            },
+                            channelCount: {
+                              type: "number",
+                              description: "Number of DMX channels in this mode",
+                            },
+                          },
+                          required: ["name", "channelCount"],
+                        },
+                        description: "Optional array of operating modes for the fixture",
+                      },
+                    },
+                    required: ["manufacturer", "model", "type", "channels"],
+                  },
+                  description: "Array of fixture definitions to create",
+                },
+              },
+              required: ["definitions"],
+            },
+          },
           // Scene Tools
           // MCP API Refactor - Task 2.4: Scene Query Tools
           {
@@ -2420,6 +2505,20 @@ with filters and lookup tables instead.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.fixtureTools.bulkDeleteFixtures(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_create_fixture_definitions":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.fixtureTools.bulkCreateFixtureDefinitions(args as any),
                     null,
                     2,
                   ),

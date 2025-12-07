@@ -456,4 +456,150 @@ describe('ProjectTools', () => {
       expect(result.fixtures.byUniverse[0].channelRanges).toBe('1');
     });
   });
+
+  describe('Bulk Project Operations', () => {
+    describe('bulkCreateProjects', () => {
+      it('should successfully bulk create projects', async () => {
+        const mockCreatedProjects = [
+          {
+            id: 'project-1',
+            name: 'Project 1',
+            description: 'First project',
+            createdAt: '2024-01-01T00:00:00Z'
+          },
+          {
+            id: 'project-2',
+            name: 'Project 2',
+            description: 'Second project',
+            createdAt: '2024-01-01T00:00:00Z'
+          }
+        ];
+
+        mockGraphQLClient.bulkCreateProjects = jest.fn().mockResolvedValue(mockCreatedProjects);
+
+        const result = await projectTools.bulkCreateProjects({
+          projects: [
+            { name: 'Project 1', description: 'First project' },
+            { name: 'Project 2', description: 'Second project' }
+          ]
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.createdProjects).toHaveLength(2);
+        expect(result.summary.totalCreated).toBe(2);
+        expect(result.message).toBe('Successfully created 2 projects');
+      });
+
+      it('should reject empty projects array', async () => {
+        await expect(projectTools.bulkCreateProjects({
+          projects: []
+        })).rejects.toThrow('No projects provided for bulk creation');
+      });
+
+      it('should handle GraphQL errors', async () => {
+        mockGraphQLClient.bulkCreateProjects = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(projectTools.bulkCreateProjects({
+          projects: [{ name: 'Test Project' }]
+        })).rejects.toThrow('Failed to bulk create projects: Error: GraphQL error');
+      });
+
+      it('should create projects without descriptions', async () => {
+        const mockCreatedProject = {
+          id: 'project-1',
+          name: 'Project Without Description',
+          description: null,
+          createdAt: '2024-01-01T00:00:00Z'
+        };
+
+        mockGraphQLClient.bulkCreateProjects = jest.fn().mockResolvedValue([mockCreatedProject]);
+
+        const result = await projectTools.bulkCreateProjects({
+          projects: [{ name: 'Project Without Description' }]
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.createdProjects[0].name).toBe('Project Without Description');
+      });
+    });
+
+    describe('bulkDeleteProjects', () => {
+      it('should successfully bulk delete projects', async () => {
+        mockGraphQLClient.bulkDeleteProjects = jest.fn().mockResolvedValue({
+          successCount: 3,
+          failedIds: []
+        });
+
+        const result = await projectTools.bulkDeleteProjects({
+          projectIds: ['project-1', 'project-2', 'project-3'],
+          confirmDelete: true
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.deletedCount).toBe(3);
+        expect(result.failedIds).toEqual([]);
+        expect(result.summary.totalRequested).toBe(3);
+        expect(result.summary.successCount).toBe(3);
+        expect(result.summary.failureCount).toBe(0);
+        expect(result.message).toBe('Successfully deleted 3 projects');
+      });
+
+      it('should handle partial deletion failures', async () => {
+        mockGraphQLClient.bulkDeleteProjects = jest.fn().mockResolvedValue({
+          successCount: 2,
+          failedIds: ['project-3']
+        });
+
+        const result = await projectTools.bulkDeleteProjects({
+          projectIds: ['project-1', 'project-2', 'project-3'],
+          confirmDelete: true
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.deletedCount).toBe(2);
+        expect(result.failedIds).toEqual(['project-3']);
+        expect(result.summary.failureCount).toBe(1);
+        expect(result.message).toBe('Deleted 2 projects, 1 failed');
+      });
+
+      it('should require confirmDelete to be true', async () => {
+        await expect(projectTools.bulkDeleteProjects({
+          projectIds: ['project-1'],
+          confirmDelete: false
+        })).rejects.toThrow('confirmDelete must be true to delete projects');
+      });
+
+      it('should reject empty project ID array', async () => {
+        await expect(projectTools.bulkDeleteProjects({
+          projectIds: [],
+          confirmDelete: true
+        })).rejects.toThrow('No project IDs provided for bulk deletion');
+      });
+
+      it('should handle GraphQL errors', async () => {
+        mockGraphQLClient.bulkDeleteProjects = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(projectTools.bulkDeleteProjects({
+          projectIds: ['project-1'],
+          confirmDelete: true
+        })).rejects.toThrow('Failed to bulk delete projects: Error: GraphQL error');
+      });
+
+      it('should return success: false when all deletions fail', async () => {
+        mockGraphQLClient.bulkDeleteProjects = jest.fn().mockResolvedValue({
+          successCount: 0,
+          failedIds: ['project-1', 'project-2']
+        });
+
+        const result = await projectTools.bulkDeleteProjects({
+          projectIds: ['project-1', 'project-2'],
+          confirmDelete: true
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.deletedCount).toBe(0);
+        expect(result.failedIds).toEqual(['project-1', 'project-2']);
+      });
+    });
+  });
 });

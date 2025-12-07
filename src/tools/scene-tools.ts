@@ -1023,6 +1023,8 @@ export class SceneTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteScenes(sceneIds);
 
+      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
+      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
       return {
         success: result.successCount > 0,
         deletedCount: result.successCount,
