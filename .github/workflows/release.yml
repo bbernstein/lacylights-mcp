@@ -343,32 +343,61 @@ jobs:
           ARTIFACT="${{ steps.checksum.outputs.artifact }}"
           SHA256="${{ steps.checksum.outputs.sha256 }}"
           FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
-          IS_PRERELEASE="${{ steps.checksum.outputs.is_prerelease }}"
 
-          # Only update latest.json for stable releases, not prereleases
-          if [[ "$IS_PRERELEASE" == "false" ]]; then
-            # Create latest.json
-            cat > latest.json <<EOF
+          # Create latest.json
+          cat > latest.json <<EOF
           {
             "version": "$VERSION",
             "url": "https://dist.lacylights.com/releases/${COMPONENT}/$ARTIFACT",
             "sha256": "$SHA256",
             "releaseDate": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "isPrerelease": $IS_PRERELEASE,
+            "isPrerelease": false,
             "fileSize": $FILE_SIZE
           }
           EOF
 
-            echo "Uploading latest.json..."
-            aws s3 cp latest.json \
-              "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/latest.json" \
-              --content-type "application/json" \
-              --metadata-directive REPLACE
+          echo "Uploading latest.json..."
+          aws s3 cp latest.json \
+            "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/latest.json" \
+            --content-type "application/json" \
+            --cache-control "max-age=300, must-revalidate" \
+            --metadata-directive REPLACE
 
-            echo "✓ latest.json updated"
-          else
-            echo "Skipping latest.json upload for prerelease ($VERSION)"
-          fi
+          echo "✓ latest.json updated"
+
+      - name: Update prerelease.json
+        if: steps.prerelease_check.outputs.is_prerelease == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          COMPONENT="mcp"
+          VERSION="${{ steps.new_version.outputs.version }}"
+          ARTIFACT="${{ steps.checksum.outputs.artifact }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
+
+          # Create prerelease.json
+          cat > prerelease.json <<EOF
+          {
+            "version": "$VERSION",
+            "url": "https://dist.lacylights.com/releases/${COMPONENT}/$ARTIFACT",
+            "sha256": "$SHA256",
+            "releaseDate": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "isPrerelease": true,
+            "fileSize": $FILE_SIZE
+          }
+          EOF
+
+          echo "Uploading prerelease.json..."
+          aws s3 cp prerelease.json \
+            "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/prerelease.json" \
+            --content-type "application/json" \
+            --cache-control "max-age=300, must-revalidate" \
+            --metadata-directive REPLACE
+
+          echo "✓ prerelease.json updated"
 
       - name: Update DynamoDB
         env:
