@@ -784,8 +784,8 @@ echo "Base: $BASE_VERSION, Beta: $BETA_NUM"
 
 ## Additional Resources
 
-- **GitHub Actions Workflow:** [`.github/workflows/release.yml`](.github/workflows/release.yml)
-- **Workflow Testing Guide:** [`.github/workflows/TESTING.md`](.github/workflows/TESTING.md)
+- **GitHub Actions Workflow:** [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+- **Workflow Testing Guide:** [`.github/workflows/TESTING.md`](../.github/workflows/TESTING.md)
 - **Repository:** https://github.com/bbernstein/lacylights-mcp
 - **Distribution:** https://dist.lacylights.com/releases/mcp/
 
