@@ -72,7 +72,7 @@ jobs:
           # Determine "current" version for display (highest of either)
           if [ -n "$HIGHEST_STABLE" ] && [ -n "$HIGHEST_BETA" ]; then
             # Compare base versions
-            BETA_BASE=$(echo "$HIGHEST_BETA" | sed 's/-beta\.[0-9]*$//')
+            BETA_BASE=$(echo "$HIGHEST_BETA" | sed 's/-beta\.[0-9]\+$//')
             if [ "$(printf '%s\n%s' "$HIGHEST_STABLE" "$BETA_BASE" | sort -V | tail -n 1)" = "$HIGHEST_STABLE" ]; then
               CURRENT_VERSION="$HIGHEST_STABLE"
             else
@@ -174,8 +174,8 @@ jobs:
               # Only finalize if no stable >= beta base exists
               COMPARE_RESULT=$(printf '%s\n%s' "$HIGHEST_STABLE" "$BETA_BASE" | sort -V | tail -n 1)
 
-              if [ "$HIGHEST_STABLE" = "0.0.0" ] || [ "$COMPARE_RESULT" = "$BETA_BASE" ]; then
-                # No stable release for beta base yet -> finalize beta
+              if [ "$HIGHEST_STABLE" = "0.0.0" ] || [ "$COMPARE_RESULT" != "$HIGHEST_STABLE" ]; then
+                # No stable release for beta base yet (stable < beta base) -> finalize beta
                 NEW_VERSION="$BETA_BASE"
                 echo "Scenario: Finalize beta -> $BETA_BASE"
               else
