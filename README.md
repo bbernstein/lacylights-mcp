@@ -270,7 +270,7 @@ Want to help test new features? Install beta releases:
 
 ### Release Process
 
-For maintainers: See [RELEASE_PROCESS.md](RELEASE_PROCESS.md) for complete release documentation including:
+For maintainers: See [RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md) for complete release documentation including:
 - Beta release workflows
 - Stable release procedures
 - Version management
