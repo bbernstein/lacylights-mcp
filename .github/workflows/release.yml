@@ -46,96 +46,147 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Get current version
+      - name: Get current version from git tags
         id: current_version
         run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          # Get all version tags and find highest stable and highest beta separately
+          # This fixes issues where git's version sort doesn't follow semver rules
+          ALL_TAGS=$(git tag -l 'v*' | sed 's/^v//')
+
+          echo "All version tags:"
+          echo "$ALL_TAGS" | head -10
+
+          # Find highest stable version (no prerelease suffix)
+          HIGHEST_STABLE=$(echo "$ALL_TAGS" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || echo "")
+
+          # Find highest beta version
+          HIGHEST_BETA=$(echo "$ALL_TAGS" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$' | sort -V | tail -n 1 || echo "")
+
+          echo "Highest stable: ${HIGHEST_STABLE:-none}"
+          echo "Highest beta: ${HIGHEST_BETA:-none}"
+
+          # Export both for use in version calculation
+          echo "highest_stable=${HIGHEST_STABLE}" >> $GITHUB_OUTPUT
+          echo "highest_beta=${HIGHEST_BETA}" >> $GITHUB_OUTPUT
+
+          # Determine "current" version for display (highest of either)
+          if [ -n "$HIGHEST_STABLE" ] && [ -n "$HIGHEST_BETA" ]; then
+            # Compare base versions
+            BETA_BASE=$(echo "$HIGHEST_BETA" | sed 's/-beta\.[0-9]*$//')
+            if [ "$(printf '%s\n%s' "$HIGHEST_STABLE" "$BETA_BASE" | sort -V | tail -n 1)" = "$HIGHEST_STABLE" ]; then
+              CURRENT_VERSION="$HIGHEST_STABLE"
+            else
+              CURRENT_VERSION="$HIGHEST_BETA"
+            fi
+          elif [ -n "$HIGHEST_BETA" ]; then
+            CURRENT_VERSION="$HIGHEST_BETA"
+          elif [ -n "$HIGHEST_STABLE" ]; then
+            CURRENT_VERSION="$HIGHEST_STABLE"
+          else
+            CURRENT_VERSION="0.0.0"
+          fi
+
           echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          echo "Current version: $CURRENT_VERSION"
+          echo "Current version for display: $CURRENT_VERSION"
 
       - name: Calculate new version
         id: new_version
         run: |
-          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          HIGHEST_STABLE="${{ steps.current_version.outputs.highest_stable }}"
+          HIGHEST_BETA="${{ steps.current_version.outputs.highest_beta }}"
+          VERSION_BUMP="${{ inputs.version_bump }}"
           IS_PRERELEASE="${{ inputs.is_prerelease }}"
 
-          # Normalize old format to new format if needed (self-correction)
-          # Old format: X.Y.Zb[N] or X.Y.Z-b[N]
-          # New format: X.Y.Z-beta.[N]
-          if [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-?b([0-9]+)$ ]]; then
-            echo "⚠️  Old format detected: $CURRENT_VERSION"
-            BASE_VERSION="${BASH_REMATCH[1]}"
-            BETA_NUM="${BASH_REMATCH[2]}"
-            CURRENT_VERSION="${BASE_VERSION}-beta.${BETA_NUM}"
-            echo "✓ Normalized to: $CURRENT_VERSION"
-          fi
+          echo "Highest stable: ${HIGHEST_STABLE:-none}"
+          echo "Highest beta: ${HIGHEST_BETA:-none}"
+          echo "Version bump: $VERSION_BUMP"
+          echo "Is prerelease: $IS_PRERELEASE"
 
-          # Check if current version is beta (standard semver format: X.Y.Z-beta.[N])
-          CURRENT_IS_BETA=false
-          if [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-beta\.([0-9]+)$ ]]; then
-            CURRENT_IS_BETA=true
-            BASE_VERSION="${BASH_REMATCH[1]}"
-            BETA_NUM="${BASH_REMATCH[2]}"
-          else
-            BASE_VERSION="$CURRENT_VERSION"
-            BETA_NUM=0
-          fi
+          # Helper function to bump version
+          bump_version() {
+            local version="$1"
+            local bump_type="$2"
+            IFS='.' read -ra parts <<< "$version"
+            local major="${parts[0]:-0}"
+            local minor="${parts[1]:-0}"
+            local patch="${parts[2]:-0}"
 
-          # Parse base version and validate format
-          IFS='.' read -ra VERSION_PARTS <<< "$BASE_VERSION"
-          if [[ "${#VERSION_PARTS[@]}" -ne 3 ]]; then
-            echo "Error: BASE_VERSION '$BASE_VERSION' is not in the expected 'X.Y.Z' format." >&2
-            exit 1
-          fi
-          MAJOR="${VERSION_PARTS[0]}"
-          MINOR="${VERSION_PARTS[1]}"
-          PATCH="${VERSION_PARTS[2]}"
-
-          # Function to apply version bump
-          apply_version_bump() {
-            case "${{ inputs.version_bump }}" in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
+            case "$bump_type" in
+              major) major=$((major + 1)); minor=0; patch=0 ;;
+              minor) minor=$((minor + 1)); patch=0 ;;
+              patch) patch=$((patch + 1)) ;;
             esac
+            echo "${major}.${minor}.${patch}"
           }
 
-          # Smart beta logic handles 4 scenarios (semver-compatible):
-          # 1. Beta -> Beta: Increment beta number only (e.g., 1.0.0-beta.1 -> 1.0.0-beta.2)
-          # 2. Stable -> Beta: Apply version bump + add -beta.1 (e.g., 1.0.0 -> 1.0.1-beta.1 for patch)
-          # 3. Beta -> Stable: Remove beta suffix to finalize (e.g., 1.0.0-beta.2 -> 1.0.0)
-          # 4. Stable -> Stable: Apply normal version bump (e.g., 1.0.0 -> 1.0.1 for patch)
-          if [[ "$IS_PRERELEASE" == "true" ]]; then
-            if [[ "$CURRENT_IS_BETA" == "true" ]]; then
-              # Scenario 1: Beta -> Beta: Increment beta number
-              BETA_NUM=$((BETA_NUM + 1))
-              NEW_VERSION="${BASE_VERSION}-beta.${BETA_NUM}"
-              echo "Incrementing beta: $CURRENT_VERSION -> $NEW_VERSION"
+          # Parse beta info if exists
+          BETA_BASE=""
+          BETA_NUMBER=0
+          if [ -n "$HIGHEST_BETA" ]; then
+            if [[ "$HIGHEST_BETA" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-beta\.([0-9]+)$ ]]; then
+              BETA_BASE="${BASH_REMATCH[1]}"
+              BETA_NUMBER="${BASH_REMATCH[2]}"
+            fi
+          fi
+
+          # Default stable to 0.0.0 if not set
+          HIGHEST_STABLE="${HIGHEST_STABLE:-0.0.0}"
+
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            # Creating a prerelease (beta)
+
+            if [ -n "$BETA_BASE" ]; then
+              # There's an existing beta series
+              # Check if stable release exists for this beta's base version
+              STABLE_GTE_BETA_BASE="false"
+              if [ "$HIGHEST_STABLE" != "0.0.0" ]; then
+                COMPARE_RESULT=$(printf '%s\n%s' "$HIGHEST_STABLE" "$BETA_BASE" | sort -V | tail -n 1)
+                if [ "$COMPARE_RESULT" = "$HIGHEST_STABLE" ]; then
+                  STABLE_GTE_BETA_BASE="true"
+                fi
+              fi
+
+              echo "Beta base: $BETA_BASE, Stable >= Beta base: $STABLE_GTE_BETA_BASE"
+
+              if [ "$STABLE_GTE_BETA_BASE" = "true" ]; then
+                # Stable release exists for beta base version (or higher)
+                # Start a NEW beta series from bumped stable version
+                NEW_BASE=$(bump_version "$HIGHEST_STABLE" "$VERSION_BUMP")
+                NEW_VERSION="${NEW_BASE}-beta.1"
+                echo "Scenario: Stable exists for beta base -> New beta series from $HIGHEST_STABLE"
+              else
+                # No stable release for beta base yet, continue the beta series
+                BETA_NUMBER=$((BETA_NUMBER + 1))
+                NEW_VERSION="${BETA_BASE}-beta.${BETA_NUMBER}"
+                echo "Scenario: Continue beta series -> ${BETA_BASE}-beta.${BETA_NUMBER}"
+              fi
             else
-              # Scenario 2: Stable -> Beta: Apply version bump + -beta.1
-              apply_version_bump
-              NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-beta.1"
-              echo "Creating first beta: $CURRENT_VERSION -> $NEW_VERSION"
+              # No existing beta, start new beta series from stable
+              NEW_BASE=$(bump_version "$HIGHEST_STABLE" "$VERSION_BUMP")
+              NEW_VERSION="${NEW_BASE}-beta.1"
+              echo "Scenario: No beta exists -> First beta from stable $HIGHEST_STABLE"
             fi
           else
-            if [[ "$CURRENT_IS_BETA" == "true" ]]; then
-              # Scenario 3: Beta -> Stable: Remove suffix (finalize)
-              NEW_VERSION="$BASE_VERSION"
-              echo "Finalizing beta: $CURRENT_VERSION -> $NEW_VERSION"
+            # Creating a stable release
+
+            if [ -n "$BETA_BASE" ]; then
+              # Check if this beta should be finalized
+              # Only finalize if no stable >= beta base exists
+              COMPARE_RESULT=$(printf '%s\n%s' "$HIGHEST_STABLE" "$BETA_BASE" | sort -V | tail -n 1)
+
+              if [ "$HIGHEST_STABLE" = "0.0.0" ] || [ "$COMPARE_RESULT" = "$BETA_BASE" ]; then
+                # No stable release for beta base yet -> finalize beta
+                NEW_VERSION="$BETA_BASE"
+                echo "Scenario: Finalize beta -> $BETA_BASE"
+              else
+                # Stable already >= beta base -> normal bump from stable
+                NEW_VERSION=$(bump_version "$HIGHEST_STABLE" "$VERSION_BUMP")
+                echo "Scenario: Stable bump (beta already finalized) -> $NEW_VERSION"
+              fi
             else
-              # Scenario 4: Stable -> Stable: Normal version bump
-              apply_version_bump
-              NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-              echo "Normal version bump: $CURRENT_VERSION -> $NEW_VERSION"
+              # No beta, normal stable bump
+              NEW_VERSION=$(bump_version "$HIGHEST_STABLE" "$VERSION_BUMP")
+              echo "Scenario: Normal stable bump -> $NEW_VERSION"
             fi
           fi
 
