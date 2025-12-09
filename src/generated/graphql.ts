@@ -14,6 +14,18 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type BulkCueCreateInput = {
+  cues: Array<CreateCueInput>;
+};
+
+export type BulkCueListCreateInput = {
+  cueLists: Array<CreateCueListInput>;
+};
+
+export type BulkCueListUpdateInput = {
+  cueLists: Array<CueListUpdateItem>;
+};
+
 export type BulkCueUpdateInput = {
   cueIds: Array<Scalars['ID']['input']>;
   easingType?: InputMaybe<EasingType>;
@@ -22,12 +34,58 @@ export type BulkCueUpdateInput = {
   followTime?: InputMaybe<Scalars['Float']['input']>;
 };
 
+export type BulkDeleteResult = {
+  __typename?: 'BulkDeleteResult';
+  deletedCount: Scalars['Int']['output'];
+  deletedIds: Array<Scalars['ID']['output']>;
+};
+
 export type BulkFixtureCreateInput = {
   fixtures: Array<CreateFixtureInstanceInput>;
 };
 
+export type BulkFixtureDefinitionCreateInput = {
+  definitions: Array<CreateFixtureDefinitionInput>;
+};
+
+export type BulkFixtureDefinitionUpdateInput = {
+  definitions: Array<FixtureDefinitionUpdateItem>;
+};
+
 export type BulkFixtureUpdateInput = {
   fixtures: Array<FixtureUpdateItem>;
+};
+
+export type BulkProjectCreateInput = {
+  projects: Array<CreateProjectInput>;
+};
+
+export type BulkProjectUpdateInput = {
+  projects: Array<ProjectUpdateItem>;
+};
+
+export type BulkSceneBoardButtonCreateInput = {
+  buttons: Array<CreateSceneBoardButtonInput>;
+};
+
+export type BulkSceneBoardButtonUpdateInput = {
+  buttons: Array<SceneBoardButtonUpdateItem>;
+};
+
+export type BulkSceneBoardCreateInput = {
+  sceneBoards: Array<CreateSceneBoardInput>;
+};
+
+export type BulkSceneBoardUpdateInput = {
+  sceneBoards: Array<SceneBoardUpdateItem>;
+};
+
+export type BulkSceneCreateInput = {
+  scenes: Array<CreateSceneInput>;
+};
+
+export type BulkSceneUpdateInput = {
+  scenes: Array<SceneUpdateItem>;
 };
 
 export type ChannelAssignmentInput = {
@@ -212,7 +270,10 @@ export type CueListPlaybackStatus = {
   currentCue?: Maybe<Cue>;
   currentCueIndex?: Maybe<Scalars['Int']['output']>;
   fadeProgress?: Maybe<Scalars['Float']['output']>;
+  /** True when scene values are currently active on DMX fixtures (stays true after fade until stopped) */
   isPlaying: Scalars['Boolean']['output'];
+  /** True when a fade transition is in progress (fade-in, fade-out, or crossfade) */
+  isFading: Scalars['Boolean']['output'];
   lastUpdated: Scalars['String']['output'];
   nextCue?: Maybe<Cue>;
   previousCue?: Maybe<Cue>;
@@ -227,6 +288,13 @@ export type CueListSummary = {
   loop: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
   totalDuration: Scalars['Float']['output'];
+};
+
+export type CueListUpdateItem = {
+  cueListId: Scalars['ID']['input'];
+  description?: InputMaybe<Scalars['String']['input']>;
+  loop?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CueOrderInput = {
@@ -318,6 +386,13 @@ export type FixtureDefinition = {
 export type FixtureDefinitionFilter = {
   channelTypes?: InputMaybe<Array<ChannelType>>;
   isBuiltIn?: InputMaybe<Scalars['Boolean']['input']>;
+  manufacturer?: InputMaybe<Scalars['String']['input']>;
+  model?: InputMaybe<Scalars['String']['input']>;
+  type?: InputMaybe<FixtureType>;
+};
+
+export type FixtureDefinitionUpdateItem = {
+  definitionId: Scalars['ID']['input'];
   manufacturer?: InputMaybe<Scalars['String']['input']>;
   model?: InputMaybe<Scalars['String']['input']>;
   type?: InputMaybe<FixtureType>;
@@ -514,9 +589,30 @@ export type Mutation = {
   activateSceneFromBoard: Scalars['Boolean']['output'];
   addFixturesToScene: Scene;
   addSceneToBoard: SceneBoardButton;
+  bulkCreateCueLists: Array<CueList>;
+  bulkCreateCues: Array<Cue>;
+  bulkCreateFixtureDefinitions: Array<FixtureDefinition>;
   bulkCreateFixtures: Array<FixtureInstance>;
+  bulkCreateProjects: Array<Project>;
+  bulkCreateSceneBoardButtons: Array<SceneBoardButton>;
+  bulkCreateSceneBoards: Array<SceneBoard>;
+  bulkCreateScenes: Array<Scene>;
+  bulkDeleteCueLists: BulkDeleteResult;
+  bulkDeleteCues: BulkDeleteResult;
+  bulkDeleteFixtureDefinitions: BulkDeleteResult;
+  bulkDeleteFixtures: BulkDeleteResult;
+  bulkDeleteProjects: BulkDeleteResult;
+  bulkDeleteSceneBoardButtons: BulkDeleteResult;
+  bulkDeleteSceneBoards: BulkDeleteResult;
+  bulkDeleteScenes: BulkDeleteResult;
+  bulkUpdateCueLists: Array<CueList>;
   bulkUpdateCues: Array<Cue>;
+  bulkUpdateFixtureDefinitions: Array<FixtureDefinition>;
   bulkUpdateFixtures: Array<FixtureInstance>;
+  bulkUpdateProjects: Array<Project>;
+  bulkUpdateSceneBoardButtons: Array<SceneBoardButton>;
+  bulkUpdateSceneBoards: Array<SceneBoard>;
+  bulkUpdateScenes: Array<Scene>;
   cancelPreviewSession: Scalars['Boolean']['output'];
   cloneScene: Scene;
   commitPreviewSession: Scalars['Boolean']['output'];
@@ -597,8 +693,88 @@ export type MutationAddSceneToBoardArgs = {
 };
 
 
+export type MutationBulkCreateCueListsArgs = {
+  input: BulkCueListCreateInput;
+};
+
+
+export type MutationBulkCreateCuesArgs = {
+  input: BulkCueCreateInput;
+};
+
+
+export type MutationBulkCreateFixtureDefinitionsArgs = {
+  input: BulkFixtureDefinitionCreateInput;
+};
+
+
 export type MutationBulkCreateFixturesArgs = {
   input: BulkFixtureCreateInput;
+};
+
+
+export type MutationBulkCreateProjectsArgs = {
+  input: BulkProjectCreateInput;
+};
+
+
+export type MutationBulkCreateSceneBoardButtonsArgs = {
+  input: BulkSceneBoardButtonCreateInput;
+};
+
+
+export type MutationBulkCreateSceneBoardsArgs = {
+  input: BulkSceneBoardCreateInput;
+};
+
+
+export type MutationBulkCreateScenesArgs = {
+  input: BulkSceneCreateInput;
+};
+
+
+export type MutationBulkDeleteCueListsArgs = {
+  cueListIds: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationBulkDeleteCuesArgs = {
+  cueIds: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationBulkDeleteFixtureDefinitionsArgs = {
+  definitionIds: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationBulkDeleteFixturesArgs = {
+  fixtureIds: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationBulkDeleteProjectsArgs = {
+  projectIds: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationBulkDeleteSceneBoardButtonsArgs = {
+  buttonIds: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationBulkDeleteSceneBoardsArgs = {
+  sceneBoardIds: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationBulkDeleteScenesArgs = {
+  sceneIds: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationBulkUpdateCueListsArgs = {
+  input: BulkCueListUpdateInput;
 };
 
 
@@ -607,8 +783,33 @@ export type MutationBulkUpdateCuesArgs = {
 };
 
 
+export type MutationBulkUpdateFixtureDefinitionsArgs = {
+  input: BulkFixtureDefinitionUpdateInput;
+};
+
+
 export type MutationBulkUpdateFixturesArgs = {
   input: BulkFixtureUpdateInput;
+};
+
+
+export type MutationBulkUpdateProjectsArgs = {
+  input: BulkProjectUpdateInput;
+};
+
+
+export type MutationBulkUpdateSceneBoardButtonsArgs = {
+  input: BulkSceneBoardButtonUpdateInput;
+};
+
+
+export type MutationBulkUpdateSceneBoardsArgs = {
+  input: BulkSceneBoardUpdateInput;
+};
+
+
+export type MutationBulkUpdateScenesArgs = {
+  input: BulkSceneUpdateInput;
 };
 
 
@@ -827,6 +1028,7 @@ export type MutationSetWiFiEnabledArgs = {
 
 export type MutationStartCueListArgs = {
   cueListId: Scalars['ID']['input'];
+  fadeInTime?: InputMaybe<Scalars['Float']['input']>;
   startFromCue?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -976,6 +1178,12 @@ export type ProjectRole =
   | 'OWNER'
   | 'VIEWER';
 
+export type ProjectUpdateItem = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  projectId: Scalars['ID']['input'];
+};
+
 export type ProjectUser = {
   __typename?: 'ProjectUser';
   id: Scalars['ID']['output'];
@@ -1036,26 +1244,33 @@ export type Query = {
   cueList?: Maybe<CueList>;
   cueListPlaybackStatus?: Maybe<CueListPlaybackStatus>;
   cueLists: Array<CueListSummary>;
+  cueListsByIds: Array<CueList>;
+  cuesByIds: Array<Cue>;
   currentActiveScene?: Maybe<Scene>;
   dmxOutput: Array<Scalars['Int']['output']>;
   fixtureDefinition?: Maybe<FixtureDefinition>;
   fixtureDefinitions: Array<FixtureDefinition>;
+  fixtureDefinitionsByIds: Array<FixtureDefinition>;
   fixtureInstance?: Maybe<FixtureInstance>;
   fixtureInstances: FixtureInstancePage;
   fixtureUsage: FixtureUsage;
+  fixturesByIds: Array<FixtureInstance>;
   getQLCFixtureMappingSuggestions: QlcFixtureMappingResult;
   networkInterfaceOptions: Array<NetworkInterfaceOption>;
   previewSession?: Maybe<PreviewSession>;
   project?: Maybe<Project>;
   projects: Array<Project>;
+  projectsByIds: Array<Project>;
   savedWifiNetworks: Array<WiFiNetwork>;
   scene?: Maybe<Scene>;
   sceneBoard?: Maybe<SceneBoard>;
   sceneBoardButton?: Maybe<SceneBoardButton>;
   sceneBoards: Array<SceneBoard>;
+  sceneBoardsByIds: Array<SceneBoard>;
   sceneFixtures: Array<SceneFixtureSummary>;
   sceneUsage: SceneUsage;
   scenes: ScenePage;
+  scenesByIds: Array<Scene>;
   searchCues: CuePage;
   searchFixtures: FixtureInstancePage;
   searchScenes: ScenePage;
@@ -1109,6 +1324,16 @@ export type QueryCueListsArgs = {
 };
 
 
+export type QueryCueListsByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
+};
+
+
+export type QueryCuesByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
+};
+
+
 export type QueryDmxOutputArgs = {
   universe: Scalars['Int']['input'];
 };
@@ -1121,6 +1346,11 @@ export type QueryFixtureDefinitionArgs = {
 
 export type QueryFixtureDefinitionsArgs = {
   filter?: InputMaybe<FixtureDefinitionFilter>;
+};
+
+
+export type QueryFixtureDefinitionsByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
 };
 
 
@@ -1142,6 +1372,11 @@ export type QueryFixtureUsageArgs = {
 };
 
 
+export type QueryFixturesByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
+};
+
+
 export type QueryGetQlcFixtureMappingSuggestionsArgs = {
   projectId: Scalars['ID']['input'];
 };
@@ -1154,6 +1389,11 @@ export type QueryPreviewSessionArgs = {
 
 export type QueryProjectArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryProjectsByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
 };
 
 
@@ -1178,6 +1418,11 @@ export type QuerySceneBoardsArgs = {
 };
 
 
+export type QuerySceneBoardsByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
+};
+
+
 export type QuerySceneFixturesArgs = {
   sceneId: Scalars['ID']['input'];
 };
@@ -1194,6 +1439,11 @@ export type QueryScenesArgs = {
   perPage?: InputMaybe<Scalars['Int']['input']>;
   projectId: Scalars['ID']['input'];
   sortBy?: InputMaybe<SceneSortField>;
+};
+
+
+export type QueryScenesByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
 };
 
 
@@ -1293,6 +1543,26 @@ export type SceneBoardButtonPositionInput = {
   layoutY: Scalars['Int']['input'];
 };
 
+export type SceneBoardButtonUpdateItem = {
+  buttonId: Scalars['ID']['input'];
+  color?: InputMaybe<Scalars['String']['input']>;
+  height?: InputMaybe<Scalars['Int']['input']>;
+  label?: InputMaybe<Scalars['String']['input']>;
+  layoutX?: InputMaybe<Scalars['Int']['input']>;
+  layoutY?: InputMaybe<Scalars['Int']['input']>;
+  width?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type SceneBoardUpdateItem = {
+  canvasHeight?: InputMaybe<Scalars['Int']['input']>;
+  canvasWidth?: InputMaybe<Scalars['Int']['input']>;
+  defaultFadeTime?: InputMaybe<Scalars['Float']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  gridSize?: InputMaybe<Scalars['Int']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  sceneBoardId: Scalars['ID']['input'];
+};
+
 export type SceneComparison = {
   __typename?: 'SceneComparison';
   differences: Array<SceneDifference>;
@@ -1342,6 +1612,12 @@ export type SceneSummary = {
   id: Scalars['ID']['output'];
   name: Scalars['String']['output'];
   updatedAt: Scalars['String']['output'];
+};
+
+export type SceneUpdateItem = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  sceneId: Scalars['ID']['input'];
 };
 
 export type SceneUsage = {

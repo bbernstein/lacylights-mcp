@@ -1712,6 +1712,7 @@ export class LacyLightsGraphQLClient {
           cueListId
           currentCueIndex
           isPlaying
+          isFading
           currentCue {
             id
             name
