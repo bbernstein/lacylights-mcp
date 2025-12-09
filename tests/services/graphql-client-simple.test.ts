@@ -1280,6 +1280,7 @@ describe('LacyLightsGraphQLClient', () => {
         cueListId: 'cue-list-1',
         currentCueIndex: 2,
         isPlaying: true,
+        isFading: false,
         currentCue: {
           id: 'cue-2',
           name: 'Scene 2',
@@ -1307,6 +1308,33 @@ describe('LacyLightsGraphQLClient', () => {
         })
       );
       expect(result).toEqual(mockStatus);
+    });
+
+    it('should include isFading in query', async () => {
+      const mockStatus = {
+        cueListId: 'cue-list-1',
+        currentCueIndex: 0,
+        isPlaying: true,
+        isFading: true,
+        fadeProgress: 50,
+        lastUpdated: '2024-01-01T00:00:00Z'
+      };
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { cueListPlaybackStatus: mockStatus }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await client.getCueListPlaybackStatus('cue-list-1');
+
+      // Verify the query includes isFading field
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          body: expect.stringContaining('isFading')
+        })
+      );
     });
   });
 
