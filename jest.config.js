@@ -1,9 +1,6 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testEnvironmentOptions: {
-    localstorage: false,
-  },
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts', '!**/*.contract.test.ts'],
   testPathIgnorePatterns: ['/node_modules/'],
