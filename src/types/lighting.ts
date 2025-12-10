@@ -56,6 +56,8 @@ export interface InstanceChannel {
   minValue: number;
   maxValue: number;
   defaultValue: number;
+  fadeBehavior: FadeBehavior;
+  isDiscrete: boolean;
 }
 
 export interface ChannelDefinition {
@@ -66,6 +68,8 @@ export interface ChannelDefinition {
   minValue: number;
   maxValue: number;
   defaultValue: number;
+  fadeBehavior: FadeBehavior;
+  isDiscrete: boolean;
 }
 
 export interface FixtureMode {
@@ -144,6 +148,18 @@ export enum ChannelType {
   STROBE = 'STROBE',
   MACRO = 'MACRO',
   OTHER = 'OTHER'
+}
+
+/**
+ * Determines how a channel behaves during scene transitions.
+ * FADE - Interpolate smoothly between values (default for intensity, colors)
+ * SNAP - Jump to target value at start of transition (for gobos, macros, effects)
+ * SNAP_END - Jump to target value at end of transition
+ */
+export enum FadeBehavior {
+  FADE = 'FADE',
+  SNAP = 'SNAP',
+  SNAP_END = 'SNAP_END'
 }
 
 // AI-specific types

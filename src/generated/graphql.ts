@@ -106,7 +106,9 @@ export type ChannelAssignmentSuggestion = {
 export type ChannelDefinition = {
   __typename?: 'ChannelDefinition';
   defaultValue: Scalars['Int']['output'];
+  fadeBehavior: FadeBehavior;
   id: Scalars['ID']['output'];
+  isDiscrete: Scalars['Boolean']['output'];
   maxValue: Scalars['Int']['output'];
   minValue: Scalars['Int']['output'];
   name: Scalars['String']['output'];
@@ -150,6 +152,17 @@ export type ChannelType =
   | 'WHITE'
   | 'ZOOM';
 
+/**
+ * Determines how a channel behaves during scene transitions.
+ * FADE - Interpolate smoothly between values (default for intensity, colors)
+ * SNAP - Jump to target value at start of transition (for gobos, macros, effects)
+ * SNAP_END - Jump to target value at end of transition
+ */
+export type FadeBehavior =
+  | 'FADE'
+  | 'SNAP'
+  | 'SNAP_END';
+
 export type ChannelUsage = {
   __typename?: 'ChannelUsage';
   channelType: ChannelType;
@@ -159,6 +172,8 @@ export type ChannelUsage = {
 
 export type CreateChannelDefinitionInput = {
   defaultValue: Scalars['Int']['input'];
+  fadeBehavior?: InputMaybe<FadeBehavior>;
+  isDiscrete?: InputMaybe<Scalars['Boolean']['input']>;
   maxValue: Scalars['Int']['input'];
   minValue: Scalars['Int']['input'];
   name: Scalars['String']['input'];
@@ -563,7 +578,9 @@ export type ImportStats = {
 export type InstanceChannel = {
   __typename?: 'InstanceChannel';
   defaultValue: Scalars['Int']['output'];
+  fadeBehavior: FadeBehavior;
   id: Scalars['ID']['output'];
+  isDiscrete: Scalars['Boolean']['output'];
   maxValue: Scalars['Int']['output'];
   minValue: Scalars['Int']['output'];
   name: Scalars['String']['output'];
