@@ -1848,7 +1848,10 @@ export class LacyLightsGraphQLClient {
                   id
                   name
                 }
-                channelValues
+                channels {
+                  offset
+                  value
+                }
               }
             }
             cueLists {

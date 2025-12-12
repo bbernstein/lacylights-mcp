@@ -249,14 +249,15 @@ Return JSON:
 {
   "name": "Scene name",
   "fixtureValues": [
-    {"fixtureId": "fixture_id", "channelValues": [0-255 values for each channel in order]}
+    {"fixtureId": "fixture_id", "channels": [{"offset": 0, "value": 255}, {"offset": 1, "value": 128}]}
   ],
   "reasoning": "explanation"
 }
 
-For each fixture, provide channel values as an array of integers (0-255) where:
-- The array index corresponds to the channel offset (0, 1, 2, ...)
-- The array length should match the fixture's channel count
+For each fixture, provide channels as an array of {offset, value} objects:
+- offset: channel position (0, 1, 2, ...) starting from 0
+- value: DMX value (0-255) for that channel
+- Only include non-zero values (sparse format) for efficiency
 `;
 
     return prompt;
