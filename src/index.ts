@@ -1094,17 +1094,28 @@ Use cases:
                         type: "string",
                         description: "Fixture ID to update",
                       },
-                      channelValues: {
+                      channels: {
                         type: "array",
                         items: {
-                          type: "number",
-                          minimum: 0,
-                          maximum: 255,
+                          type: "object",
+                          properties: {
+                            offset: {
+                              type: "number",
+                              description: "Channel offset (0-based index)",
+                            },
+                            value: {
+                              type: "number",
+                              minimum: 0,
+                              maximum: 255,
+                              description: "DMX value (0-255)",
+                            },
+                          },
+                          required: ["offset", "value"],
                         },
-                        description: "Array of channel values (0-255)",
+                        description: "Sparse array of channel values",
                       },
                     },
-                    required: ["fixtureId", "channelValues"],
+                    required: ["fixtureId", "channels"],
                   },
                   description: "Optional fixture values to update",
                 },
@@ -1175,21 +1186,32 @@ Use cases:
                         type: "string",
                         description: "Fixture ID to add",
                       },
-                      channelValues: {
+                      channels: {
                         type: "array",
                         items: {
-                          type: "number",
-                          minimum: 0,
-                          maximum: 255,
+                          type: "object",
+                          properties: {
+                            offset: {
+                              type: "number",
+                              description: "Channel offset (0-based index)",
+                            },
+                            value: {
+                              type: "number",
+                              minimum: 0,
+                              maximum: 255,
+                              description: "DMX value (0-255)",
+                            },
+                          },
+                          required: ["offset", "value"],
                         },
-                        description: "Array of channel values (0-255)",
+                        description: "Sparse array of channel values",
                       },
                       sceneOrder: {
                         type: "number",
                         description: "Optional order in scene",
                       },
                     },
-                    required: ["fixtureId", "channelValues"],
+                    required: ["fixtureId", "channels"],
                   },
                   description: "Fixtures to add to the scene",
                 },
@@ -1254,21 +1276,32 @@ Use cases:
                         type: "string",
                         description: "Fixture ID to ensure",
                       },
-                      channelValues: {
+                      channels: {
                         type: "array",
                         items: {
-                          type: "number",
-                          minimum: 0,
-                          maximum: 255,
+                          type: "object",
+                          properties: {
+                            offset: {
+                              type: "number",
+                              description: "Channel offset (0-based index)",
+                            },
+                            value: {
+                              type: "number",
+                              minimum: 0,
+                              maximum: 255,
+                              description: "DMX value (0-255)",
+                            },
+                          },
+                          required: ["offset", "value"],
                         },
-                        description: "Array of channel values (0-255)",
+                        description: "Sparse array of channel values",
                       },
                       sceneOrder: {
                         type: "number",
                         description: "Optional order in scene",
                       },
                     },
-                    required: ["fixtureId", "channelValues"],
+                    required: ["fixtureId", "channels"],
                   },
                   description: "Fixtures to ensure exist in the scene",
                 },
@@ -1303,21 +1336,32 @@ Use cases:
                         type: "string",
                         description: "Fixture ID to update",
                       },
-                      channelValues: {
+                      channels: {
                         type: "array",
                         items: {
-                          type: "number",
-                          minimum: 0,
-                          maximum: 255,
+                          type: "object",
+                          properties: {
+                            offset: {
+                              type: "number",
+                              description: "Channel offset (0-based index)",
+                            },
+                            value: {
+                              type: "number",
+                              minimum: 0,
+                              maximum: 255,
+                              description: "DMX value (0-255)",
+                            },
+                          },
+                          required: ["offset", "value"],
                         },
-                        description: "Array of channel values (0-255)",
+                        description: "Sparse array of channel values",
                       },
                       sceneOrder: {
                         type: "number",
                         description: "Optional order in scene",
                       },
                     },
-                    required: ["fixtureId", "channelValues"],
+                    required: ["fixtureId", "channels"],
                   },
                   description: "Optional fixture values to merge/update",
                 },
@@ -1360,12 +1404,19 @@ Use cases:
                           type: "object",
                           properties: {
                             fixtureId: { type: "string" },
-                            channelValues: {
+                            channels: {
                               type: "array",
-                              items: { type: "number", minimum: 0, maximum: 255 },
+                              items: {
+                                type: "object",
+                                properties: {
+                                  offset: { type: "number", description: "Channel offset (0-based index)" },
+                                  value: { type: "number", minimum: 0, maximum: 255, description: "DMX value (0-255)" },
+                                },
+                                required: ["offset", "value"],
+                              },
                             },
                           },
-                          required: ["fixtureId", "channelValues"],
+                          required: ["fixtureId", "channels"],
                         },
                         description: "Fixture values for the scene",
                       },
@@ -1407,12 +1458,19 @@ Use cases:
                           type: "object",
                           properties: {
                             fixtureId: { type: "string" },
-                            channelValues: {
+                            channels: {
                               type: "array",
-                              items: { type: "number", minimum: 0, maximum: 255 },
+                              items: {
+                                type: "object",
+                                properties: {
+                                  offset: { type: "number", description: "Channel offset (0-based index)" },
+                                  value: { type: "number", minimum: 0, maximum: 255, description: "DMX value (0-255)" },
+                                },
+                                required: ["offset", "value"],
+                              },
                             },
                           },
-                          required: ["fixtureId", "channelValues"],
+                          required: ["fixtureId", "channels"],
                         },
                         description: "New fixture values for the scene",
                       },

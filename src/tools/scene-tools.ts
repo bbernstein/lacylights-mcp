@@ -4,6 +4,12 @@ import { RAGService } from '../services/rag-service-simple';
 import { AILightingService } from '../services/ai-lighting';
 import { LightingDesignRequest, SceneSortField } from '../types/lighting';
 
+// Sparse channel value schema
+const channelValueSchema = z.object({
+  offset: z.number().int().min(0),
+  value: z.number().int().min(0).max(255),
+});
+
 // Type definitions for better type safety
 interface SceneActivationResult {
   success: boolean;
@@ -19,7 +25,7 @@ interface FixtureInfo {
 
 interface FixtureValueInfo {
   fixture: FixtureInfo;
-  channelValues: number[];
+  channels: { offset: number; value: number; }[];
   sceneOrder?: number;
 }
 
@@ -94,7 +100,7 @@ const UpdateSceneSchema = z.object({
   description: z.string().optional(),
   fixtureValues: z.array(z.object({
     fixtureId: z.string(),
-    channelValues: z.array(z.number().min(0).max(255))
+    channels: z.array(channelValueSchema)
   })).optional()
 });
 
@@ -113,7 +119,7 @@ const AddFixturesToSceneSchema = z.object({
   sceneId: z.string(),
   fixtureValues: z.array(z.object({
     fixtureId: z.string(),
-    channelValues: z.array(z.number().min(0).max(255)),
+    channels: z.array(channelValueSchema),
     sceneOrder: z.number().optional()
   })),
   overwriteExisting: z.boolean().default(false)
@@ -133,7 +139,7 @@ const EnsureFixturesInSceneSchema = z.object({
   sceneId: z.string(),
   fixtureValues: z.array(z.object({
     fixtureId: z.string(),
-    channelValues: z.array(z.number().min(0).max(255)),
+    channels: z.array(channelValueSchema),
     sceneOrder: z.number().optional()
   }))
 });
@@ -144,7 +150,7 @@ const UpdateScenePartialSchema = z.object({
   description: z.string().optional(),
   fixtureValues: z.array(z.object({
     fixtureId: z.string(),
-    channelValues: z.array(z.number().min(0).max(255)),
+    channels: z.array(channelValueSchema),
     sceneOrder: z.number().optional()
   })).optional(),
   mergeFixtures: z.boolean().default(true)
@@ -177,7 +183,7 @@ const BulkCreateScenesSchema = z.object({
     projectId: z.string(),
     fixtureValues: z.array(z.object({
       fixtureId: z.string(),
-      channelValues: z.array(z.number().min(0).max(255)),
+      channels: z.array(channelValueSchema),
     })),
   })),
 });
@@ -189,7 +195,7 @@ const BulkUpdateScenesSchema = z.object({
     description: z.string().optional(),
     fixtureValues: z.array(z.object({
       fixtureId: z.string(),
-      channelValues: z.array(z.number().min(0).max(255)),
+      channels: z.array(channelValueSchema),
     })).optional(),
   })),
 });
@@ -293,13 +299,13 @@ export class SceneTools {
               name: fv.fixture.name,
               type: fv.fixture.type || 'UNKNOWN'
             },
-            channelValues: fv.channelValues,
+            channels: fv.channels,
             sceneOrder: fv.sceneOrder
           }))
         },
         designReasoning: optimizedScene.reasoning,
         fixturesUsed: availableFixtures.length,
-        channelsSet: optimizedScene.fixtureValues.reduce((total, fv) => total + (fv.channelValues?.length || 0), 0)
+        channelsSet: optimizedScene.fixtureValues.reduce((total, fv) => total + (fv.channels?.length || 0), 0)
       };
 
       // Activate the scene if requested
@@ -448,12 +454,12 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues,
+            channels: fv.channels,
             sceneOrder: fv.sceneOrder
           }))
         },
         fixturesUpdated: fixtureValues ? fixtureValues.length : 0,
-        channelsUpdated: fixtureValues ? fixtureValues.reduce((total, fv) => total + (fv.channelValues?.length || 0), 0) : 0
+        channelsUpdated: fixtureValues ? fixtureValues.reduce((total, fv) => total + (fv.channels?.length || 0), 0) : 0
       };
     } catch (error) {
       throw new Error(`Failed to update scene: ${error}`);
@@ -696,7 +702,7 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues,
+            channels: fv.channels,
             sceneOrder: fv.sceneOrder
           }))
         },
@@ -727,7 +733,7 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues,
+            channels: fv.channels,
             sceneOrder: fv.sceneOrder
           }))
         },
@@ -759,9 +765,9 @@ export class SceneTools {
         fixtureValues: scene.fixtureValues.map(fv => ({
           fixtureId: fv.fixture.id,
           fixtureName: includeFixtureDetails ? fv.fixture.name : undefined,
-          channelValues: fv.channelValues,
+          channels: fv.channels,
           sceneOrder: fv.sceneOrder,
-          channelCount: fv.channelValues.length
+          channelCount: fv.channels.length
         })),
         message: `Retrieved fixture values for ${scene.fixtureValues.length} fixtures in scene "${scene.name}"`
       };
@@ -819,7 +825,7 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues,
+            channels: fv.channels,
             sceneOrder: fv.sceneOrder
           }))
         },
@@ -887,7 +893,7 @@ export class SceneTools {
               id: fv.fixture.id,
               name: fv.fixture.name
             },
-            channelValues: fv.channelValues,
+            channels: fv.channels,
             sceneOrder: fv.sceneOrder
           })) : undefined
         },

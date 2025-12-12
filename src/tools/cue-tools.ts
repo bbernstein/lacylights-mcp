@@ -229,7 +229,7 @@ export class CueTools {
         description: scene.description || "",
         fixtureValues: scene.fixtureValues.map((fv) => ({
           fixtureId: fv.fixture.id,
-          channelValues: fv.channelValues, // Already a number array
+          channels: fv.channels, // Sparse channel format
         })),
         reasoning: `Existing scene: ${scene.name}`,
       }));
