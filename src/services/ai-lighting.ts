@@ -257,7 +257,7 @@ Return JSON:
 For each fixture, provide channels as an array of {offset, value} objects:
 - offset: channel position (0, 1, 2, ...) starting from 0
 - value: DMX value (0-255) for that channel
-- Only include non-zero values (sparse format) for efficiency
+- Include all channel values, including zeros, for each fixture (explicit format)
 `;
 
     return prompt;
