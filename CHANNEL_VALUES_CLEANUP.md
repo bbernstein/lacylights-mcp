@@ -10,7 +10,7 @@ Removed remaining references to the legacy `channelValues` array format and upda
 ### 1. src/services/ai-lighting.ts
 **Updated AI prompt generation (lines 247-261)**
 - Changed the AI prompt to request the new sparse format: `{"offset": 0, "value": 255}`
-- Updated instructions to emphasize sparse format (only non-zero values)
+- Updated instructions to emphasize sparse format (only specified channels; explicit zero values allowed)
 - Old format: `{"fixtureId": "id", "channelValues": [255, 128, 0]}`
 - New format: `{"fixtureId": "id", "channels": [{"offset": 0, "value": 255}, {"offset": 1, "value": 128}]}`
 

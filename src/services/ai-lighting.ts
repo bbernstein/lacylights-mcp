@@ -277,7 +277,7 @@ For each fixture, provide channels as an array of {offset, value} objects:
       const channelMap = new Map<number, number>();
 
       // Filter and validate channels, deduplicating by offset (last value wins)
-      fv.channels
+      (Array.isArray(fv.channels) ? fv.channels : [])
         .filter((ch) => ch.offset >= 0 && ch.offset < fixture.channelCount)
         .forEach((ch) => {
           const channel = fixture.channels.find((c) => c.offset === ch.offset);
@@ -436,9 +436,7 @@ Consider:
       } else if (fv.channelValues && typeof fv.channelValues === "object") {
         // Very legacy format: array of {channelId, value} objects
         // Convert to sparse format based on channel offsets
-        const legacyValues = Array.isArray(fv.channelValues)
-          ? fv.channelValues
-          : [];
+        const legacyValues = fv.channelValues;
 
         for (const cv of legacyValues) {
           if (cv && typeof cv === "object" && cv.channelId) {
