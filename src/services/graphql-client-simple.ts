@@ -149,7 +149,10 @@ export class LacyLightsGraphQLClient {
                 id
                 name
               }
-              channelValues
+              channels {
+                offset
+                value
+              }
             }
           }
           cueLists {
@@ -401,7 +404,7 @@ export class LacyLightsGraphQLClient {
     projectId: string;
     fixtureValues: Array<{
       fixtureId: string;
-      channelValues: number[];
+      channels: { offset: number; value: number; }[];
     }>;
   }): Promise<Scene> {
     const mutation = `
@@ -417,7 +420,10 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
           }
         }
       }
@@ -432,7 +438,7 @@ export class LacyLightsGraphQLClient {
     description?: string;
     fixtureValues?: Array<{
       fixtureId: string;
-      channelValues: number[];
+      channels: { offset: number; value: number; }[];
     }>;
   }): Promise<Scene> {
     const mutation = `
@@ -447,7 +453,10 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
           }
         }
       }
@@ -460,7 +469,7 @@ export class LacyLightsGraphQLClient {
   // 🛡️ SAFE SCENE UPDATE METHODS
   async addFixturesToScene(sceneId: string, fixtureValues: Array<{
     fixtureId: string;
-    channelValues: number[];
+    channels: { offset: number; value: number; }[];
     sceneOrder?: number;
   }>, overwriteExisting: boolean = false): Promise<Scene> {
     const mutation = `
@@ -475,17 +484,20 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
             sceneOrder
           }
         }
       }
     `;
 
-    const data = await this.query(mutation, { 
-      sceneId, 
-      fixtureValues, 
-      overwriteExisting 
+    const data = await this.query(mutation, {
+      sceneId,
+      fixtureValues,
+      overwriteExisting
     });
     return data.addFixturesToScene;
   }
@@ -503,7 +515,10 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
             sceneOrder
           }
         }
@@ -519,7 +534,7 @@ export class LacyLightsGraphQLClient {
     description?: string;
     fixtureValues?: Array<{
       fixtureId: string;
-      channelValues: number[];
+      channels: { offset: number; value: number; }[];
       sceneOrder?: number;
     }>;
     mergeFixtures?: boolean;
@@ -536,14 +551,17 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
             sceneOrder
           }
         }
       }
     `;
 
-    const data = await this.query(mutation, { 
+    const data = await this.query(mutation, {
       sceneId,
       name: updates.name,
       description: updates.description,
@@ -1198,7 +1216,7 @@ export class LacyLightsGraphQLClient {
       projectId: string;
       fixtureValues: Array<{
         fixtureId: string;
-        channelValues: number[];
+        channels: { offset: number; value: number; }[];
       }>;
     }>;
   }): Promise<Scene[]> {
@@ -1215,7 +1233,10 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
           }
         }
       }
@@ -1232,7 +1253,7 @@ export class LacyLightsGraphQLClient {
       description?: string;
       fixtureValues?: Array<{
         fixtureId: string;
-        channelValues: number[];
+        channels: { offset: number; value: number; }[];
       }>;
     }>;
   }): Promise<Scene[]> {
@@ -1248,7 +1269,10 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
           }
         }
       }
@@ -1523,7 +1547,10 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
           }
         }
       }
@@ -1551,7 +1578,10 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
           }
         }
       }
@@ -1636,7 +1666,10 @@ export class LacyLightsGraphQLClient {
               id
               name
             }
-            channelValues
+            channels {
+              offset
+              value
+            }
             sceneOrder
           }
         }
@@ -1815,7 +1848,10 @@ export class LacyLightsGraphQLClient {
                   id
                   name
                 }
-                channelValues
+                channels {
+                  offset
+                  value
+                }
               }
             }
             cueLists {
