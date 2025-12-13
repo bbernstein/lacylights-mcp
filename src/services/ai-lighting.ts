@@ -257,7 +257,8 @@ Return JSON:
 For each fixture, provide channels as an array of {offset, value} objects:
 - offset: channel position (0, 1, 2, ...) starting from 0
 - value: DMX value (0-255) for that channel
-- Include all channel values, including zeros, for each fixture (explicit format)
+- Channels not included will retain their current values (omit channels you don't want to change)
+- You can include explicit zero values if needed (e.g., to turn off a specific channel)
 `;
 
     return prompt;
@@ -284,12 +285,13 @@ For each fixture, provide channels as an array of {offset, value} objects:
             ? Math.max(channel.minValue, Math.min(channel.maxValue, ch.value))
             : ch.value;
 
-          // Keep all values including zeros - some fixtures need explicit zeros
+          // Sparse format: preserve all provided values including explicit zeros
+          // Channels not in the map will retain current values (backend behavior)
           // Last occurrence wins for duplicate offsets
           channelMap.set(ch.offset, clampedValue);
         });
 
-      // Convert map back to array, keeping zeros for fixtures that need them
+      // Convert map back to array in sparse format
       const optimizedChannels = Array.from(channelMap.entries())
         .map(([offset, value]) => ({ offset, value }))
         .sort((a, b) => a.offset - b.offset); // Sort by offset for consistency
@@ -407,7 +409,7 @@ Consider:
       }
 
       // Handle both sparse format and legacy array format from AI
-      // Use a Map to deduplicate by offset (last value wins) and preserve all values including zeros
+      // Use a Map to deduplicate by offset (last value wins) and preserve provided values
       const channelMap = new Map<number, number>();
 
       if (Array.isArray(fv.channelValues)) {
@@ -415,7 +417,7 @@ Consider:
         fv.channelValues.forEach((value: any, offset: number) => {
           const numValue = Math.max(0, Math.min(255, Number(value) || 0));
           if (offset >= 0 && offset < fixture.channelCount) {
-            // Keep all values including zeros - some fixtures need explicit zeros
+            // Preserve all provided values (including explicit zeros if AI specified them)
             channelMap.set(offset, numValue);
           }
         });
@@ -426,7 +428,7 @@ Consider:
           .forEach((ch: { offset: number; value: number }) => {
             const numValue = Math.max(0, Math.min(255, Number(ch.value) || 0));
             if (ch.offset >= 0 && ch.offset < fixture.channelCount) {
-              // Keep all values including zeros - some fixtures need explicit zeros
+              // Preserve all provided values (including explicit zeros if AI specified them)
               // Last occurrence wins for duplicate offsets
               channelMap.set(ch.offset, numValue);
             }
@@ -446,7 +448,7 @@ Consider:
             );
             if (channel) {
               const value = Math.max(0, Math.min(255, Number(cv.value) || 0));
-              // Keep all values including zeros - some fixtures need explicit zeros
+              // Preserve all provided values (including explicit zeros if AI specified them)
               // Last occurrence wins for duplicate offsets
               channelMap.set(channel.offset, value);
             }
@@ -454,7 +456,7 @@ Consider:
         }
       }
 
-      // Convert map to array, preserving all values including zeros
+      // Convert map to array in sparse format, preserving all provided values
       const channels = Array.from(channelMap.entries())
         .map(([offset, value]) => ({ offset, value }))
         .sort((a, b) => a.offset - b.offset); // Sort by offset for consistency
