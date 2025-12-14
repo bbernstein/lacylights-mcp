@@ -106,7 +106,7 @@ npm run build
 ### Required Environment Variables
 
 - **`OPENAI_API_KEY`** - OpenAI API key for AI-powered lighting generation
-- **`LACYLIGHTS_GRAPHQL_ENDPOINT`** - GraphQL endpoint for your lacylights-node backend (default: http://localhost:4000/graphql)
+- **`LACYLIGHTS_GRAPHQL_ENDPOINT`** - GraphQL endpoint for your lacylights-go backend (default: http://localhost:4000/graphql)
 
 ### Optional Environment Variables
 
@@ -115,7 +115,7 @@ npm run build
 
 ## Running the Server
 
-Make sure your `lacylights-node` backend is running first, then:
+Make sure your `lacylights-go` backend is running first, then:
 
 ```bash
 # Start in development mode (with auto-reload)
@@ -505,7 +505,7 @@ Then iterate with optimize_scene using "dramatic_impact" until satisfied
    - Use the `run-mcp.js` wrapper script, not `dist/index.js` directly
 
 2. **GraphQL connection errors**
-   - Verify your `lacylights-node` backend is running on port 4000
+   - Verify your `lacylights-go` backend is running on port 4000
    - Check the `LACYLIGHTS_GRAPHQL_ENDPOINT` environment variable
 
 3. **OpenAI API errors**
@@ -555,7 +555,7 @@ CHROMA_PORT=8000
 
 This MCP server is part of the complete LacyLights system:
 
-- **lacylights-node** - Backend GraphQL API for fixture and scene management
+- **lacylights-go** - Backend GraphQL API for fixture and scene management
 - **lacylights-fe** - Web frontend for manual control and visualization
 - **lacylights-mcp** - AI interface for intelligent automation
 

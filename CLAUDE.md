@@ -52,7 +52,7 @@ npm test -- --testNamePattern "pattern"   # Run tests matching pattern
 - Returns JSON responses to AI clients (Claude, etc.)
 
 **Services (`src/services/`):**
-- `graphql-client-simple.ts`: Apollo client wrapper for lacylights-node backend GraphQL API
+- `graphql-client-simple.ts`: Apollo client wrapper for lacylights-go backend GraphQL API
 - `ai-lighting.ts`: OpenAI-powered scene generation and script analysis
 - `rag-service-simple.ts`: In-memory pattern matching for lighting design knowledge (optional ChromaDB support)
 
@@ -70,13 +70,13 @@ npm test -- --testNamePattern "pattern"   # Run tests matching pattern
 
 1. AI client (Claude) calls MCP tool via stdio
 2. `index.ts` routes to appropriate tool handler (fixture/scene/cue/project tools)
-3. Tool handler calls GraphQL client to fetch/mutate data from lacylights-node backend
+3. Tool handler calls GraphQL client to fetch/mutate data from lacylights-go backend
 4. For AI-powered operations, tool handler uses AILightingService (OpenAI) + RAGService
 5. Response JSON is returned to AI client
 
 ### Integration Points
 
-**Requires lacylights-node backend:**
+**Requires lacylights-go backend:**
 - GraphQL endpoint: `http://localhost:4000/graphql` (configurable via `LACYLIGHTS_GRAPHQL_ENDPOINT`)
 - Backend must be running for any MCP operations to work
 

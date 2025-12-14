@@ -257,7 +257,7 @@ Use these checklists to ensure successful releases:
 - [ ] Code reviewed and approved
 - [ ] CHANGELOG.md updated (if applicable)
 - [ ] Breaking changes documented (for major versions)
-- [ ] Integration tests pass with lacylights-node backend
+- [ ] Integration tests pass with lacylights-go backend
 - [ ] Current branch is `main` (or approved feature branch)
 
 ### Post-Release Validation
@@ -720,7 +720,7 @@ echo "Base: $BASE_VERSION, Beta: $BETA_NUM"
    - Only finalize to stable when confident
 
 2. **Use staging environments**
-   - Test against lacylights-node backend
+   - Test against lacylights-go backend
    - Run contract tests
    - Validate with real fixtures
 

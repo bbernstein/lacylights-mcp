@@ -184,7 +184,7 @@ This indicates a backend API issue. The error message will tell you what went wr
   "stack": "..."
 }
 ```
-This suggests the MCP server can't connect to the lacylights-node backend. Ensure the backend is running on http://localhost:4000.
+This suggests the MCP server can't connect to the lacylights-go backend. Ensure the backend is running on http://localhost:4000.
 
 ## Getting Help
 
