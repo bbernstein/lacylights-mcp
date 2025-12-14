@@ -3,9 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/bbernstein/lacylights-mcp?label=stable)](https://github.com/bbernstein/lacylights-mcp/releases/latest)
 [![GitHub Pre-release](https://img.shields.io/github/v/release/bbernstein/lacylights-mcp?include_prereleases&label=beta)](https://github.com/bbernstein/lacylights-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-<a href="https://glama.ai/mcp/servers/@bbernstein/lacylights-mcp">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@bbernstein/lacylights-mcp/badge" alt="LacyLights Server MCP server" />
-</a>
+[![LacyLights Server MCP server](https://glama.ai/mcp/servers/@bbernstein/lacylights-mcp/badge)](https://glama.ai/mcp/servers/@bbernstein/lacylights-mcp)
 
 An MCP (Model Context Protocol) server that provides AI-powered theatrical lighting design capabilities for the LacyLights system. This server enables AI assistants to create, manage, and control professional theatrical lighting designs through natural language interactions.
 
