@@ -56,7 +56,7 @@ These handle AI responses that might still use the old format.
 
 ### Test Status
 ✅ All 470 tests passing
-- Fixed Node.js 25+ localStorage security requirement with NODE_OPTIONS
+- Node.js 25+ requires `--localstorage-file` flag to initialize localStorage (CI uses Node 20 which doesn't require this)
 - All test assertions updated to use sparse channel format
 
 ## Migration Notes

@@ -195,7 +195,7 @@ describe('AILightingService', () => {
 
       const result = await aiService.generateScene(request);
 
-      // Should only include valid fixture and pad channel values
+      // Should only include valid fixture with sparse channel format
       expect(result.fixtureValues).toHaveLength(1);
       expect(result.fixtureValues[0].fixtureId).toBe('fixture-1');
       expect(result.fixtureValues[0].channels).toEqual([{ offset: 0, value: 100 }, { offset: 1, value: 200 }]); // Sparse format - no padding needed
