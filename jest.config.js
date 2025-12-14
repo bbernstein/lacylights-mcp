@@ -1,6 +1,10 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  testEnvironmentOptions: {
+    // Disable localStorage to avoid Node.js 25+ SecurityError
+    experimentalVmModules: false,
+  },
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts', '!**/*.contract.test.ts'],
   testPathIgnorePatterns: ['/node_modules/'],

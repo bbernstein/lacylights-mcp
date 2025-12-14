@@ -92,7 +92,7 @@ describe('AILightingService', () => {
               fixtureValues: [
                 {
                   fixtureId: 'fixture-1',
-                  channelValues: [255, 128, 64]
+                  channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
                 }
               ],
               reasoning: 'AI reasoning'
@@ -124,7 +124,7 @@ describe('AILightingService', () => {
       expect(result.name).toBe('Romantic Scene');
       expect(result.fixtureValues).toHaveLength(1);
       expect(result.fixtureValues[0].fixtureId).toBe('fixture-1');
-      expect(result.fixtureValues[0].channelValues).toEqual([255, 128, 64]);
+      expect(result.fixtureValues[0].channels).toEqual([{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]);
     });
 
     it('should handle invalid JSON response from AI', async () => {
@@ -173,11 +173,11 @@ describe('AILightingService', () => {
               fixtureValues: [
                 {
                   fixtureId: 'invalid-fixture',
-                  channelValues: [255, 128, 64]
+                  channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
                 },
                 {
                   fixtureId: 'fixture-1',
-                  channelValues: [100, 200]
+                  channels: [{ offset: 0, value: 100 }, { offset: 1, value: 200 }]
                 }
               ]
             })
@@ -198,7 +198,7 @@ describe('AILightingService', () => {
       // Should only include valid fixture and pad channel values
       expect(result.fixtureValues).toHaveLength(1);
       expect(result.fixtureValues[0].fixtureId).toBe('fixture-1');
-      expect(result.fixtureValues[0].channelValues).toEqual([100, 200, 0]); // Padded to 3 channels
+      expect(result.fixtureValues[0].channels).toEqual([{ offset: 0, value: 100 }, { offset: 1, value: 200 }]); // Sparse format - no padding needed
     });
   });
 
@@ -277,7 +277,7 @@ describe('AILightingService', () => {
         fixtureValues: [
           {
             fixtureId: 'fixture-1',
-            channelValues: [300, -50, 128] // Out of range values
+            channels: [{ offset: 0, value: 300 }, { offset: 1, value: -50 }, { offset: 2, value: 128 }] // Out of range values
           }
         ],
         reasoning: 'Test'
@@ -285,18 +285,22 @@ describe('AILightingService', () => {
 
       const result = await aiService.optimizeSceneForFixtures(scene, [mockFixture]);
 
-      // Values should be clamped to 0-255 range
-      expect(result.fixtureValues[0].channelValues).toEqual([255, 0, 128]);
+      // Values should be clamped to 0-255 range (sparse format)
+      expect(result.fixtureValues[0].channels).toEqual([
+        { offset: 0, value: 255 },
+        { offset: 1, value: 0 },
+        { offset: 2, value: 128 }
+      ]);
     });
 
-    it('should pad channel values to match fixture channel count', async () => {
+    it('should preserve sparse format (no padding needed)', async () => {
       const scene = {
         name: 'Test Scene',
         description: 'Test',
         fixtureValues: [
           {
             fixtureId: 'fixture-1',
-            channelValues: [100, 200] // Only 2 values, fixture needs 3
+            channels: [{ offset: 0, value: 100 }, { offset: 1, value: 200 }] // Only 2 values, sparse format doesn't need padding
           }
         ],
         reasoning: 'Test'
@@ -304,17 +308,21 @@ describe('AILightingService', () => {
 
       const result = await aiService.optimizeSceneForFixtures(scene, [mockFixture]);
 
-      expect(result.fixtureValues[0].channelValues).toEqual([100, 200, 0]);
+      // Sparse format: no padding needed, just preserve provided values
+      expect(result.fixtureValues[0].channels).toEqual([
+        { offset: 0, value: 100 },
+        { offset: 1, value: 200 }
+      ]);
     });
 
-    it('should truncate channel values if too many', async () => {
+    it('should filter out-of-bounds offsets', async () => {
       const scene = {
         name: 'Test Scene',
         description: 'Test',
         fixtureValues: [
           {
             fixtureId: 'fixture-1',
-            channelValues: [100, 200, 50, 75, 25] // 5 values, fixture only has 3 channels
+            channels: [{ offset: 0, value: 100 }, { offset: 1, value: 200 }, { offset: 2, value: 50 }, { offset: 3, value: 75 }, { offset: 4, value: 25 }] // 5 values, fixture only has 3 channels
           }
         ],
         reasoning: 'Test'
@@ -322,7 +330,12 @@ describe('AILightingService', () => {
 
       const result = await aiService.optimizeSceneForFixtures(scene, [mockFixture]);
 
-      expect(result.fixtureValues[0].channelValues).toEqual([100, 200, 50]);
+      // Sparse format: offsets 3 and 4 should be filtered out (fixture only has 3 channels, offsets 0-2)
+      expect(result.fixtureValues[0].channels).toEqual([
+        { offset: 0, value: 100 },
+        { offset: 1, value: 200 },
+        { offset: 2, value: 50 }
+      ]);
     });
   });
 
@@ -415,7 +428,7 @@ describe('AILightingService', () => {
               fixtureValues: [
                 {
                   fixtureId: 'fixture-1',
-                  channelValues: [100, 150, 200]
+                  channels: [{ offset: 0, value: 100 }, { offset: 1, value: 150 }, { offset: 2, value: 200 }]
                 }
               ]
             })

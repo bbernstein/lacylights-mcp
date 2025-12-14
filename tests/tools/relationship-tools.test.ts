@@ -223,15 +223,15 @@ describe('RelationshipTools', () => {
             fixtureId: 'fixture-1',
             fixtureName: 'LED Par 1',
             differenceType: DifferenceType.VALUES_CHANGED,
-            scene1Values: [255, 0, 0],
-            scene2Values: [0, 255, 0]
+            scene1Values: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }],
+            scene2Values: [{ offset: 0, value: 0 }, { offset: 1, value: 255 }, { offset: 2, value: 0 }]
           },
           {
             fixtureId: 'fixture-2',
             fixtureName: 'LED Par 2',
             differenceType: DifferenceType.VALUES_CHANGED,
-            scene1Values: [100, 100, 100],
-            scene2Values: [200, 200, 200]
+            scene1Values: [{ offset: 0, value: 100 }, { offset: 1, value: 100 }, { offset: 2, value: 100 }],
+            scene2Values: [{ offset: 0, value: 200 }, { offset: 1, value: 200 }, { offset: 2, value: 200 }]
           }
         ],
         identicalFixtureCount: 1,
@@ -269,13 +269,13 @@ describe('RelationshipTools', () => {
             fixtureId: 'fixture-1',
             fixtureName: 'LED Par 1',
             differenceType: DifferenceType.ONLY_IN_SCENE1,
-            scene1Values: [255, 0, 0]
+            scene1Values: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }]
           },
           {
             fixtureId: 'fixture-2',
             fixtureName: 'LED Par 2',
             differenceType: DifferenceType.ONLY_IN_SCENE2,
-            scene2Values: [0, 255, 0]
+            scene2Values: [{ offset: 0, value: 0 }, { offset: 1, value: 255 }, { offset: 2, value: 0 }]
           }
         ],
         identicalFixtureCount: 2,
@@ -313,8 +313,8 @@ describe('RelationshipTools', () => {
             fixtureId: 'fixture-1',
             fixtureName: 'LED Par 1',
             differenceType: DifferenceType.VALUES_CHANGED,
-            scene1Values: [255, 0, 0],
-            scene2Values: [0, 255, 0]
+            scene1Values: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }],
+            scene2Values: [{ offset: 0, value: 0 }, { offset: 1, value: 255 }, { offset: 2, value: 0 }]
           }
         ],
         identicalFixtureCount: 9,
@@ -340,3 +340,4 @@ describe('RelationshipTools', () => {
     });
   });
 });
+

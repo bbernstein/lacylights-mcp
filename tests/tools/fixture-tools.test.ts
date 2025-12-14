@@ -1567,7 +1567,7 @@ describe('FixtureTools', () => {
           description: 'Scene using fixture',
           fixtureValues: [{
             fixture: { id: 'fixture-1' },
-            channelValues: [255, 0, 0]
+            channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }]
           }]
         }]
       };

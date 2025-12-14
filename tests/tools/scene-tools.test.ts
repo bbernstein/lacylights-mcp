@@ -60,7 +60,7 @@ describe('SceneTools', () => {
     fixtureValues: [
       {
         fixtureId: 'fixture-1',
-        channelValues: [255, 128, 64]
+        channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
       }
     ],
     reasoning: 'Warm colors for romantic atmosphere'
@@ -116,7 +116,7 @@ describe('SceneTools', () => {
         description: 'A romantic lighting scene',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -149,7 +149,7 @@ describe('SceneTools', () => {
         description: 'A romantic lighting scene',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -177,7 +177,7 @@ describe('SceneTools', () => {
         description: 'A romantic lighting scene',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -205,7 +205,7 @@ describe('SceneTools', () => {
         description: 'A romantic lighting scene',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -233,7 +233,7 @@ describe('SceneTools', () => {
         description: 'A romantic lighting scene',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -263,7 +263,7 @@ describe('SceneTools', () => {
         description: 'A romantic lighting scene',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -467,7 +467,7 @@ describe('SceneTools', () => {
         updatedAt: '2023-01-01T00:00:00Z',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1' },
-          channelValues: [255, 0, 0]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }]
         }]
       };
 
@@ -480,7 +480,7 @@ describe('SceneTools', () => {
         fixtureValues: [
           {
             fixtureId: 'fixture-1',
-            channelValues: [255, 0, 0]
+            channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }]
           }
         ]
       });
@@ -491,7 +491,7 @@ describe('SceneTools', () => {
         fixtureValues: [
           {
             fixtureId: 'fixture-1',
-            channelValues: [255, 0, 0]
+            channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }]
           }
         ]
       });
@@ -547,7 +547,7 @@ describe('SceneTools', () => {
         fixtureValues: [
           {
             fixtureId: 'fixture-1',
-            channelValues: [300] // Out of range
+            channels: [{ offset: 0, value: 300 }] // Out of range
           }
         ]
       })).rejects.toThrow();
@@ -559,7 +559,7 @@ describe('SceneTools', () => {
         fixtureValues: [
           {
             fixtureId: 'fixture-1',
-            channelValues: [-10] // Below minimum
+            channels: [{ offset: 0, value: -10 }] // Below minimum
           }
         ]
       })).rejects.toThrow();
@@ -576,12 +576,12 @@ describe('SceneTools', () => {
       fixtureValues: [
         {
           fixture: { id: 'fixture-1', name: 'LED Par 1' },
-          channelValues: [255, 128, 64],
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }],
           sceneOrder: 1
         },
         {
           fixture: { id: 'fixture-2', name: 'LED Par 2' },
-          channelValues: [128, 255, 32],
+          channels: [{ offset: 0, value: 128 }, { offset: 1, value: 255 }, { offset: 2, value: 32 }],
           sceneOrder: 2
         }
       ]
@@ -604,7 +604,7 @@ describe('SceneTools', () => {
           fixtureValues: [
             {
               fixtureId: 'fixture-3',
-              channelValues: [200, 100, 50],
+              channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }],
               sceneOrder: 3
             }
           ],
@@ -613,7 +613,7 @@ describe('SceneTools', () => {
 
         expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
           'scene-1',
-          [{ fixtureId: 'fixture-3', channelValues: [200, 100, 50], sceneOrder: 3 }],
+          [{ fixtureId: 'fixture-3', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }], sceneOrder: 3 }],
           false
         );
         expect(result.sceneId).toBe('scene-1');
@@ -633,7 +633,7 @@ describe('SceneTools', () => {
           fixtureValues: [
             {
               fixtureId: 'fixture-1',
-              channelValues: [100, 200, 150]
+              channels: [{ offset: 0, value: 100 }, { offset: 1, value: 200 }, { offset: 2, value: 150 }]
             }
           ],
           overwriteExisting: true
@@ -641,7 +641,7 @@ describe('SceneTools', () => {
 
         expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [100, 200, 150] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 100 }, { offset: 1, value: 200 }, { offset: 2, value: 150 }] }],
           true
         );
         expect(result.overwriteMode).toBe(true);
@@ -654,8 +654,8 @@ describe('SceneTools', () => {
         const result = await sceneTools.addFixturesToScene({
           sceneId: 'scene-1',
           fixtureValues: [
-            { fixtureId: 'fixture-3', channelValues: [200, 100, 50] },
-            { fixtureId: 'fixture-4', channelValues: [150, 200, 100] }
+            { fixtureId: 'fixture-3', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] },
+            { fixtureId: 'fixture-4', channels: [{ offset: 0, value: 150 }, { offset: 1, value: 200 }, { offset: 2, value: 100 }] }
           ],
           overwriteExisting: false
         });
@@ -669,7 +669,7 @@ describe('SceneTools', () => {
 
         await expect(sceneTools.addFixturesToScene({
           sceneId: 'scene-1',
-          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           overwriteExisting: false
         })).rejects.toThrow('Failed to add fixtures to scene: Error: GraphQL error');
       });
@@ -678,7 +678,7 @@ describe('SceneTools', () => {
         await expect(sceneTools.addFixturesToScene({
           sceneId: 'scene-1',
           fixtureValues: [
-            { fixtureId: 'fixture-1', channelValues: [300] }
+            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 300 }] }
           ],
           overwriteExisting: false
         })).rejects.toThrow();
@@ -764,7 +764,7 @@ describe('SceneTools', () => {
         expect(result.fixtureValues).toHaveLength(2);
         expect(result.fixtureValues[0].fixtureId).toBe('fixture-1');
         expect(result.fixtureValues[0].fixtureName).toBe('LED Par 1');
-        expect(result.fixtureValues[0].channelValues).toEqual([255, 128, 64]);
+        expect(result.fixtureValues[0].channels).toEqual([{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]);
         expect(result.fixtureValues[0].sceneOrder).toBe(1);
         expect(result.fixtureValues[0].channelCount).toBe(3);
       });
@@ -810,13 +810,13 @@ describe('SceneTools', () => {
         const result = await sceneTools.ensureFixturesInScene({
           sceneId: 'scene-1',
           fixtureValues: [
-            { fixtureId: 'fixture-3', channelValues: [200, 100, 50] }
+            { fixtureId: 'fixture-3', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] }
           ]
         });
 
         expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
           'scene-1',
-          [{ fixtureId: 'fixture-3', channelValues: [200, 100, 50] }],
+          [{ fixtureId: 'fixture-3', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] }],
           false // Always safe mode
         );
         expect(result.sceneId).toBe('scene-1');
@@ -829,7 +829,7 @@ describe('SceneTools', () => {
 
         await expect(sceneTools.ensureFixturesInScene({
           sceneId: 'scene-1',
-          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }]
+          fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }]
         })).rejects.toThrow('Failed to ensure fixtures in scene: Error: GraphQL error');
       });
 
@@ -874,7 +874,7 @@ describe('SceneTools', () => {
           sceneId: 'scene-1',
           name: 'Updated Scene',
           fixtureValues: [
-            { fixtureId: 'fixture-3', channelValues: [200, 100, 50] }
+            { fixtureId: 'fixture-3', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] }
           ],
           mergeFixtures: true
         });
@@ -882,7 +882,7 @@ describe('SceneTools', () => {
         expect(mockGraphQLClient.updateScenePartial).toHaveBeenCalledWith('scene-1', {
           name: 'Updated Scene',
           description: undefined,
-          fixtureValues: [{ fixtureId: 'fixture-3', channelValues: [200, 100, 50] }],
+          fixtureValues: [{ fixtureId: 'fixture-3', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] }],
           mergeFixtures: true
         });
         expect(result.updateType).toBe('merged');
@@ -896,7 +896,7 @@ describe('SceneTools', () => {
         const result = await sceneTools.updateScenePartial({
           sceneId: 'scene-1',
           fixtureValues: [
-            { fixtureId: 'fixture-1', channelValues: [100, 200, 150] }
+            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 100 }, { offset: 1, value: 200 }, { offset: 2, value: 150 }] }
           ],
           mergeFixtures: false
         });
@@ -913,7 +913,7 @@ describe('SceneTools', () => {
           fixtureValues: [
             { 
               fixtureId: 'fixture-1', 
-              channelValues: [255, 128, 64], 
+              channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], 
               sceneOrder: 10 
             }
           ],
@@ -941,7 +941,7 @@ describe('SceneTools', () => {
         await expect(sceneTools.updateScenePartial({
           sceneId: 'scene-1',
           fixtureValues: [
-            { fixtureId: 'fixture-1', channelValues: [500] }
+            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 500 }] }
           ],
           mergeFixtures: true
         })).rejects.toThrow();
@@ -957,7 +957,7 @@ describe('SceneTools', () => {
 
         const addResult = await sceneTools.addFixturesToScene({
           sceneId: 'scene-1',
-          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           overwriteExisting: false
         });
 
@@ -983,7 +983,7 @@ describe('SceneTools', () => {
             id: expect.any(String),
             name: expect.any(String)
           }),
-          channelValues: expect.any(Array),
+          channels: expect.any(Array),
           sceneOrder: expect.any(Number)
         };
 
@@ -1000,13 +1000,13 @@ describe('SceneTools', () => {
         // Test that default is safe (non-overwriting)
         const result = await sceneTools.addFixturesToScene({
           sceneId: 'scene-1',
-          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           overwriteExisting: false
         });
 
         expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         );
         expect(result.overwriteMode).toBe(false);
@@ -1035,12 +1035,12 @@ describe('SceneTools', () => {
 
         await sceneTools.ensureFixturesInScene({
           sceneId: 'scene-1',
-          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }]
+          fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }]
         });
 
         expect(mockGraphQLClient.addFixturesToScene).toHaveBeenCalledWith(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false // Always safe mode, cannot be overridden
         );
       });
@@ -1082,7 +1082,7 @@ describe('SceneTools', () => {
         description: 'Scene using tagged fixtures',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -1116,7 +1116,7 @@ describe('SceneTools', () => {
         description: 'Scene that will be activated',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -1146,7 +1146,7 @@ describe('SceneTools', () => {
         description: 'Scene with failed activation',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -1175,7 +1175,7 @@ describe('SceneTools', () => {
         description: 'Scene with activation error',
         fixtureValues: [{
           fixture: { id: 'fixture-1', name: 'LED Par 1', type: 'LED_PAR' },
-          channelValues: [255, 128, 64]
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]
         }]
       };
       mockGraphQLClient.createScene.mockResolvedValue(mockCreatedScene as any);
@@ -1349,7 +1349,7 @@ describe('SceneTools', () => {
         id: 'scene-1',
         name: 'Test Scene',
         description: 'Test description',
-        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }]
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }]
       };
 
       mockGraphQLClient.setSceneLive = jest.fn().mockResolvedValue(true);
@@ -1370,7 +1370,7 @@ describe('SceneTools', () => {
         id: 'scene-1',
         name: 'Test Scene',
         description: 'Test description',
-        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }]
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }]
       };
 
       mockGraphQLClient.getProject.mockResolvedValue({
@@ -1394,7 +1394,7 @@ describe('SceneTools', () => {
         id: 'scene-1',
         name: 'Test Scene',
         description: 'Test description',
-        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }]
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }]
       };
 
       mockGraphQLClient.getProjects = jest.fn().mockResolvedValue([{
@@ -1417,7 +1417,7 @@ describe('SceneTools', () => {
         id: 'scene-1',
         name: 'Opening Scene',
         description: 'Test description',
-        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }]
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }]
       };
 
       mockGraphQLClient.getProject.mockResolvedValue({
@@ -1524,7 +1524,7 @@ describe('SceneTools', () => {
         id: 'scene-1',
         name: 'Active Scene',
         description: 'Currently active',
-        fixtureValues: [{ fixture: mockProject.fixtures[0], channelValues: [255, 0, 0] }],
+        fixtureValues: [{ fixture: mockProject.fixtures[0], channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
         project: {
           id: 'project-1',
           name: 'Test Project'
@@ -1710,7 +1710,7 @@ describe('SceneTools', () => {
           fixtureValues: [
             {
               fixture: { id: 'fixture-1', name: 'LED Par 1' },
-              channelValues: [255, 128, 64],
+              channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }],
               sceneOrder: 1
             }
           ]
@@ -1832,7 +1832,7 @@ describe('SceneTools', () => {
             id: 'scene-1',
             name: 'Scene 1',
             description: 'First scene',
-            fixtureValues: [{ fixture: { id: 'f1' }, channelValues: [255] }]
+            fixtureValues: [{ fixture: { id: 'f1' }, channels: [{ offset: 0, value: 255 }] }]
           },
           {
             id: 'scene-2',
@@ -1887,7 +1887,7 @@ describe('SceneTools', () => {
             id: 'scene-2',
             name: 'Updated Scene 2',
             description: 'Updated second scene',
-            fixtureValues: [{ fixture: { id: 'f1' }, channelValues: [128] }]
+            fixtureValues: [{ fixture: { id: 'f1' }, channels: [{ offset: 0, value: 128 }] }]
           }
         ];
 
