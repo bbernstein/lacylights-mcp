@@ -19,67 +19,48 @@ jobs:
       - name: Checkout MCP repo
         uses: actions/checkout@v6
 
-      - name: Checkout backend repo
+      - name: Checkout backend repo (lacylights-go)
         uses: actions/checkout@v6
         with:
-          repository: bbernstein/lacylights-node
+          repository: bbernstein/lacylights-go
           path: backend
 
-      - name: Build backend Docker image
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: backend/go.sum
+
+      - name: Build backend
         working-directory: backend
-        run: docker build -t lacylights-backend:test .
+        run: go build -o lacylights-server ./cmd/server
 
-      - name: Initialize database schema
+      - name: Start backend server
+        working-directory: backend
         run: |
-          echo "Creating database volume and initializing schema..."
-          docker run --rm \
-            --user root \
-            -v lacylights-contract-db:/data \
-            -e DATABASE_URL="file:/data/test-contract.db" \
-            -e ARTNET_ENABLED=false \
-            -e NON_INTERACTIVE=true \
-            lacylights-backend:test \
-            sh -c "npx prisma db push --accept-data-loss"
-          echo "Database initialized successfully"
+          # Start the Go backend server in the background
+          ARTNET_ENABLED=false \
+          DATABASE_PATH=":memory:" \
+          PORT=4000 \
+          ./lacylights-server &
 
-      - name: Start backend container
-        run: |
-          docker run -d \
-            --name backend \
-            --user root \
-            -p 4000:4000 \
-            -v lacylights-contract-db:/data \
-            -e DATABASE_URL="file:/data/test-contract.db" \
-            -e ARTNET_ENABLED=false \
-            -e NON_INTERACTIVE=true \
-            -e SKIP_FIXTURE_IMPORT=true \
-            -e SKIP_MIGRATIONS=true \
-            --health-cmd="node dist/healthcheck.js" \
-            --health-interval=5s \
-            --health-timeout=3s \
-            --health-retries=10 \
-            lacylights-backend:test
-
-      - name: Wait for backend to be healthy
-        run: |
-          echo "Waiting for backend container to be healthy..."
+          # Wait for server to be ready
+          echo "Waiting for backend server to start..."
           for i in {1..30}; do
-            if [ "$(docker inspect -f '{{.State.Health.Status}}' backend)" == "healthy" ]; then
-              echo "Backend is healthy!"
+            if curl -s http://localhost:4000/graphql > /dev/null 2>&1; then
+              echo "Backend server is ready!"
               exit 0
             fi
-            echo "Attempt $i/30: Backend not healthy yet (status: $(docker inspect -f '{{.State.Health.Status}}' backend 2>/dev/null || echo 'unknown')), waiting..."
+            echo "Attempt $i/30: Server not ready yet, waiting..."
             sleep 2
           done
-          echo "Backend failed to become healthy within 60 seconds"
-          echo "Container logs:"
-          docker logs backend
+          echo "Backend failed to start within 60 seconds"
           exit 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install MCP dependencies
@@ -94,13 +75,6 @@ jobs:
         env:
           GRAPHQL_ENDPOINT: http://localhost:4000/graphql
         run: npm run test:contracts
-
-      - name: Stop backend container
-        if: always()
-        run: |
-          docker stop backend || true
-          docker rm backend || true
-          docker volume rm lacylights-contract-db || true
 
       - name: Upload test results
         if: always()
