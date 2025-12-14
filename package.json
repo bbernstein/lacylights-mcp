@@ -12,6 +12,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:contracts": "jest --testMatch='**/*.contract.test.ts' --runInBand --testTimeout=30000",
+    "test:node25": "NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage' jest",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },

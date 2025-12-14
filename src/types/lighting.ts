@@ -91,7 +91,7 @@ export interface Scene {
 
 export interface FixtureValue {
   fixture: FixtureInstance;
-  channelValues: number[]; // Array of 0-255 values, index = channel offset
+  channels: { offset: number; value: number; }[]; // Sparse array of channel values
   sceneOrder?: number; // Optional ordering within the scene
 }
 
@@ -186,7 +186,7 @@ export interface GeneratedScene {
   description: string;
   fixtureValues: Array<{
     fixtureId: string;
-    channelValues: number[]; // Array of 0-255 values, index = channel offset
+    channels: { offset: number; value: number; }[]; // Sparse array of channel values
   }>;
   reasoning: string;
 }
@@ -239,8 +239,8 @@ export interface SceneDifference {
   fixtureId: string;
   fixtureName: string;
   differenceType: DifferenceType;
-  scene1Values?: number[];
-  scene2Values?: number[];
+  scene1Values?: { offset: number; value: number; }[];
+  scene2Values?: { offset: number; value: number; }[];
 }
 
 export interface SceneComparison {

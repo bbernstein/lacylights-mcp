@@ -178,7 +178,7 @@ describe('LacyLightsGraphQLClient', () => {
         description: 'Test description',
         projectId: 'project-id',
         fixtureValues: [
-          { fixtureId: 'fixture-1', channelValues: [255, 128, 0] }
+          { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 0 }] }
         ]
       });
 
@@ -518,7 +518,7 @@ describe('LacyLightsGraphQLClient', () => {
       fixtureValues: [
         {
           fixture: { id: 'fixture-1', name: 'LED Par 1' },
-          channelValues: [255, 128, 64],
+          channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }],
           sceneOrder: 1
         }
       ]
@@ -535,7 +535,7 @@ describe('LacyLightsGraphQLClient', () => {
 
         const result = await client.addFixturesToScene(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 128, 64], sceneOrder: 1 }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], sceneOrder: 1 }],
           false
         );
 
@@ -560,7 +560,7 @@ describe('LacyLightsGraphQLClient', () => {
 
         await client.addFixturesToScene(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           true
         );
 
@@ -580,7 +580,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.addFixturesToScene('scene-1', [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }], false);
+        await client.addFixturesToScene('scene-1', [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }], false);
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://localhost:4000/graphql',
@@ -595,7 +595,7 @@ describe('LacyLightsGraphQLClient', () => {
 
         await expect(client.addFixturesToScene(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         )).rejects.toThrow('Network error');
       });
@@ -702,7 +702,7 @@ describe('LacyLightsGraphQLClient', () => {
 
         await client.updateScenePartial('scene-1', {
           name: 'Updated Scene',
-          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           mergeFixtures: true
         });
 
@@ -723,7 +723,7 @@ describe('LacyLightsGraphQLClient', () => {
         mockFetch.mockResolvedValue(mockResponse as any);
 
         await client.updateScenePartial('scene-1', {
-          fixtureValues: [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           mergeFixtures: false
         });
 
@@ -746,7 +746,7 @@ describe('LacyLightsGraphQLClient', () => {
         await client.updateScenePartial('scene-1', {
           fixtureValues: [{ 
             fixtureId: 'fixture-1', 
-            channelValues: [255, 0, 0], 
+            channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }], 
             sceneOrder: 5 
           }]
         });
@@ -776,7 +776,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.addFixturesToScene('scene-1', [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }], false);
+        await client.addFixturesToScene('scene-1', [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }], false);
 
         const callBody = mockFetch.mock.calls[0][1]?.body as string;
         const parsedBody = JSON.parse(callBody);
@@ -789,7 +789,7 @@ describe('LacyLightsGraphQLClient', () => {
         expect(query).toContain('updatedAt');
         expect(query).toContain('fixtureValues');
         expect(query).toContain('fixture');
-        expect(query).toContain('channelValues');
+        expect(query).toContain('channels');
         expect(query).toContain('sceneOrder');
       });
 
@@ -804,8 +804,8 @@ describe('LacyLightsGraphQLClient', () => {
         await client.addFixturesToScene(
           'test-scene',
           [
-            { fixtureId: 'fixture-1', channelValues: [255, 128, 64], sceneOrder: 1 },
-            { fixtureId: 'fixture-2', channelValues: [200, 100, 50] }
+            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], sceneOrder: 1 },
+            { fixtureId: 'fixture-2', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] }
           ],
           true
         );
@@ -816,8 +816,8 @@ describe('LacyLightsGraphQLClient', () => {
         expect(parsedBody.variables).toEqual({
           sceneId: 'test-scene',
           fixtureValues: [
-            { fixtureId: 'fixture-1', channelValues: [255, 128, 64], sceneOrder: 1 },
-            { fixtureId: 'fixture-2', channelValues: [200, 100, 50] }
+            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], sceneOrder: 1 },
+            { fixtureId: 'fixture-2', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] }
           ],
           overwriteExisting: true
         });
@@ -840,7 +840,7 @@ describe('LacyLightsGraphQLClient', () => {
         // Test addFixturesToScene
         const addResult = await client.addFixturesToScene(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         );
 
@@ -873,7 +873,7 @@ describe('LacyLightsGraphQLClient', () => {
 
         await expect(client.addFixturesToScene(
           'non-existent',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         )).rejects.toThrow('Scene not found');
 
@@ -889,7 +889,7 @@ describe('LacyLightsGraphQLClient', () => {
 
         await expect(client.addFixturesToScene(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         )).rejects.toThrow('Network timeout');
       });
@@ -902,7 +902,7 @@ describe('LacyLightsGraphQLClient', () => {
 
         await expect(client.addFixturesToScene(
           'scene-1',
-          [{ fixtureId: 'fixture-1', channelValues: [255, 0, 0] }],
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         )).rejects.toThrow();
       });

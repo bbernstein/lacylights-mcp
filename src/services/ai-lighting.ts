@@ -249,14 +249,16 @@ Return JSON:
 {
   "name": "Scene name",
   "fixtureValues": [
-    {"fixtureId": "fixture_id", "channelValues": [0-255 values for each channel in order]}
+    {"fixtureId": "fixture_id", "channels": [{"offset": 0, "value": 255}, {"offset": 1, "value": 128}]}
   ],
   "reasoning": "explanation"
 }
 
-For each fixture, provide channel values as an array of integers (0-255) where:
-- The array index corresponds to the channel offset (0, 1, 2, ...)
-- The array length should match the fixture's channel count
+For each fixture, provide channels as an array of {offset, value} objects:
+- offset: channel position (0, 1, 2, ...) starting from 0
+- value: DMX value (0-255) for that channel
+- Channels not included will retain their current values (omit channels you don't want to change)
+- You can include explicit zero values if needed (e.g., to turn off a specific channel)
 `;
 
     return prompt;
@@ -271,26 +273,41 @@ For each fixture, provide channel values as an array of integers (0-255) where:
       const fixture = availableFixtures.find((f) => f.id === fv.fixtureId);
       if (!fixture || !fixture.channels) return fv;
 
-      // Ensure all channel values are within valid ranges
-      const optimizedChannelValues = fv.channelValues.map((value, index) => {
-        const channel = fixture.channels[index];
-        if (!channel) return value;
+      // Ensure all channel values are within valid ranges and valid offsets
+      const channelMap = new Map<number, number>();
 
-        // Clamp value to channel's min/max range
-        return Math.max(channel.minValue, Math.min(channel.maxValue, value));
-      });
+      // Filter and validate channels, deduplicating by offset (last value wins)
+      (Array.isArray(fv.channels) ? fv.channels : [])
+        .filter(
+          (ch) =>
+            ch &&
+            typeof ch === "object" &&
+            typeof ch.offset === "number" &&
+            typeof ch.value === "number" &&
+            ch.offset >= 0 &&
+            ch.offset < fixture.channelCount,
+        )
+        .forEach((ch) => {
+          const channel = fixture.channels.find((c) => c.offset === ch.offset);
+          // Clamp to channel's min/max range, or standard DMX range (0-255) if channel not found
+          const clampedValue = channel
+            ? Math.max(channel.minValue, Math.min(channel.maxValue, ch.value))
+            : Math.max(0, Math.min(255, ch.value));
 
-      // Ensure array length matches fixture channel count
-      while (optimizedChannelValues.length < fixture.channelCount) {
-        optimizedChannelValues.push(0);
-      }
-      if (optimizedChannelValues.length > fixture.channelCount) {
-        optimizedChannelValues.length = fixture.channelCount;
-      }
+          // Sparse format: preserve all provided values including explicit zeros
+          // Channels not in the map will retain current values (backend behavior)
+          // Last occurrence wins for duplicate offsets
+          channelMap.set(ch.offset, clampedValue);
+        });
+
+      // Convert map back to array in sparse format
+      const optimizedChannels = Array.from(channelMap.entries())
+        .map(([offset, value]) => ({ offset, value }))
+        .sort((a, b) => a.offset - b.offset); // Sort by offset for consistency
 
       return {
         ...fv,
-        channelValues: optimizedChannelValues,
+        channels: optimizedChannels,
       };
     });
 
@@ -378,7 +395,7 @@ Consider:
     availableFixtures: FixtureInstance[],
   ): Array<{
     fixtureId: string;
-    channelValues: number[];
+    channels: { offset: number; value: number; }[];
   }> {
     if (!Array.isArray(fixtureValues)) {
       return [];
@@ -386,7 +403,7 @@ Consider:
 
     const validatedValues: Array<{
       fixtureId: string;
-      channelValues: number[];
+      channels: { offset: number; value: number; }[];
     }> = [];
 
     for (const fv of fixtureValues) {
@@ -400,22 +417,38 @@ Consider:
         continue; // Skip invalid fixture IDs or missing channels
       }
 
-      // Handle both new array format and legacy object format
-      let channelValues: number[] = [];
+      // Handle both sparse format and legacy array format from AI
+      // Use a Map to deduplicate by offset (last value wins) and preserve provided values
+      const channelMap = new Map<number, number>();
 
       if (Array.isArray(fv.channelValues)) {
-        // New format: simple array of numbers
-        channelValues = fv.channelValues.map((value: any) => {
-          const numValue = Number(value) || 0;
-          return Math.max(0, Math.min(255, numValue));
+        // Legacy format: simple array of numbers - convert to sparse format
+        fv.channelValues.forEach((value: any, offset: number) => {
+          const numValue = Math.max(0, Math.min(255, Number(value) || 0));
+          if (offset >= 0 && offset < fixture.channelCount) {
+            // Preserve all provided values (including explicit zeros if AI specified them)
+            channelMap.set(offset, numValue);
+          }
         });
+      } else if (Array.isArray(fv.channels)) {
+        // New sparse format: array of {offset, value} objects
+        fv.channels
+          .filter((ch: { offset: number; value: number }) => ch && typeof ch === "object" && typeof ch.offset === "number" && typeof ch.value === "number")
+          .forEach((ch: { offset: number; value: number }) => {
+            const numValue = Math.max(0, Math.min(255, Number(ch.value) || 0));
+            if (ch.offset >= 0 && ch.offset < fixture.channelCount) {
+              // Preserve all provided values (including explicit zeros if AI specified them)
+              // Last occurrence wins for duplicate offsets
+              channelMap.set(ch.offset, numValue);
+            }
+          });
       } else if (fv.channelValues && typeof fv.channelValues === "object") {
-        // Legacy format: array of {channelId, value} objects
-        // Convert to array format based on channel offsets
+        // Very legacy format: array of {channelId, value} objects
+        // Convert to sparse format based on channel offsets
+        // Ensure we have an iterable array before using for...of
         const legacyValues = Array.isArray(fv.channelValues)
           ? fv.channelValues
           : [];
-        channelValues = new Array(fixture.channelCount).fill(0);
 
         for (const cv of legacyValues) {
           if (cv && typeof cv === "object" && cv.channelId) {
@@ -425,24 +458,26 @@ Consider:
             );
             if (channel) {
               const value = Math.max(0, Math.min(255, Number(cv.value) || 0));
-              channelValues[channel.offset] = value;
+              // Preserve all provided values (including explicit zeros if AI specified them)
+              // Last occurrence wins for duplicate offsets
+              channelMap.set(channel.offset, value);
             }
           }
         }
       }
 
-      // Ensure array length matches fixture channel count
-      while (channelValues.length < fixture.channelCount) {
-        channelValues.push(0);
-      }
-      if (channelValues.length > fixture.channelCount) {
-        channelValues.length = fixture.channelCount;
-      }
+      // Convert map to array in sparse format, preserving all provided values
+      const channels = Array.from(channelMap.entries())
+        .map(([offset, value]) => ({ offset, value }))
+        .sort((a, b) => a.offset - b.offset); // Sort by offset for consistency
 
-      validatedValues.push({
-        fixtureId: fv.fixtureId,
-        channelValues: channelValues,
-      });
+      // Only add if we have at least one channel value
+      if (channels.length > 0) {
+        validatedValues.push({
+          fixtureId: fv.fixtureId,
+          channels,
+        });
+      }
     }
 
     return validatedValues;
