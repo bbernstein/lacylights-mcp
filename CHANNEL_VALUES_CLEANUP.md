@@ -56,8 +56,12 @@ These handle AI responses that might still use the old format.
 
 ### Test Status
 ✅ All 470 tests passing
-- Node.js 25+ requires `--localstorage-file` flag to initialize localStorage (CI uses Node 20 which doesn't require this)
 - All test assertions updated to use sparse channel format
+
+### Node.js Version Notes
+- CI uses Node 20 (standard test commands work)
+- Node.js 25+ requires `--localstorage-file` flag for localStorage security
+- Use `npm run test:node25` for local development on Node 25+
 
 ## Migration Notes
 
