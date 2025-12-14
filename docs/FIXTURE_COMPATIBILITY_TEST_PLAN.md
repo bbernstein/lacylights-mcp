@@ -36,7 +36,7 @@ This document outlines a test strategy to validate that all fixtures from the Op
 
 ### In Scope
 1. **Fixture Creation Validation**
-   - Verify all OFL fixtures can be created in lacylights-node
+   - Verify all OFL fixtures can be created in lacylights-go
    - Validate proper manufacturer/model mapping
    - Ensure all modes are selectable and create correct channels
 
@@ -69,11 +69,11 @@ This document outlines a test strategy to validate that all fixtures from the Op
 ### Recommended: `lacylights-mcp` Repository
 
 **Rationale:**
-1. **MCP is the integration layer** between external systems and lacylights-node
-2. **Tests validate the MCP→Node flow**, not just Node internals
+1. **MCP is the integration layer** between external systems and lacylights-go
+2. **Tests validate the MCP→Go flow**, not just Go backend internals
 3. **OFL parsing logic** will primarily exist in MCP
 4. **Fixture creation intelligence** is implemented in MCP's fixture-tools
-5. **Isolated testing** - Can test without affecting core Node server
+5. **Isolated testing** - Can test without affecting core Go server
 
 **Test Location:** `lacylights-mcp/tests/integration/ofl-compatibility/`
 

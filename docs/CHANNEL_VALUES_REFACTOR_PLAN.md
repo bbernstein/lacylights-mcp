@@ -26,7 +26,7 @@ channelValues: [100, 150, 200] // Index 0 = first channel, Index 1 = second chan
 
 ## Implementation Plan
 
-### Phase 1: Backend (lacylights-node)
+### Phase 1: Backend (lacylights-go)
 **Priority: HIGH - Foundation for all other changes**
 
 #### 1.1 Database Schema Changes
