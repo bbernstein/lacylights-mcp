@@ -278,12 +278,21 @@ For each fixture, provide channels as an array of {offset, value} objects:
 
       // Filter and validate channels, deduplicating by offset (last value wins)
       (Array.isArray(fv.channels) ? fv.channels : [])
-        .filter((ch) => ch.offset >= 0 && ch.offset < fixture.channelCount)
+        .filter(
+          (ch) =>
+            ch &&
+            typeof ch === "object" &&
+            typeof ch.offset === "number" &&
+            typeof ch.value === "number" &&
+            ch.offset >= 0 &&
+            ch.offset < fixture.channelCount,
+        )
         .forEach((ch) => {
           const channel = fixture.channels.find((c) => c.offset === ch.offset);
+          // Clamp to channel's min/max range, or standard DMX range (0-255) if channel not found
           const clampedValue = channel
             ? Math.max(channel.minValue, Math.min(channel.maxValue, ch.value))
-            : ch.value;
+            : Math.max(0, Math.min(255, ch.value));
 
           // Sparse format: preserve all provided values including explicit zeros
           // Channels not in the map will retain current values (backend behavior)
@@ -436,7 +445,10 @@ Consider:
       } else if (fv.channelValues && typeof fv.channelValues === "object") {
         // Very legacy format: array of {channelId, value} objects
         // Convert to sparse format based on channel offsets
-        const legacyValues = fv.channelValues;
+        // Ensure we have an iterable array before using for...of
+        const legacyValues = Array.isArray(fv.channelValues)
+          ? fv.channelValues
+          : [];
 
         for (const cv of legacyValues) {
           if (cv && typeof cv === "object" && cv.channelId) {

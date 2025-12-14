@@ -37,10 +37,10 @@ Removed remaining references to the legacy `channelValues` array format and upda
 
 ### Intentional (Backward Compatibility)
 The following references remain in `src/services/ai-lighting.ts` for backward compatibility:
-- Line 405: `if (Array.isArray(fv.channelValues))`
-- Line 408: `fv.channelValues.forEach(...)`
-- Line 423: `else if (fv.channelValues && typeof fv.channelValues === "object")`
-- Line 426-427: `const legacyValues = Array.isArray(fv.channelValues) ? fv.channelValues : [];`
+- Line 424: `if (Array.isArray(fv.channelValues))`
+- Line 426: `fv.channelValues.forEach(...)`
+- Line 445: `else if (fv.channelValues && typeof fv.channelValues === "object")`
+- Line 449-451: `const legacyValues = Array.isArray(fv.channelValues) ? fv.channelValues : [];`
 
 These handle AI responses that might still use the old format.
 
@@ -55,10 +55,9 @@ These handle AI responses that might still use the old format.
 ✅ All type checks passed
 
 ### Test Status
-⚠️  Tests show a local storage configuration issue unrelated to these changes
-- Issue: `SecurityError: Cannot initialize local storage without a --localstorage-file path`
-- This is a Jest environment configuration issue, not related to the channel values refactor
-- The code compiles and types are correct
+✅ All 470 tests passing
+- Fixed Node.js 25+ localStorage security requirement with NODE_OPTIONS
+- All test assertions updated to use sparse channel format
 
 ## Migration Notes
 
