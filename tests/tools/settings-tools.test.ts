@@ -120,7 +120,8 @@ describe('SettingsTools', () => {
         .rejects.toThrow();
     });
 
-    it('should validate rate is within range - too high', async () => {
+    // Note: The implementation enforces a maximum of 120 Hz (10-120 Hz range)
+    it('should validate rate is within range (10-120 Hz) - too high', async () => {
       await expect(settingsTools.setFadeUpdateRate({ rateHz: 150 }))
         .rejects.toThrow();
     });

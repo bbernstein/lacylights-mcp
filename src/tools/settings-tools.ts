@@ -60,11 +60,6 @@ export class SettingsTools {
     const { rateHz } = SetFadeUpdateRateSchema.parse(args);
 
     try {
-      // Validate range (should be caught by schema, but double-check)
-      if (rateHz < 10 || rateHz > 120) {
-        throw new Error('Fade update rate must be between 10 and 120 Hz');
-      }
-
       // Set the setting value as a string
       await this.graphqlClient.setSetting('fade_update_rate', rateHz.toString());
 
