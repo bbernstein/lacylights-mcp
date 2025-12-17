@@ -2200,4 +2200,45 @@ export class LacyLightsGraphQLClient {
     });
     return data.searchCues;
   }
+
+  // Settings Operations
+
+  /**
+   * Get a setting value by key
+   * @param key Setting key (e.g., "fade_update_rate")
+   * @returns Setting value or null if not found
+   */
+  async getSetting(key: string): Promise<string | null> {
+    const query = `
+      query GetSetting($key: String!) {
+        setting(key: $key) {
+          key
+          value
+        }
+      }
+    `;
+
+    const data = await this.query(query, { key });
+    return data.setting ? data.setting.value : null;
+  }
+
+  /**
+   * Set a setting value by key
+   * @param key Setting key (e.g., "fade_update_rate")
+   * @param value Setting value (e.g., "60")
+   * @returns Updated setting value
+   */
+  async setSetting(key: string, value: string): Promise<string> {
+    const mutation = `
+      mutation SetSetting($key: String!, $value: String!) {
+        setSetting(key: $key, value: $value) {
+          key
+          value
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { key, value });
+    return data.setSetting.value;
+  }
 }

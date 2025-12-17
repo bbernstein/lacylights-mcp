@@ -14,6 +14,7 @@ import { FixtureTools } from "./tools/fixture-tools";
 import { SceneTools } from "./tools/scene-tools";
 import { CueTools } from "./tools/cue-tools";
 import { ProjectTools } from "./tools/project-tools";
+import { SettingsTools } from "./tools/settings-tools";
 import { logger } from "./utils/logger";
 
 class LacyLightsMCPServer {
@@ -25,6 +26,7 @@ class LacyLightsMCPServer {
   private sceneTools: SceneTools;
   private cueTools: CueTools;
   private projectTools: ProjectTools;
+  private settingsTools: SettingsTools;
 
   constructor() {
     this.server = new Server(
@@ -60,6 +62,7 @@ class LacyLightsMCPServer {
       this.aiLightingService,
     );
     this.projectTools = new ProjectTools(this.graphqlClient);
+    this.settingsTools = new SettingsTools(this.graphqlClient);
 
     this.setupHandlers();
   }
@@ -2265,6 +2268,53 @@ with filters and lookup tables instead.`,
               properties: {},
             },
           },
+          // Settings Tools
+          {
+            name: "get_fade_update_rate",
+            description: `Get the current fade engine update rate in Hz.
+
+The fade update rate controls how frequently the fade engine updates DMX channel values during scene transitions. Higher rates provide smoother fades but use more CPU.
+
+Returns:
+- Current update rate in Hz (default: 60Hz)
+- Whether the value is using the default
+
+Typical values:
+- 30Hz: Efficient, adequate for most theatrical lighting
+- 60Hz: Default, smooth fades for professional use
+- 120Hz: Very smooth, for critical applications`,
+            inputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
+          {
+            name: "set_fade_update_rate",
+            description: `Set the fade engine update rate in Hz.
+
+The fade update rate controls how frequently the fade engine updates DMX channel values during scene transitions.
+
+Valid range: 10-120 Hz
+
+Guidelines:
+- 10-30Hz: Lower CPU usage, adequate for simple fades
+- 30-60Hz: Good balance of smoothness and efficiency
+- 60-120Hz: Maximum smoothness for professional applications
+
+Note: Changes take effect immediately for new scene transitions.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                rateHz: {
+                  type: "number",
+                  description: "Update rate in Hz (10-120)",
+                  minimum: 10,
+                  maximum: 120,
+                },
+              },
+              required: ["rateHz"],
+            },
+          },
         ],
       };
     });
@@ -3188,6 +3238,35 @@ with filters and lookup tables instead.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.cueTools.getCueListStatus(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Settings Tools
+          case "get_fade_update_rate":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.settingsTools.getFadeUpdateRate(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "set_fade_update_rate":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.settingsTools.setFadeUpdateRate(args as any),
                     null,
                     2,
                   ),
