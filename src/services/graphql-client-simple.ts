@@ -11,7 +11,9 @@ import {
   SceneComparison,
   SceneSummary,
   SceneFixtureSummary,
-  SceneSortField
+  SceneSortField,
+  SceneBoard,
+  SceneBoardButton
 } from '../types/lighting';
 import { PaginatedResponse } from '../types/pagination';
 import { normalizePaginationParams } from '../utils/pagination';
@@ -2240,5 +2242,517 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(mutation, { key, value });
     return data.setSetting.value;
+  }
+
+  // ========================================================================
+  // Scene Board Operations
+  // ========================================================================
+
+  /**
+   * List all scene boards in a project
+   */
+  async listSceneBoards(projectId: string): Promise<SceneBoard[]> {
+    const query = `
+      query ListSceneBoards($projectId: ID!) {
+        sceneBoards(projectId: $projectId) {
+          id
+          name
+          description
+          project {
+            id
+            name
+          }
+          defaultFadeTime
+          gridSize
+          canvasWidth
+          canvasHeight
+          buttons {
+            id
+            scene {
+              id
+              name
+            }
+            layoutX
+            layoutY
+            width
+            height
+            color
+            label
+            createdAt
+            updatedAt
+          }
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(query, { projectId });
+    return data.sceneBoards;
+  }
+
+  /**
+   * Get a specific scene board with all its buttons
+   */
+  async getSceneBoard(sceneBoardId: string): Promise<SceneBoard | null> {
+    const query = `
+      query GetSceneBoard($sceneBoardId: ID!) {
+        sceneBoard(id: $sceneBoardId) {
+          id
+          name
+          description
+          project {
+            id
+            name
+          }
+          defaultFadeTime
+          gridSize
+          canvasWidth
+          canvasHeight
+          buttons {
+            id
+            sceneBoard {
+              id
+              name
+            }
+            scene {
+              id
+              name
+            }
+            layoutX
+            layoutY
+            width
+            height
+            color
+            label
+            createdAt
+            updatedAt
+          }
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(query, { sceneBoardId });
+    return data.sceneBoard;
+  }
+
+  /**
+   * Create a new scene board
+   */
+  async createSceneBoard(input: {
+    name: string;
+    description?: string;
+    projectId: string;
+    defaultFadeTime?: number;
+    gridSize?: number;
+    canvasWidth?: number;
+    canvasHeight?: number;
+  }): Promise<SceneBoard> {
+    const mutation = `
+      mutation CreateSceneBoard($input: CreateSceneBoardInput!) {
+        createSceneBoard(input: $input) {
+          id
+          name
+          description
+          project {
+            id
+            name
+          }
+          defaultFadeTime
+          gridSize
+          canvasWidth
+          canvasHeight
+          buttons {
+            id
+          }
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.createSceneBoard;
+  }
+
+  /**
+   * Update an existing scene board
+   */
+  async updateSceneBoard(
+    sceneBoardId: string,
+    input: {
+      name?: string;
+      description?: string;
+      defaultFadeTime?: number;
+      gridSize?: number;
+      canvasWidth?: number;
+      canvasHeight?: number;
+    }
+  ): Promise<SceneBoard> {
+    const mutation = `
+      mutation UpdateSceneBoard($id: ID!, $input: UpdateSceneBoardInput!) {
+        updateSceneBoard(id: $id, input: $input) {
+          id
+          name
+          description
+          project {
+            id
+            name
+          }
+          defaultFadeTime
+          gridSize
+          canvasWidth
+          canvasHeight
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { id: sceneBoardId, input });
+    return data.updateSceneBoard;
+  }
+
+  /**
+   * Delete a scene board and all its buttons
+   */
+  async deleteSceneBoard(sceneBoardId: string): Promise<boolean> {
+    const mutation = `
+      mutation DeleteSceneBoard($id: ID!) {
+        deleteSceneBoard(id: $id)
+      }
+    `;
+
+    const data = await this.query(mutation, { id: sceneBoardId });
+    return data.deleteSceneBoard;
+  }
+
+  /**
+   * Bulk create multiple scene boards
+   */
+  async bulkCreateSceneBoards(input: Array<{
+    name: string;
+    description?: string;
+    projectId: string;
+    defaultFadeTime?: number;
+    gridSize?: number;
+    canvasWidth?: number;
+    canvasHeight?: number;
+  }>): Promise<SceneBoard[]> {
+    const mutation = `
+      mutation BulkCreateSceneBoards($input: BulkSceneBoardCreateInput!) {
+        bulkCreateSceneBoards(input: $input) {
+          id
+          name
+          description
+          project {
+            id
+            name
+          }
+          defaultFadeTime
+          gridSize
+          canvasWidth
+          canvasHeight
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input: { sceneBoards: input } });
+    return data.bulkCreateSceneBoards;
+  }
+
+  /**
+   * Bulk update multiple scene boards
+   */
+  async bulkUpdateSceneBoards(input: Array<{
+    sceneBoardId: string;
+    name?: string;
+    description?: string;
+    defaultFadeTime?: number;
+    gridSize?: number;
+    canvasWidth?: number;
+    canvasHeight?: number;
+  }>): Promise<SceneBoard[]> {
+    const mutation = `
+      mutation BulkUpdateSceneBoards($input: BulkSceneBoardUpdateInput!) {
+        bulkUpdateSceneBoards(input: $input) {
+          id
+          name
+          description
+          defaultFadeTime
+          gridSize
+          canvasWidth
+          canvasHeight
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input: { sceneBoards: input } });
+    return data.bulkUpdateSceneBoards;
+  }
+
+  /**
+   * Bulk delete multiple scene boards
+   */
+  async bulkDeleteSceneBoards(sceneBoardIds: string[]): Promise<{
+    successCount: number;
+    failedIds: string[];
+  }> {
+    const mutation = `
+      mutation BulkDeleteSceneBoards($sceneBoardIds: [ID!]!) {
+        bulkDeleteSceneBoards(sceneBoardIds: $sceneBoardIds) {
+          successCount
+          failedIds
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { sceneBoardIds });
+    return data.bulkDeleteSceneBoards;
+  }
+
+  // ========================================================================
+  // Scene Board Button Operations
+  // ========================================================================
+
+  /**
+   * Add a scene to a board (create button)
+   */
+  async addSceneToBoard(input: {
+    sceneBoardId: string;
+    sceneId: string;
+    layoutX: number;
+    layoutY: number;
+    width?: number;
+    height?: number;
+    color?: string;
+    label?: string;
+  }): Promise<SceneBoardButton> {
+    const mutation = `
+      mutation AddSceneToBoard($input: CreateSceneBoardButtonInput!) {
+        addSceneToBoard(input: $input) {
+          id
+          sceneBoard {
+            id
+            name
+          }
+          scene {
+            id
+            name
+          }
+          layoutX
+          layoutY
+          width
+          height
+          color
+          label
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.addSceneToBoard;
+  }
+
+  /**
+   * Update a scene board button
+   */
+  async updateSceneBoardButton(
+    buttonId: string,
+    input: {
+      layoutX?: number;
+      layoutY?: number;
+      width?: number;
+      height?: number;
+      color?: string;
+      label?: string;
+    }
+  ): Promise<SceneBoardButton> {
+    const mutation = `
+      mutation UpdateSceneBoardButton($id: ID!, $input: UpdateSceneBoardButtonInput!) {
+        updateSceneBoardButton(id: $id, input: $input) {
+          id
+          sceneBoard {
+            id
+            name
+          }
+          scene {
+            id
+            name
+          }
+          layoutX
+          layoutY
+          width
+          height
+          color
+          label
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { id: buttonId, input });
+    return data.updateSceneBoardButton;
+  }
+
+  /**
+   * Remove a scene from board (delete button)
+   */
+  async removeSceneFromBoard(buttonId: string): Promise<boolean> {
+    const mutation = `
+      mutation RemoveSceneFromBoard($buttonId: ID!) {
+        removeSceneFromBoard(buttonId: $buttonId)
+      }
+    `;
+
+    const data = await this.query(mutation, { buttonId });
+    return data.removeSceneFromBoard;
+  }
+
+  /**
+   * Update multiple button positions in batch
+   */
+  async updateSceneBoardButtonPositions(positions: Array<{
+    buttonId: string;
+    layoutX: number;
+    layoutY: number;
+  }>): Promise<boolean> {
+    const mutation = `
+      mutation UpdateSceneBoardButtonPositions($positions: [SceneBoardButtonPositionInput!]!) {
+        updateSceneBoardButtonPositions(positions: $positions)
+      }
+    `;
+
+    const data = await this.query(mutation, { positions });
+    return data.updateSceneBoardButtonPositions;
+  }
+
+  /**
+   * Bulk create multiple buttons
+   */
+  async bulkCreateSceneBoardButtons(input: Array<{
+    sceneBoardId: string;
+    sceneId: string;
+    layoutX: number;
+    layoutY: number;
+    width?: number;
+    height?: number;
+    color?: string;
+    label?: string;
+  }>): Promise<SceneBoardButton[]> {
+    const mutation = `
+      mutation BulkCreateSceneBoardButtons($input: BulkSceneBoardButtonCreateInput!) {
+        bulkCreateSceneBoardButtons(input: $input) {
+          id
+          sceneBoard {
+            id
+            name
+          }
+          scene {
+            id
+            name
+          }
+          layoutX
+          layoutY
+          width
+          height
+          color
+          label
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input: { buttons: input } });
+    return data.bulkCreateSceneBoardButtons;
+  }
+
+  /**
+   * Bulk update multiple buttons
+   */
+  async bulkUpdateSceneBoardButtons(input: Array<{
+    buttonId: string;
+    layoutX?: number;
+    layoutY?: number;
+    width?: number;
+    height?: number;
+    color?: string;
+    label?: string;
+  }>): Promise<SceneBoardButton[]> {
+    const mutation = `
+      mutation BulkUpdateSceneBoardButtons($input: BulkSceneBoardButtonUpdateInput!) {
+        bulkUpdateSceneBoardButtons(input: $input) {
+          id
+          scene {
+            id
+            name
+          }
+          layoutX
+          layoutY
+          width
+          height
+          color
+          label
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input: { buttons: input } });
+    return data.bulkUpdateSceneBoardButtons;
+  }
+
+  /**
+   * Bulk delete multiple buttons
+   */
+  async bulkDeleteSceneBoardButtons(buttonIds: string[]): Promise<{
+    successCount: number;
+    failedIds: string[];
+  }> {
+    const mutation = `
+      mutation BulkDeleteSceneBoardButtons($buttonIds: [ID!]!) {
+        bulkDeleteSceneBoardButtons(buttonIds: $buttonIds) {
+          successCount
+          failedIds
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { buttonIds });
+    return data.bulkDeleteSceneBoardButtons;
+  }
+
+  /**
+   * Activate a scene from a board (uses board's default fade time unless overridden)
+   */
+  async activateSceneFromBoard(
+    sceneBoardId: string,
+    sceneId: string,
+    fadeTimeOverride?: number
+  ): Promise<boolean> {
+    const mutation = `
+      mutation ActivateSceneFromBoard(
+        $sceneBoardId: ID!
+        $sceneId: ID!
+        $fadeTimeOverride: Float
+      ) {
+        activateSceneFromBoard(
+          sceneBoardId: $sceneBoardId
+          sceneId: $sceneId
+          fadeTimeOverride: $fadeTimeOverride
+        )
+      }
+    `;
+
+    const data = await this.query(mutation, { sceneBoardId, sceneId, fadeTimeOverride });
+    return data.activateSceneFromBoard;
   }
 }

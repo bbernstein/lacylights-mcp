@@ -273,3 +273,46 @@ export enum SceneSortField {
   CREATED_AT = 'CREATED_AT',
   UPDATED_AT = 'UPDATED_AT'
 }
+
+// Scene Board Types
+
+export interface SceneBoard {
+  id: string;
+  name: string;
+  description?: string;
+  project: { id: string; name: string };
+  defaultFadeTime: number;
+  gridSize?: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  buttons: SceneBoardButton[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SceneBoardButton {
+  id: string;
+  sceneBoard: { id: string; name: string };
+  scene: { id: string; name: string };
+  layoutX: number;
+  layoutY: number;
+  width?: number;
+  height?: number;
+  color?: string;
+  label?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SceneBoardSummary {
+  id: string;
+  name: string;
+  description?: string;
+  defaultFadeTime: number;
+  gridSize?: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  buttonCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
