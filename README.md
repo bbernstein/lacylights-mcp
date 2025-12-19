@@ -83,6 +83,33 @@ The system uses AI to understand artistic intent and translate it into precise D
 - **`stop_cue_list`** - Stop the currently playing cue list
 - **`get_cue_list_status`** - Get playback status and navigation options
 
+### Scene Board Management
+
+Scene Boards provide a visual layout system for organizing and triggering scenes with customizable button positions on a 2D canvas (default 2000x2000 pixels).
+
+#### Scene Board CRUD
+- **`list_scene_boards`** - List all scene boards in a project with button counts
+- **`get_scene_board`** - Get a specific scene board with all buttons and layout
+- **`create_scene_board`** - Create a new scene board with custom canvas and grid settings
+- **`update_scene_board`** - Update scene board metadata and settings
+- **`delete_scene_board`** - Delete a scene board and all its buttons (requires confirmation)
+- **`bulk_create_scene_boards`** - Create multiple scene boards in a single operation
+- **`bulk_update_scene_boards`** - Update multiple scene boards in a single operation
+- **`bulk_delete_scene_boards`** - Delete multiple scene boards in a single operation
+
+#### Scene Board Button Management
+- **`add_scene_to_board`** - Add a scene as a button at a specific canvas position
+- **`update_scene_board_button`** - Update button properties (position, size, color, label)
+- **`remove_scene_from_board`** - Remove a button from a scene board
+- **`update_scene_board_button_positions`** - Batch update button positions (drag-and-drop)
+- **`bulk_create_scene_board_buttons`** - Create multiple buttons in a single operation
+- **`bulk_update_scene_board_buttons`** - Update multiple buttons in a single operation
+- **`bulk_delete_scene_board_buttons`** - Delete multiple buttons in a single operation
+
+#### Scene Board Playback
+- **`activate_scene_from_board`** - Activate a scene from a board (uses board's default fade time)
+- **`create_scene_board_with_buttons`** - Create a complete scene board with buttons in one command
+
 ## Installation
 
 1. Install dependencies:

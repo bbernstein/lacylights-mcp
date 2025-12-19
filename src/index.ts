@@ -15,6 +15,7 @@ import { SceneTools } from "./tools/scene-tools";
 import { CueTools } from "./tools/cue-tools";
 import { ProjectTools } from "./tools/project-tools";
 import { SettingsTools } from "./tools/settings-tools";
+import { SceneBoardTools } from "./tools/scene-board-tools";
 import { logger } from "./utils/logger";
 
 class LacyLightsMCPServer {
@@ -27,6 +28,7 @@ class LacyLightsMCPServer {
   private cueTools: CueTools;
   private projectTools: ProjectTools;
   private settingsTools: SettingsTools;
+  private sceneBoardTools: SceneBoardTools;
 
   constructor() {
     this.server = new Server(
@@ -63,6 +65,7 @@ class LacyLightsMCPServer {
     );
     this.projectTools = new ProjectTools(this.graphqlClient);
     this.settingsTools = new SettingsTools(this.graphqlClient);
+    this.sceneBoardTools = new SceneBoardTools(this.graphqlClient);
 
     this.setupHandlers();
   }
@@ -2315,6 +2318,482 @@ Note: Changes take effect immediately for new scene transitions.`,
               required: ["rateHz"],
             },
           },
+          // Scene Board Tools
+          {
+            name: "list_scene_boards",
+            description: `List all scene boards in a project.
+
+Returns lightweight scene board summaries with button counts.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to list scene boards from",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "get_scene_board",
+            description: `Get a specific scene board with all its buttons and layout information.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneBoardId: {
+                  type: "string",
+                  description: "Scene board ID to retrieve",
+                },
+              },
+              required: ["sceneBoardId"],
+            },
+          },
+          {
+            name: "create_scene_board",
+            description: `Create a new scene board for organizing scenes with custom layout.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                name: {
+                  type: "string",
+                  description: "Scene board name",
+                },
+                description: {
+                  type: "string",
+                  description: "Scene board description",
+                },
+                projectId: {
+                  type: "string",
+                  description: "Project ID to create scene board in",
+                },
+                defaultFadeTime: {
+                  type: "number",
+                  description: "Default fade time in seconds (default: 3.0)",
+                  default: 3.0,
+                },
+                gridSize: {
+                  type: "number",
+                  description: "Grid size for layout alignment in pixels (default: 50)",
+                  default: 50,
+                },
+                canvasWidth: {
+                  type: "number",
+                  description: "Canvas width in pixels (default: 2000)",
+                  default: 2000,
+                },
+                canvasHeight: {
+                  type: "number",
+                  description: "Canvas height in pixels (default: 2000)",
+                  default: 2000,
+                },
+              },
+              required: ["name", "projectId"],
+            },
+          },
+          {
+            name: "update_scene_board",
+            description: `Update an existing scene board's metadata and settings.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneBoardId: {
+                  type: "string",
+                  description: "Scene board ID to update",
+                },
+                name: {
+                  type: "string",
+                  description: "New scene board name",
+                },
+                description: {
+                  type: "string",
+                  description: "New scene board description",
+                },
+                defaultFadeTime: {
+                  type: "number",
+                  description: "New default fade time in seconds",
+                },
+                gridSize: {
+                  type: "number",
+                  description: "New grid size for layout alignment",
+                },
+                canvasWidth: {
+                  type: "number",
+                  description: "New canvas width in pixels",
+                },
+                canvasHeight: {
+                  type: "number",
+                  description: "New canvas height in pixels",
+                },
+              },
+              required: ["sceneBoardId"],
+            },
+          },
+          {
+            name: "delete_scene_board",
+            description: `Delete a scene board and all its buttons.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneBoardId: {
+                  type: "string",
+                  description: "Scene board ID to delete",
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  description: "Confirm deletion of scene board and all its buttons (required to be true for safety)",
+                },
+              },
+              required: ["sceneBoardId", "confirmDelete"],
+            },
+          },
+          {
+            name: "bulk_create_scene_boards",
+            description: `Create multiple scene boards in a single operation.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneBoards: {
+                  type: "array",
+                  description: "Array of scene boards to create",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      description: { type: "string" },
+                      projectId: { type: "string" },
+                      defaultFadeTime: { type: "number", default: 3.0 },
+                      gridSize: { type: "number", default: 50 },
+                      canvasWidth: { type: "number", default: 2000 },
+                      canvasHeight: { type: "number", default: 2000 },
+                    },
+                    required: ["name", "projectId"],
+                  },
+                },
+              },
+              required: ["sceneBoards"],
+            },
+          },
+          {
+            name: "bulk_update_scene_boards",
+            description: `Update multiple scene boards in a single operation.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneBoards: {
+                  type: "array",
+                  description: "Array of scene board updates to apply",
+                  items: {
+                    type: "object",
+                    properties: {
+                      sceneBoardId: { type: "string" },
+                      name: { type: "string" },
+                      description: { type: "string" },
+                      defaultFadeTime: { type: "number" },
+                      gridSize: { type: "number" },
+                      canvasWidth: { type: "number" },
+                      canvasHeight: { type: "number" },
+                    },
+                    required: ["sceneBoardId"],
+                  },
+                },
+              },
+              required: ["sceneBoards"],
+            },
+          },
+          {
+            name: "bulk_delete_scene_boards",
+            description: `Delete multiple scene boards in a single operation.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneBoardIds: {
+                  type: "array",
+                  description: "Array of scene board IDs to delete",
+                  items: { type: "string" },
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  description: "Confirm deletion (required to be true for safety)",
+                },
+              },
+              required: ["sceneBoardIds", "confirmDelete"],
+            },
+          },
+          {
+            name: "add_scene_to_board",
+            description: `Add a scene as a button to a scene board at a specific position.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneBoardId: {
+                  type: "string",
+                  description: "Scene board ID to add button to",
+                },
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID for this button",
+                },
+                layoutX: {
+                  type: "number",
+                  description: "X position in pixels",
+                },
+                layoutY: {
+                  type: "number",
+                  description: "Y position in pixels",
+                },
+                width: {
+                  type: "number",
+                  description: "Button width in pixels (default: 200)",
+                  default: 200,
+                },
+                height: {
+                  type: "number",
+                  description: "Button height in pixels (default: 120)",
+                  default: 120,
+                },
+                color: {
+                  type: "string",
+                  description: "Button color (hex or CSS color value)",
+                },
+                label: {
+                  type: "string",
+                  description: "Button label/text override",
+                },
+              },
+              required: ["sceneBoardId", "sceneId", "layoutX", "layoutY"],
+            },
+          },
+          {
+            name: "update_scene_board_button",
+            description: `Update a scene board button's properties (position, size, color, label).`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                buttonId: {
+                  type: "string",
+                  description: "Button ID to update",
+                },
+                layoutX: {
+                  type: "number",
+                  description: "New X position in pixels",
+                },
+                layoutY: {
+                  type: "number",
+                  description: "New Y position in pixels",
+                },
+                width: {
+                  type: "number",
+                  description: "New button width in pixels",
+                },
+                height: {
+                  type: "number",
+                  description: "New button height in pixels",
+                },
+                color: {
+                  type: "string",
+                  description: "New button color",
+                },
+                label: {
+                  type: "string",
+                  description: "New button label/text",
+                },
+              },
+              required: ["buttonId"],
+            },
+          },
+          {
+            name: "remove_scene_from_board",
+            description: `Remove a button from a scene board.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                buttonId: {
+                  type: "string",
+                  description: "Button ID to remove",
+                },
+              },
+              required: ["buttonId"],
+            },
+          },
+          {
+            name: "update_scene_board_button_positions",
+            description: `Update positions of multiple buttons in a single operation (useful for drag-and-drop).`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                positions: {
+                  type: "array",
+                  description: "Array of button position updates",
+                  items: {
+                    type: "object",
+                    properties: {
+                      buttonId: { type: "string" },
+                      layoutX: { type: "number" },
+                      layoutY: { type: "number" },
+                    },
+                    required: ["buttonId", "layoutX", "layoutY"],
+                  },
+                },
+              },
+              required: ["positions"],
+            },
+          },
+          {
+            name: "bulk_create_scene_board_buttons",
+            description: `Create multiple buttons in a single operation.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                buttons: {
+                  type: "array",
+                  description: "Array of buttons to create",
+                  items: {
+                    type: "object",
+                    properties: {
+                      sceneBoardId: { type: "string" },
+                      sceneId: { type: "string" },
+                      layoutX: { type: "number" },
+                      layoutY: { type: "number" },
+                      width: { type: "number", default: 200 },
+                      height: { type: "number", default: 120 },
+                      color: { type: "string" },
+                      label: { type: "string" },
+                    },
+                    required: ["sceneBoardId", "sceneId", "layoutX", "layoutY"],
+                  },
+                },
+              },
+              required: ["buttons"],
+            },
+          },
+          {
+            name: "bulk_update_scene_board_buttons",
+            description: `Update multiple buttons in a single operation.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                buttons: {
+                  type: "array",
+                  description: "Array of button updates to apply",
+                  items: {
+                    type: "object",
+                    properties: {
+                      buttonId: { type: "string" },
+                      layoutX: { type: "number" },
+                      layoutY: { type: "number" },
+                      width: { type: "number" },
+                      height: { type: "number" },
+                      color: { type: "string" },
+                      label: { type: "string" },
+                    },
+                    required: ["buttonId"],
+                  },
+                },
+              },
+              required: ["buttons"],
+            },
+          },
+          {
+            name: "bulk_delete_scene_board_buttons",
+            description: `Delete multiple buttons in a single operation.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                buttonIds: {
+                  type: "array",
+                  description: "Array of button IDs to delete",
+                  items: { type: "string" },
+                },
+                confirmDelete: {
+                  type: "boolean",
+                  description: "Confirm deletion (required to be true for safety)",
+                },
+              },
+              required: ["buttonIds", "confirmDelete"],
+            },
+          },
+          {
+            name: "activate_scene_from_board",
+            description: `Activate a scene from a board (uses board's default fade time unless overridden).`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                sceneBoardId: {
+                  type: "string",
+                  description: "Scene board ID",
+                },
+                sceneId: {
+                  type: "string",
+                  description: "Scene ID to activate",
+                },
+                fadeTimeOverride: {
+                  type: "number",
+                  description: "Optional fade time override in seconds",
+                },
+              },
+              required: ["sceneBoardId", "sceneId"],
+            },
+          },
+          {
+            name: "create_scene_board_with_buttons",
+            description: `Create a complete scene board with buttons in a single operation. Allows defining an entire scene board layout in one command.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                name: {
+                  type: "string",
+                  description: "Scene board name",
+                },
+                description: {
+                  type: "string",
+                  description: "Scene board description",
+                },
+                projectId: {
+                  type: "string",
+                  description: "Project ID to create scene board in",
+                },
+                defaultFadeTime: {
+                  type: "number",
+                  description: "Default fade time in seconds",
+                  default: 3.0,
+                },
+                gridSize: {
+                  type: "number",
+                  description: "Grid size for layout alignment",
+                  default: 50,
+                },
+                canvasWidth: {
+                  type: "number",
+                  description: "Canvas width in pixels",
+                  default: 2000,
+                },
+                canvasHeight: {
+                  type: "number",
+                  description: "Canvas height in pixels",
+                  default: 2000,
+                },
+                buttons: {
+                  type: "array",
+                  description: "Optional array of buttons to create with the board",
+                  items: {
+                    type: "object",
+                    properties: {
+                      sceneId: { type: "string" },
+                      layoutX: { type: "number" },
+                      layoutY: { type: "number" },
+                      width: { type: "number", default: 200 },
+                      height: { type: "number", default: 120 },
+                      color: { type: "string" },
+                      label: { type: "string" },
+                    },
+                    required: ["sceneId", "layoutX", "layoutY"],
+                  },
+                },
+              },
+              required: ["name", "projectId"],
+            },
+          },
         ],
       };
     });
@@ -3267,6 +3746,245 @@ Note: Changes take effect immediately for new scene transitions.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.settingsTools.setFadeUpdateRate(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Scene Board Tools
+          case "list_scene_boards":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.listSceneBoards(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_scene_board":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.getSceneBoard(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "create_scene_board":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.createSceneBoard(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "update_scene_board":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.updateSceneBoard(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "delete_scene_board":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.deleteSceneBoard(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_create_scene_boards":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.bulkCreateSceneBoards(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_update_scene_boards":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.bulkUpdateSceneBoards(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_delete_scene_boards":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.bulkDeleteSceneBoards(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "add_scene_to_board":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.addSceneToBoard(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "update_scene_board_button":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.updateSceneBoardButton(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "remove_scene_from_board":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.removeSceneFromBoard(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "update_scene_board_button_positions":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.updateSceneBoardButtonPositions(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_create_scene_board_buttons":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.bulkCreateSceneBoardButtons(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_update_scene_board_buttons":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.bulkUpdateSceneBoardButtons(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_delete_scene_board_buttons":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.bulkDeleteSceneBoardButtons(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "activate_scene_from_board":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.activateSceneFromBoard(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "create_scene_board_with_buttons":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneBoardTools.createSceneBoardWithButtons(args as any),
                     null,
                     2,
                   ),
