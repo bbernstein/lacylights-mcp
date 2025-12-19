@@ -346,6 +346,10 @@ export class SceneBoardTools {
   async bulkCreateSceneBoards(args: z.input<typeof BulkCreateSceneBoardsSchema>) {
     const { sceneBoards } = BulkCreateSceneBoardsSchema.parse(args);
 
+    if (sceneBoards.length === 0) {
+      throw new Error('No scene boards provided for bulk creation');
+    }
+
     try {
       const createdBoards = await this.graphqlClient.bulkCreateSceneBoards(sceneBoards);
 
@@ -376,6 +380,10 @@ export class SceneBoardTools {
   async bulkUpdateSceneBoards(args: z.infer<typeof BulkUpdateSceneBoardsSchema>) {
     const { sceneBoards } = BulkUpdateSceneBoardsSchema.parse(args);
 
+    if (sceneBoards.length === 0) {
+      throw new Error('No scene boards provided for bulk update');
+    }
+
     try {
       const updatedBoards = await this.graphqlClient.bulkUpdateSceneBoards(sceneBoards);
 
@@ -404,6 +412,10 @@ export class SceneBoardTools {
   async bulkDeleteSceneBoards(args: z.infer<typeof BulkDeleteSceneBoardsSchema>) {
     const { sceneBoardIds, confirmDelete } = BulkDeleteSceneBoardsSchema.parse(args);
 
+    if (sceneBoardIds.length === 0) {
+      throw new Error('No scene board IDs provided for bulk deletion');
+    }
+
     if (!confirmDelete) {
       throw new Error('confirmDelete must be true to delete scene boards');
     }
@@ -411,6 +423,8 @@ export class SceneBoardTools {
     try {
       const result = await this.graphqlClient.bulkDeleteSceneBoards(sceneBoardIds);
 
+      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
+      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
       return {
         success: result.successCount > 0,
         deletedCount: result.successCount,
@@ -518,6 +532,10 @@ export class SceneBoardTools {
   async updateSceneBoardButtonPositions(args: z.infer<typeof UpdateSceneBoardButtonPositionsSchema>) {
     const { positions } = UpdateSceneBoardButtonPositionsSchema.parse(args);
 
+    if (positions.length === 0) {
+      throw new Error('No button positions provided for update');
+    }
+
     try {
       await this.graphqlClient.updateSceneBoardButtonPositions(positions);
 
@@ -538,6 +556,10 @@ export class SceneBoardTools {
 
   async bulkCreateSceneBoardButtons(args: z.input<typeof BulkCreateSceneBoardButtonsSchema>) {
     const { buttons } = BulkCreateSceneBoardButtonsSchema.parse(args);
+
+    if (buttons.length === 0) {
+      throw new Error('No buttons provided for bulk creation');
+    }
 
     try {
       const createdButtons = await this.graphqlClient.bulkCreateSceneBoardButtons(buttons);
@@ -572,6 +594,10 @@ export class SceneBoardTools {
   async bulkUpdateSceneBoardButtons(args: z.infer<typeof BulkUpdateSceneBoardButtonsSchema>) {
     const { buttons } = BulkUpdateSceneBoardButtonsSchema.parse(args);
 
+    if (buttons.length === 0) {
+      throw new Error('No buttons provided for bulk update');
+    }
+
     try {
       const updatedButtons = await this.graphqlClient.bulkUpdateSceneBoardButtons(buttons);
 
@@ -603,6 +629,10 @@ export class SceneBoardTools {
   async bulkDeleteSceneBoardButtons(args: z.infer<typeof BulkDeleteSceneBoardButtonsSchema>) {
     const { buttonIds, confirmDelete } = BulkDeleteSceneBoardButtonsSchema.parse(args);
 
+    if (buttonIds.length === 0) {
+      throw new Error('No button IDs provided for bulk deletion');
+    }
+
     if (!confirmDelete) {
       throw new Error('confirmDelete must be true to delete buttons');
     }
@@ -610,6 +640,8 @@ export class SceneBoardTools {
     try {
       const result = await this.graphqlClient.bulkDeleteSceneBoardButtons(buttonIds);
 
+      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
+      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
       return {
         success: result.successCount > 0,
         deletedCount: result.successCount,
