@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
+import { SceneBoardButton } from '../types/lighting';
 
 // ============================================================================
 // Scene Board Schemas
@@ -17,7 +18,7 @@ const CreateSceneBoardSchema = z.object({
   name: z.string().describe('Scene board name'),
   description: z.string().optional().describe('Scene board description'),
   projectId: z.string().describe('Project ID to create scene board in'),
-  defaultFadeTime: z.number().default(3.0).describe('Default fade time in seconds (default: 3.0)'),
+  defaultFadeTime: z.number().optional().default(3.0).describe('Default fade time in seconds (default: 3.0)'),
   gridSize: z.number().optional().default(50).describe('Grid size for layout alignment (default: 50 pixels)'),
   canvasWidth: z.number().optional().default(2000).describe('Canvas width in pixels (default: 2000)'),
   canvasHeight: z.number().optional().default(2000).describe('Canvas height in pixels (default: 2000)')
@@ -75,20 +76,20 @@ const BulkDeleteSceneBoardsSchema = z.object({
 const AddSceneToBoardSchema = z.object({
   sceneBoardId: z.string().describe('Scene board ID to add button to'),
   sceneId: z.string().describe('Scene ID for this button'),
-  layoutX: z.number().describe('X position in pixels (0-canvasWidth)'),
-  layoutY: z.number().describe('Y position in pixels (0-canvasHeight)'),
-  width: z.number().optional().default(200).describe('Button width in pixels (default: 200)'),
-  height: z.number().optional().default(120).describe('Button height in pixels (default: 120)'),
+  layoutX: z.number().min(0).describe('X position in pixels (0-canvasWidth)'),
+  layoutY: z.number().min(0).describe('Y position in pixels (0-canvasHeight)'),
+  width: z.number().positive().optional().default(200).describe('Button width in pixels (default: 200)'),
+  height: z.number().positive().optional().default(120).describe('Button height in pixels (default: 120)'),
   color: z.string().optional().describe('Button color (hex or CSS color value)'),
   label: z.string().optional().describe('Button label/text override')
 });
 
 const UpdateSceneBoardButtonSchema = z.object({
   buttonId: z.string().describe('Button ID to update'),
-  layoutX: z.number().optional().describe('New X position in pixels'),
-  layoutY: z.number().optional().describe('New Y position in pixels'),
-  width: z.number().optional().describe('New button width in pixels'),
-  height: z.number().optional().describe('New button height in pixels'),
+  layoutX: z.number().min(0).optional().describe('New X position in pixels'),
+  layoutY: z.number().min(0).optional().describe('New Y position in pixels'),
+  width: z.number().positive().optional().describe('New button width in pixels'),
+  height: z.number().positive().optional().describe('New button height in pixels'),
   color: z.string().optional().describe('New button color'),
   label: z.string().optional().describe('New button label/text')
 });
@@ -100,8 +101,8 @@ const RemoveSceneFromBoardSchema = z.object({
 const UpdateSceneBoardButtonPositionsSchema = z.object({
   positions: z.array(z.object({
     buttonId: z.string().describe('Button ID to update'),
-    layoutX: z.number().describe('New X position in pixels'),
-    layoutY: z.number().describe('New Y position in pixels')
+    layoutX: z.number().min(0).describe('New X position in pixels'),
+    layoutY: z.number().min(0).describe('New Y position in pixels')
   })).describe('Array of button position updates')
 });
 
@@ -110,10 +111,10 @@ const BulkCreateSceneBoardButtonsSchema = z.object({
   buttons: z.array(z.object({
     sceneBoardId: z.string().describe('Scene board ID to add button to'),
     sceneId: z.string().describe('Scene ID for this button'),
-    layoutX: z.number().describe('X position in pixels'),
-    layoutY: z.number().describe('Y position in pixels'),
-    width: z.number().optional().default(200).describe('Button width in pixels'),
-    height: z.number().optional().default(120).describe('Button height in pixels'),
+    layoutX: z.number().min(0).describe('X position in pixels'),
+    layoutY: z.number().min(0).describe('Y position in pixels'),
+    width: z.number().positive().optional().default(200).describe('Button width in pixels'),
+    height: z.number().positive().optional().default(120).describe('Button height in pixels'),
     color: z.string().optional().describe('Button color'),
     label: z.string().optional().describe('Button label/text')
   })).describe('Array of buttons to create')
@@ -122,10 +123,10 @@ const BulkCreateSceneBoardButtonsSchema = z.object({
 const BulkUpdateSceneBoardButtonsSchema = z.object({
   buttons: z.array(z.object({
     buttonId: z.string().describe('Button ID to update'),
-    layoutX: z.number().optional().describe('New X position in pixels'),
-    layoutY: z.number().optional().describe('New Y position in pixels'),
-    width: z.number().optional().describe('New button width in pixels'),
-    height: z.number().optional().describe('New button height in pixels'),
+    layoutX: z.number().min(0).optional().describe('New X position in pixels'),
+    layoutY: z.number().min(0).optional().describe('New Y position in pixels'),
+    width: z.number().positive().optional().describe('New button width in pixels'),
+    height: z.number().positive().optional().describe('New button height in pixels'),
     color: z.string().optional().describe('New button color'),
     label: z.string().optional().describe('New button label/text')
   })).describe('Array of button updates to apply')
@@ -160,10 +161,10 @@ const CreateSceneBoardWithButtonsSchema = z.object({
   canvasHeight: z.number().optional().default(2000).describe('Canvas height in pixels'),
   buttons: z.array(z.object({
     sceneId: z.string().describe('Scene ID for this button'),
-    layoutX: z.number().describe('X position in pixels'),
-    layoutY: z.number().describe('Y position in pixels'),
-    width: z.number().optional().default(200).describe('Button width in pixels'),
-    height: z.number().optional().default(120).describe('Button height in pixels'),
+    layoutX: z.number().min(0).describe('X position in pixels'),
+    layoutY: z.number().min(0).describe('Y position in pixels'),
+    width: z.number().positive().optional().default(200).describe('Button width in pixels'),
+    height: z.number().positive().optional().default(120).describe('Button height in pixels'),
     color: z.string().optional().describe('Button color'),
     label: z.string().optional().describe('Button label/text')
   })).optional().describe('Optional array of buttons to create with the board')
@@ -207,7 +208,8 @@ export class SceneBoardTools {
         message: `Found ${sceneBoards.length} scene boards in project`
       };
     } catch (error) {
-      throw new Error(`Failed to list scene boards: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to list scene boards: ${message}`);
     }
   }
 
@@ -250,11 +252,12 @@ export class SceneBoardTools {
         message: `Retrieved scene board "${board.name}" with ${board.buttons.length} buttons`
       };
     } catch (error) {
-      throw new Error(`Failed to get scene board: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get scene board: ${message}`);
     }
   }
 
-  async createSceneBoard(args: z.infer<typeof CreateSceneBoardSchema>) {
+  async createSceneBoard(args: z.input<typeof CreateSceneBoardSchema>) {
     const { name, description, projectId, defaultFadeTime, gridSize, canvasWidth, canvasHeight } =
       CreateSceneBoardSchema.parse(args);
 
@@ -284,7 +287,8 @@ export class SceneBoardTools {
         message: `Successfully created scene board "${name}"`
       };
     } catch (error) {
-      throw new Error(`Failed to create scene board: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create scene board: ${message}`);
     }
   }
 
@@ -309,7 +313,8 @@ export class SceneBoardTools {
         message: `Successfully updated scene board "${board.name}"`
       };
     } catch (error) {
-      throw new Error(`Failed to update scene board: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to update scene board: ${message}`);
     }
   }
 
@@ -329,7 +334,8 @@ export class SceneBoardTools {
         message: 'Successfully deleted scene board and all its buttons'
       };
     } catch (error) {
-      throw new Error(`Failed to delete scene board: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to delete scene board: ${message}`);
     }
   }
 
@@ -337,8 +343,12 @@ export class SceneBoardTools {
   // Bulk Scene Board Operations
   // ------------------------------------------------------------------------
 
-  async bulkCreateSceneBoards(args: z.infer<typeof BulkCreateSceneBoardsSchema>) {
+  async bulkCreateSceneBoards(args: z.input<typeof BulkCreateSceneBoardsSchema>) {
     const { sceneBoards } = BulkCreateSceneBoardsSchema.parse(args);
+
+    if (sceneBoards.length === 0) {
+      throw new Error('No scene boards provided for bulk creation');
+    }
 
     try {
       const createdBoards = await this.graphqlClient.bulkCreateSceneBoards(sceneBoards);
@@ -362,12 +372,17 @@ export class SceneBoardTools {
         message: `Successfully created ${createdBoards.length} scene boards`
       };
     } catch (error) {
-      throw new Error(`Failed to bulk create scene boards: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to bulk create scene boards: ${message}`);
     }
   }
 
   async bulkUpdateSceneBoards(args: z.infer<typeof BulkUpdateSceneBoardsSchema>) {
     const { sceneBoards } = BulkUpdateSceneBoardsSchema.parse(args);
+
+    if (sceneBoards.length === 0) {
+      throw new Error('No scene boards provided for bulk update');
+    }
 
     try {
       const updatedBoards = await this.graphqlClient.bulkUpdateSceneBoards(sceneBoards);
@@ -389,12 +404,17 @@ export class SceneBoardTools {
         message: `Successfully updated ${updatedBoards.length} scene boards`
       };
     } catch (error) {
-      throw new Error(`Failed to bulk update scene boards: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to bulk update scene boards: ${message}`);
     }
   }
 
   async bulkDeleteSceneBoards(args: z.infer<typeof BulkDeleteSceneBoardsSchema>) {
     const { sceneBoardIds, confirmDelete } = BulkDeleteSceneBoardsSchema.parse(args);
+
+    if (sceneBoardIds.length === 0) {
+      throw new Error('No scene board IDs provided for bulk deletion');
+    }
 
     if (!confirmDelete) {
       throw new Error('confirmDelete must be true to delete scene boards');
@@ -403,6 +423,8 @@ export class SceneBoardTools {
     try {
       const result = await this.graphqlClient.bulkDeleteSceneBoards(sceneBoardIds);
 
+      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
+      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
       return {
         success: result.successCount > 0,
         deletedCount: result.successCount,
@@ -415,7 +437,8 @@ export class SceneBoardTools {
         message: `Successfully deleted ${result.successCount} scene boards${result.failedIds.length > 0 ? `, ${result.failedIds.length} failed` : ''}`
       };
     } catch (error) {
-      throw new Error(`Failed to bulk delete scene boards: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to bulk delete scene boards: ${message}`);
     }
   }
 
@@ -423,7 +446,7 @@ export class SceneBoardTools {
   // Scene Board Button Operations
   // ------------------------------------------------------------------------
 
-  async addSceneToBoard(args: z.infer<typeof AddSceneToBoardSchema>) {
+  async addSceneToBoard(args: z.input<typeof AddSceneToBoardSchema>) {
     const { sceneBoardId, sceneId, layoutX, layoutY, width, height, color, label } =
       AddSceneToBoardSchema.parse(args);
 
@@ -456,7 +479,8 @@ export class SceneBoardTools {
         message: `Successfully added scene "${button.scene.name}" to board at position (${layoutX}, ${layoutY})`
       };
     } catch (error) {
-      throw new Error(`Failed to add scene to board: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to add scene to board: ${message}`);
     }
   }
 
@@ -483,7 +507,8 @@ export class SceneBoardTools {
         message: `Successfully updated button for scene "${button.scene.name}"`
       };
     } catch (error) {
-      throw new Error(`Failed to update scene board button: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to update scene board button: ${message}`);
     }
   }
 
@@ -499,12 +524,17 @@ export class SceneBoardTools {
         message: 'Successfully removed button from board'
       };
     } catch (error) {
-      throw new Error(`Failed to remove scene from board: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to remove scene from board: ${message}`);
     }
   }
 
   async updateSceneBoardButtonPositions(args: z.infer<typeof UpdateSceneBoardButtonPositionsSchema>) {
     const { positions } = UpdateSceneBoardButtonPositionsSchema.parse(args);
+
+    if (positions.length === 0) {
+      throw new Error('No button positions provided for update');
+    }
 
     try {
       await this.graphqlClient.updateSceneBoardButtonPositions(positions);
@@ -515,7 +545,8 @@ export class SceneBoardTools {
         message: `Successfully updated positions for ${positions.length} buttons`
       };
     } catch (error) {
-      throw new Error(`Failed to update button positions: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to update button positions: ${message}`);
     }
   }
 
@@ -523,8 +554,12 @@ export class SceneBoardTools {
   // Bulk Button Operations
   // ------------------------------------------------------------------------
 
-  async bulkCreateSceneBoardButtons(args: z.infer<typeof BulkCreateSceneBoardButtonsSchema>) {
+  async bulkCreateSceneBoardButtons(args: z.input<typeof BulkCreateSceneBoardButtonsSchema>) {
     const { buttons } = BulkCreateSceneBoardButtonsSchema.parse(args);
+
+    if (buttons.length === 0) {
+      throw new Error('No buttons provided for bulk creation');
+    }
 
     try {
       const createdButtons = await this.graphqlClient.bulkCreateSceneBoardButtons(buttons);
@@ -551,12 +586,17 @@ export class SceneBoardTools {
         message: `Successfully created ${createdButtons.length} buttons`
       };
     } catch (error) {
-      throw new Error(`Failed to bulk create buttons: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to bulk create buttons: ${message}`);
     }
   }
 
   async bulkUpdateSceneBoardButtons(args: z.infer<typeof BulkUpdateSceneBoardButtonsSchema>) {
     const { buttons } = BulkUpdateSceneBoardButtonsSchema.parse(args);
+
+    if (buttons.length === 0) {
+      throw new Error('No buttons provided for bulk update');
+    }
 
     try {
       const updatedButtons = await this.graphqlClient.bulkUpdateSceneBoardButtons(buttons);
@@ -581,12 +621,17 @@ export class SceneBoardTools {
         message: `Successfully updated ${updatedButtons.length} buttons`
       };
     } catch (error) {
-      throw new Error(`Failed to bulk update buttons: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to bulk update buttons: ${message}`);
     }
   }
 
   async bulkDeleteSceneBoardButtons(args: z.infer<typeof BulkDeleteSceneBoardButtonsSchema>) {
     const { buttonIds, confirmDelete } = BulkDeleteSceneBoardButtonsSchema.parse(args);
+
+    if (buttonIds.length === 0) {
+      throw new Error('No button IDs provided for bulk deletion');
+    }
 
     if (!confirmDelete) {
       throw new Error('confirmDelete must be true to delete buttons');
@@ -595,6 +640,8 @@ export class SceneBoardTools {
     try {
       const result = await this.graphqlClient.bulkDeleteSceneBoardButtons(buttonIds);
 
+      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
+      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
       return {
         success: result.successCount > 0,
         deletedCount: result.successCount,
@@ -607,7 +654,8 @@ export class SceneBoardTools {
         message: `Successfully deleted ${result.successCount} buttons${result.failedIds.length > 0 ? `, ${result.failedIds.length} failed` : ''}`
       };
     } catch (error) {
-      throw new Error(`Failed to bulk delete buttons: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to bulk delete buttons: ${message}`);
     }
   }
 
@@ -626,7 +674,8 @@ export class SceneBoardTools {
         message: `Successfully activated scene from board${fadeTimeOverride ? ` with ${fadeTimeOverride}s fade` : ' with board default fade time'}`
       };
     } catch (error) {
-      throw new Error(`Failed to activate scene from board: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to activate scene from board: ${message}`);
     }
   }
 
@@ -634,7 +683,7 @@ export class SceneBoardTools {
   // Composite Operation: Create Board with Buttons
   // ------------------------------------------------------------------------
 
-  async createSceneBoardWithButtons(args: z.infer<typeof CreateSceneBoardWithButtonsSchema>) {
+  async createSceneBoardWithButtons(args: z.input<typeof CreateSceneBoardWithButtonsSchema>) {
     const { name, description, projectId, defaultFadeTime, gridSize, canvasWidth, canvasHeight, buttons } =
       CreateSceneBoardWithButtonsSchema.parse(args);
 
@@ -650,7 +699,7 @@ export class SceneBoardTools {
         canvasHeight
       });
 
-      let createdButtons: any[] = [];
+      let createdButtons: SceneBoardButton[] = [];
 
       // Then create buttons if provided
       if (buttons && buttons.length > 0) {
@@ -699,7 +748,8 @@ export class SceneBoardTools {
         message: `Successfully created scene board "${name}" with ${createdButtons.length} buttons`
       };
     } catch (error) {
-      throw new Error(`Failed to create scene board with buttons: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create scene board with buttons: ${message}`);
     }
   }
 }

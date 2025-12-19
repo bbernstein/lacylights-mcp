@@ -1409,4 +1409,379 @@ describe('LacyLightsGraphQLClient', () => {
       expect(result).toBe(true);
     });
   });
+
+  // ========================================================================
+  // Scene Board Tests
+  // ========================================================================
+
+  describe('Scene Board Operations', () => {
+    describe('listSceneBoards', () => {
+      it('should list scene boards for a project', async () => {
+        const mockBoards = [
+          {
+            id: 'board-1',
+            name: 'Test Board',
+            description: 'Test description',
+            project: { id: 'project-1', name: 'Test Project' },
+            defaultFadeTime: 3.0,
+            gridSize: 50,
+            canvasWidth: 2000,
+            canvasHeight: 2000,
+            buttons: [],
+            createdAt: '2024-01-01',
+            updatedAt: '2024-01-01'
+          }
+        ];
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { sceneBoards: mockBoards }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.listSceneBoards('project-1');
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          'http://localhost:4000/graphql',
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining('sceneBoards')
+          })
+        );
+        expect(result).toEqual(mockBoards);
+      });
+    });
+
+    describe('getSceneBoard', () => {
+      it('should get a specific scene board', async () => {
+        const mockBoard = {
+          id: 'board-1',
+          name: 'Test Board',
+          buttons: []
+        };
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { sceneBoard: mockBoard }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.getSceneBoard('board-1');
+
+        expect(result).toEqual(mockBoard);
+      });
+    });
+
+    describe('createSceneBoard', () => {
+      it('should create a scene board', async () => {
+        const input = {
+          name: 'New Board',
+          projectId: 'project-1',
+          defaultFadeTime: 3.0,
+          gridSize: 50,
+          canvasWidth: 2000,
+          canvasHeight: 2000
+        };
+
+        const mockBoard = {
+          id: 'board-1',
+          ...input,
+          project: { id: 'project-1', name: 'Test Project' },
+          buttons: [],
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01'
+        };
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { createSceneBoard: mockBoard }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.createSceneBoard(input);
+
+        expect(result).toEqual(mockBoard);
+      });
+    });
+
+    describe('updateSceneBoard', () => {
+      it('should update a scene board', async () => {
+        const updates = {
+          name: 'Updated Board',
+          defaultFadeTime: 5.0
+        };
+
+        const mockBoard = {
+          id: 'board-1',
+          ...updates,
+          project: { id: 'project-1', name: 'Test Project' },
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-02'
+        };
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { updateSceneBoard: mockBoard }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.updateSceneBoard('board-1', updates);
+
+        expect(result).toEqual(mockBoard);
+      });
+    });
+
+    describe('deleteSceneBoard', () => {
+      it('should delete a scene board', async () => {
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { deleteSceneBoard: true }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.deleteSceneBoard('board-1');
+
+        expect(result).toBe(true);
+      });
+    });
+
+    describe('bulkCreateSceneBoards', () => {
+      it('should create multiple scene boards', async () => {
+        const input = [
+          { name: 'Board 1', projectId: 'project-1' },
+          { name: 'Board 2', projectId: 'project-1' }
+        ];
+
+        const mockBoards = input.map((b, i) => ({
+          id: `board-${i + 1}`,
+          ...b,
+          project: { id: 'project-1', name: 'Test Project' },
+          defaultFadeTime: 3.0,
+          gridSize: 50,
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01'
+        }));
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { bulkCreateSceneBoards: mockBoards }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.bulkCreateSceneBoards(input);
+
+        expect(result).toEqual(mockBoards);
+        expect(result).toHaveLength(2);
+      });
+    });
+
+    describe('bulkDeleteSceneBoards', () => {
+      it('should delete multiple scene boards', async () => {
+        const mockResult = {
+          successCount: 2,
+          failedIds: []
+        };
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { bulkDeleteSceneBoards: mockResult }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.bulkDeleteSceneBoards(['board-1', 'board-2']);
+
+        expect(result).toEqual(mockResult);
+      });
+    });
+  });
+
+  describe('Scene Board Button Operations', () => {
+    describe('addSceneToBoard', () => {
+      it('should add a scene to board as button', async () => {
+        const input = {
+          sceneBoardId: 'board-1',
+          sceneId: 'scene-1',
+          layoutX: 100,
+          layoutY: 200,
+          width: 200,
+          height: 120
+        };
+
+        const mockButton = {
+          id: 'button-1',
+          ...input,
+          sceneBoard: { id: 'board-1', name: 'Test Board' },
+          scene: { id: 'scene-1', name: 'Test Scene' },
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01'
+        };
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { addSceneToBoard: mockButton }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.addSceneToBoard(input);
+
+        expect(result).toEqual(mockButton);
+      });
+    });
+
+    describe('updateSceneBoardButton', () => {
+      it('should update a button', async () => {
+        const updates = {
+          layoutX: 150,
+          color: '#FF0000'
+        };
+
+        const mockButton = {
+          id: 'button-1',
+          ...updates,
+          sceneBoard: { id: 'board-1', name: 'Test Board' },
+          scene: { id: 'scene-1', name: 'Test Scene' },
+          layoutY: 200,
+          width: 200,
+          height: 120,
+          updatedAt: '2024-01-02'
+        };
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { updateSceneBoardButton: mockButton }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.updateSceneBoardButton('button-1', updates);
+
+        expect(result).toEqual(mockButton);
+      });
+    });
+
+    describe('removeSceneFromBoard', () => {
+      it('should remove a button from board', async () => {
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { removeSceneFromBoard: true }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.removeSceneFromBoard('button-1');
+
+        expect(result).toBe(true);
+      });
+    });
+
+    describe('updateSceneBoardButtonPositions', () => {
+      it('should update multiple button positions', async () => {
+        const positions = [
+          { buttonId: 'button-1', layoutX: 100, layoutY: 100 },
+          { buttonId: 'button-2', layoutX: 300, layoutY: 100 }
+        ];
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { updateSceneBoardButtonPositions: true }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.updateSceneBoardButtonPositions(positions);
+
+        expect(result).toBe(true);
+      });
+    });
+
+    describe('bulkCreateSceneBoardButtons', () => {
+      it('should create multiple buttons', async () => {
+        const input = [
+          { sceneBoardId: 'board-1', sceneId: 'scene-1', layoutX: 100, layoutY: 100 },
+          { sceneBoardId: 'board-1', sceneId: 'scene-2', layoutX: 300, layoutY: 100 }
+        ];
+
+        const mockButtons = input.map((b, i) => ({
+          id: `button-${i + 1}`,
+          ...b,
+          sceneBoard: { id: 'board-1', name: 'Test Board' },
+          scene: { id: b.sceneId, name: `Scene ${i + 1}` },
+          width: 200,
+          height: 120,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01'
+        }));
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { bulkCreateSceneBoardButtons: mockButtons }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.bulkCreateSceneBoardButtons(input);
+
+        expect(result).toEqual(mockButtons);
+        expect(result).toHaveLength(2);
+      });
+    });
+
+    describe('bulkDeleteSceneBoardButtons', () => {
+      it('should delete multiple buttons', async () => {
+        const mockResult = {
+          successCount: 2,
+          failedIds: []
+        };
+
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { bulkDeleteSceneBoardButtons: mockResult }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.bulkDeleteSceneBoardButtons(['button-1', 'button-2']);
+
+        expect(result).toEqual(mockResult);
+      });
+    });
+
+    describe('activateSceneFromBoard', () => {
+      it('should activate scene with board default fade time', async () => {
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { activateSceneFromBoard: true }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.activateSceneFromBoard('board-1', 'scene-1');
+
+        expect(result).toBe(true);
+      });
+
+      it('should activate scene with custom fade time', async () => {
+        const mockResponse = {
+          json: jest.fn().mockResolvedValue({
+            data: { activateSceneFromBoard: true }
+          })
+        };
+        mockFetch.mockResolvedValue(mockResponse as any);
+
+        const result = await client.activateSceneFromBoard('board-1', 'scene-1', 5.0);
+
+        expect(result).toBe(true);
+      });
+    });
+  });
 });
