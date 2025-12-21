@@ -901,6 +901,127 @@ describe('FixtureTools', () => {
       expect(result.fixtures).toHaveLength(1);
     });
 
+    it('should analyze fixture with CMY (subtractive) color mixing', async () => {
+      const cmyChannels = [
+        { id: 'ch1', name: 'Cyan', type: ChannelType.CYAN, offset: 0, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch2', name: 'Magenta', type: ChannelType.MAGENTA, offset: 1, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch3', name: 'Yellow', type: ChannelType.YELLOW, offset: 2, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch4', name: 'Intensity', type: ChannelType.INTENSITY, offset: 3, minValue: 0, maxValue: 255, defaultValue: 0 }
+      ];
+
+      const projectWithCMY = {
+        ...mockProject,
+        fixtures: [{
+          id: 'fixture-cmy',
+          name: 'CMY Wash Light',
+          type: FixtureType.LED_PAR,
+          manufacturer: 'Test Manufacturer',
+          model: 'CMY Wash Light',
+          modeName: 'Standard',
+          channelCount: 4,
+          channels: cmyChannels,
+          universe: 1,
+          startChannel: 1,
+          tags: [],
+          definitionId: 'def-cmy',
+          description: 'Test CMY fixture'
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithCMY] as any);
+
+      const result = await fixtureTools.analyzeFixtureCapabilities({
+        fixtureId: 'fixture-cmy',
+        analysisType: 'color_mixing'
+      });
+
+      expect(result.analysisType).toBe('color_mixing');
+      expect(result.fixtures).toHaveLength(1);
+      expect((result.fixtures[0] as any).colorMixingType).toBe('CMY (Subtractive)');
+    });
+
+    it('should analyze fixture with extended gamut (LIME and INDIGO)', async () => {
+      const extendedGamutChannels = [
+        { id: 'ch1', name: 'Red', type: ChannelType.RED, offset: 0, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch2', name: 'Green', type: ChannelType.GREEN, offset: 1, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch3', name: 'Blue', type: ChannelType.BLUE, offset: 2, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch4', name: 'Lime', type: ChannelType.LIME, offset: 3, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch5', name: 'Indigo', type: ChannelType.INDIGO, offset: 4, minValue: 0, maxValue: 255, defaultValue: 0 }
+      ];
+
+      const projectWithExtended = {
+        ...mockProject,
+        fixtures: [{
+          id: 'fixture-extended',
+          name: 'Extended Gamut Light',
+          type: FixtureType.LED_PAR,
+          manufacturer: 'Test Manufacturer',
+          model: 'Extended Gamut Light',
+          modeName: 'Extended',
+          channelCount: 5,
+          channels: extendedGamutChannels,
+          universe: 1,
+          startChannel: 1,
+          tags: [],
+          definitionId: 'def-extended',
+          description: 'Test extended gamut fixture'
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithExtended] as any);
+
+      const result = await fixtureTools.analyzeFixtureCapabilities({
+        fixtureId: 'fixture-extended',
+        analysisType: 'color_mixing'
+      });
+
+      expect(result.analysisType).toBe('color_mixing');
+      expect(result.fixtures).toHaveLength(1);
+      expect((result.fixtures[0] as any).specialColors).toContain('Lime');
+      expect((result.fixtures[0] as any).specialColors).toContain('Indigo');
+    });
+
+    it('should analyze fixture with dual white (cold and warm)', async () => {
+      const dualWhiteChannels = [
+        { id: 'ch1', name: 'Red', type: ChannelType.RED, offset: 0, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch2', name: 'Green', type: ChannelType.GREEN, offset: 1, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch3', name: 'Blue', type: ChannelType.BLUE, offset: 2, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch4', name: 'Cold White', type: ChannelType.COLD_WHITE, offset: 3, minValue: 0, maxValue: 255, defaultValue: 0 },
+        { id: 'ch5', name: 'Warm White', type: ChannelType.WARM_WHITE, offset: 4, minValue: 0, maxValue: 255, defaultValue: 0 }
+      ];
+
+      const projectWithDualWhite = {
+        ...mockProject,
+        fixtures: [{
+          id: 'fixture-dual-white',
+          name: 'Dual White Light',
+          type: FixtureType.LED_PAR,
+          manufacturer: 'Test Manufacturer',
+          model: 'Dual White Light',
+          modeName: 'Dual White',
+          channelCount: 5,
+          channels: dualWhiteChannels,
+          universe: 1,
+          startChannel: 1,
+          tags: [],
+          definitionId: 'def-dual-white',
+          description: 'Test dual white fixture'
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithDualWhite] as any);
+
+      const result = await fixtureTools.analyzeFixtureCapabilities({
+        fixtureId: 'fixture-dual-white',
+        analysisType: 'color_mixing'
+      });
+
+      expect(result.analysisType).toBe('color_mixing');
+      expect(result.fixtures).toHaveLength(1);
+      expect((result.fixtures[0] as any).specialColors).toContain('Cold White');
+      expect((result.fixtures[0] as any).specialColors).toContain('Warm White');
+    });
+
     it('should analyze simple intensity dimmer fixture', async () => {
       const dimmerFixture = {
         id: 'def-dimmer',
