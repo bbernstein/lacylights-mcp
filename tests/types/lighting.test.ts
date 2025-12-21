@@ -35,9 +35,24 @@ describe('Lighting Types', () => {
       expect(ChannelType.TILT).toBe('TILT');
     });
 
-    it('should have 18 channel types', () => {
+    it('should have extended color channel types', () => {
+      // CMY color mixing channels
+      expect(ChannelType.CYAN).toBe('CYAN');
+      expect(ChannelType.MAGENTA).toBe('MAGENTA');
+      expect(ChannelType.YELLOW).toBe('YELLOW');
+      
+      // Extended color gamut channels
+      expect(ChannelType.LIME).toBe('LIME');
+      expect(ChannelType.INDIGO).toBe('INDIGO');
+      
+      // Dual white temperature channels
+      expect(ChannelType.COLD_WHITE).toBe('COLD_WHITE');
+      expect(ChannelType.WARM_WHITE).toBe('WARM_WHITE');
+    });
+
+    it('should have 25 channel types', () => {
       const types = Object.values(ChannelType);
-      expect(types).toHaveLength(18);
+      expect(types).toHaveLength(25);
     });
   });
 
