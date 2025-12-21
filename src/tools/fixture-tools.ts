@@ -4,6 +4,35 @@ import { FixtureDefinition, FixtureInstance, Scene, FixtureValue, FixtureType } 
 import { logger } from "../utils/logger";
 import { normalizePaginationParams } from "../utils/pagination";
 
+/**
+ * All channel types that are considered color channels.
+ * Includes RGB (additive mixing), CMY (subtractive mixing), extended gamut (LIME, INDIGO),
+ * dual white temperatures (COLD_WHITE, WARM_WHITE), and traditional colors (WHITE, AMBER, UV).
+ *
+ * @remarks
+ * - RGB: Additive color mixing (Red, Green, Blue)
+ * - CMY: Subtractive color mixing (Cyan, Magenta, Yellow) - common in professional lighting
+ * - Extended gamut: LIME and INDIGO expand the color space beyond standard RGB
+ * - Dual white: COLD_WHITE and WARM_WHITE provide independent color temperature control
+ * - COLOR_WHEEL: Used for fixtures with dichroic color wheels
+ */
+const COLOR_CHANNEL_TYPES: readonly string[] = [
+  "RED",
+  "GREEN",
+  "BLUE",
+  "WHITE",
+  "AMBER",
+  "UV",
+  "CYAN",
+  "MAGENTA",
+  "YELLOW",
+  "LIME",
+  "INDIGO",
+  "COLD_WHITE",
+  "WARM_WHITE",
+  "COLOR_WHEEL",
+] as const;
+
 const ListFixturesSchema = z.object({
   projectId: z.string().describe("Project ID to list fixtures from"),
   page: z.number().default(1).optional().describe("Page number (default: 1)"),
@@ -436,15 +465,21 @@ export class FixtureTools {
     }
 
     return {
-      hasColor: channelTypes.some((t) =>
-        ["RED", "GREEN", "BLUE", "WHITE", "AMBER", "UV"].includes(t),
-      ),
+      hasColor: channelTypes.some((t) => COLOR_CHANNEL_TYPES.includes(t)),
       hasRGB: ["RED", "GREEN", "BLUE"].every((color) =>
         channelTypes.includes(color as any),
       ),
       hasWhite: channelTypes.includes("WHITE" as any),
+      hasColdWhite: channelTypes.includes("COLD_WHITE" as any),
+      hasWarmWhite: channelTypes.includes("WARM_WHITE" as any),
       hasAmber: channelTypes.includes("AMBER" as any),
       hasUV: channelTypes.includes("UV" as any),
+      hasLime: channelTypes.includes("LIME" as any),
+      hasIndigo: channelTypes.includes("INDIGO" as any),
+      hasCMY: ["CYAN", "MAGENTA", "YELLOW"].every((color) =>
+        channelTypes.includes(color as any),
+      ),
+      hasExtendedGamut: channelTypes.some((t) => ["LIME", "INDIGO"].includes(t)),
       hasMovement: channelTypes.some((t) => ["PAN", "TILT"].includes(t)),
       hasPan: channelTypes.includes("PAN" as any),
       hasTilt: channelTypes.includes("TILT" as any),
@@ -468,28 +503,36 @@ export class FixtureTools {
     capabilities: any,
   ) {
     const colorChannels = fixture.channels.filter((ch) =>
-      ["RED", "GREEN", "BLUE", "WHITE", "AMBER", "UV", "COLOR_WHEEL"].includes(
-        ch.type,
-      ),
+      COLOR_CHANNEL_TYPES.includes(ch.type),
     );
+
+    // Determine color mixing type based on capabilities
+    let colorMixingType = "None";
+    if (capabilities.hasCMY) {
+      colorMixingType = "CMY (Subtractive)";
+    } else if (capabilities.hasRGB) {
+      colorMixingType = "RGB (Additive)";
+    } else if (capabilities.hasColorWheel) {
+      colorMixingType = "Color Wheel";
+    }
 
     return {
       fixtureId: fixture.id,
       fixtureName: fixture.name,
-      colorMixingType: capabilities.hasRGB
-        ? "RGB"
-        : capabilities.hasColorWheel
-          ? "Color Wheel"
-          : "None",
+      colorMixingType,
       availableColors: colorChannels.map((ch) => ch.type),
       colorResolution: "8-bit (256 levels)",
-      canMixColors: capabilities.hasRGB,
+      canMixColors: capabilities.hasRGB || capabilities.hasCMY,
       whiteBalance: capabilities.hasWhite
         ? "Dedicated White Channel"
         : "RGB Mixed",
       specialColors: [
         capabilities.hasAmber && "Amber",
         capabilities.hasUV && "UV",
+        capabilities.hasLime && "Lime",
+        capabilities.hasIndigo && "Indigo",
+        capabilities.hasColdWhite && "Cold White",
+        capabilities.hasWarmWhite && "Warm White",
       ].filter(Boolean),
       recommendedUse: this.getColorRecommendations(capabilities),
     };
@@ -566,13 +609,25 @@ export class FixtureTools {
   private getColorRecommendations(capabilities: any): string[] {
     const recommendations = [];
     if (capabilities.hasRGB)
-      recommendations.push("Full color mixing and washes");
+      recommendations.push("Full RGB color mixing and washes");
+    if (capabilities.hasCMY)
+      recommendations.push("Professional CMY subtractive color mixing");
     if (capabilities.hasWhite)
       recommendations.push("Clean white light and color temperature control");
     if (capabilities.hasAmber)
       recommendations.push("Warm color temperatures and tungsten matching");
     if (capabilities.hasUV)
       recommendations.push("Special effects and blacklight applications");
+    if (capabilities.hasLime)
+      recommendations.push("Extended green gamut for richer colors");
+    if (capabilities.hasIndigo)
+      recommendations.push("Extended blue-purple gamut");
+    if (capabilities.hasColdWhite)
+      recommendations.push("Cool white balance (daylight temperatures)");
+    if (capabilities.hasWarmWhite)
+      recommendations.push("Warm white balance (tungsten temperatures)");
+    if (capabilities.hasExtendedGamut)
+      recommendations.push("Wide color gamut reproduction");
     if (capabilities.hasColorWheel)
       recommendations.push("Quick color changes and dichroic effects");
     return recommendations;
@@ -614,8 +669,11 @@ export class FixtureTools {
   private determinePrimaryFunction(capabilities: any): string {
     if (capabilities.hasMovement && capabilities.hasRGB)
       return "Moving wash light";
+    if (capabilities.hasMovement && capabilities.hasCMY)
+      return "Professional moving wash (CMY)";
     if (capabilities.hasMovement) return "Moving spotlight";
-    if (capabilities.hasRGB) return "Color wash light";
+    if (capabilities.hasCMY) return "CMY color wash light";
+    if (capabilities.hasRGB) return "RGB color wash light";
     if (capabilities.hasIntensity) return "Intensity dimmer";
     return "Specialty fixture";
   }
@@ -624,6 +682,12 @@ export class FixtureTools {
     const suitable = [];
     if (capabilities.hasRGB)
       suitable.push("Color washes", "Mood lighting", "Cyc lighting");
+    if (capabilities.hasCMY)
+      suitable.push("Professional color mixing", "Broadcast lighting", "Theatre productions");
+    if (capabilities.hasExtendedGamut)
+      suitable.push("High-end color reproduction", "Wide gamut applications");
+    if (capabilities.hasColdWhite || capabilities.hasWarmWhite)
+      suitable.push("Color temperature control", "White balance tuning");
     if (capabilities.hasMovement)
       suitable.push("Follow spots", "Dynamic effects", "Area lighting");
     if (capabilities.hasStrobe)
@@ -647,6 +711,12 @@ export class FixtureTools {
     const strengths = [];
     if (capabilities.hasRGB && capabilities.hasWhite)
       strengths.push("Full color spectrum with white point");
+    if (capabilities.hasCMY)
+      strengths.push("Professional subtractive color mixing");
+    if (capabilities.hasExtendedGamut)
+      strengths.push("Extended color gamut beyond standard RGB");
+    if (capabilities.hasColdWhite && capabilities.hasWarmWhite)
+      strengths.push("Independent dual white temperature control");
     if (capabilities.hasMovement && capabilities.hasColor)
       strengths.push("Dynamic color positioning");
     if (capabilities.hasStrobe && capabilities.hasColor)
@@ -669,10 +739,12 @@ export class FixtureTools {
 
     switch (analysisType) {
       case "color_mixing": {
-        const rgbCount = analysis.filter((a) => a.canMixColors).length;
+        const rgbCount = analysis.filter((a) => a.canMixColors && a.colorMixingType.includes("RGB")).length;
+        const cmyCount = analysis.filter((a) => a.colorMixingType.includes("CMY")).length;
         return {
           totalFixtures,
           rgbCapable: rgbCount,
+          cmyCapable: cmyCount,
           colorWheelFixtures: analysis.filter(
             (a) => a.colorMixingType === "Color Wheel",
           ).length,

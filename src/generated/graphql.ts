@@ -106,12 +106,19 @@ export type ChannelAssignmentSuggestion = {
 export type ChannelDefinition = {
   __typename?: 'ChannelDefinition';
   defaultValue: Scalars['Int']['output'];
+  fadeBehavior: FadeBehavior;
   id: Scalars['ID']['output'];
+  isDiscrete: Scalars['Boolean']['output'];
   maxValue: Scalars['Int']['output'];
   minValue: Scalars['Int']['output'];
   name: Scalars['String']['output'];
   offset: Scalars['Int']['output'];
   type: ChannelType;
+};
+
+export type ChannelFadeBehaviorInput = {
+  channelId: Scalars['ID']['input'];
+  fadeBehavior: FadeBehavior;
 };
 
 export type ChannelMapFixture = {
@@ -133,21 +140,28 @@ export type ChannelMapResult = {
 export type ChannelType =
   | 'AMBER'
   | 'BLUE'
+  | 'COLD_WHITE'
   | 'COLOR_WHEEL'
+  | 'CYAN'
   | 'EFFECT'
   | 'FOCUS'
   | 'GOBO'
   | 'GREEN'
+  | 'INDIGO'
   | 'INTENSITY'
   | 'IRIS'
+  | 'LIME'
   | 'MACRO'
+  | 'MAGENTA'
   | 'OTHER'
   | 'PAN'
   | 'RED'
   | 'STROBE'
   | 'TILT'
   | 'UV'
+  | 'WARM_WHITE'
   | 'WHITE'
+  | 'YELLOW'
   | 'ZOOM';
 
 export type ChannelUsage = {
@@ -157,8 +171,21 @@ export type ChannelUsage = {
   fixtureName: Scalars['String']['output'];
 };
 
+export type ChannelValue = {
+  __typename?: 'ChannelValue';
+  offset: Scalars['Int']['output'];
+  value: Scalars['Int']['output'];
+};
+
+export type ChannelValueInput = {
+  offset: Scalars['Int']['input'];
+  value: Scalars['Int']['input'];
+};
+
 export type CreateChannelDefinitionInput = {
   defaultValue: Scalars['Int']['input'];
+  fadeBehavior?: InputMaybe<FadeBehavior>;
+  isDiscrete?: InputMaybe<Scalars['Boolean']['input']>;
   maxValue: Scalars['Int']['input'];
   minValue: Scalars['Int']['input'];
   name: Scalars['String']['input'];
@@ -189,6 +216,7 @@ export type CreateFixtureDefinitionInput = {
   channels: Array<CreateChannelDefinitionInput>;
   manufacturer: Scalars['String']['input'];
   model: Scalars['String']['input'];
+  modes?: InputMaybe<Array<CreateModeInput>>;
   type: FixtureType;
 };
 
@@ -201,6 +229,12 @@ export type CreateFixtureInstanceInput = {
   startChannel: Scalars['Int']['input'];
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   universe: Scalars['Int']['input'];
+};
+
+export type CreateModeInput = {
+  channels: Array<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  shortName?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateProjectInput = {
@@ -270,10 +304,10 @@ export type CueListPlaybackStatus = {
   currentCue?: Maybe<Cue>;
   currentCueIndex?: Maybe<Scalars['Int']['output']>;
   fadeProgress?: Maybe<Scalars['Float']['output']>;
-  /** True when scene values are currently active on DMX fixtures (stays true after fade until stopped) */
-  isPlaying: Scalars['Boolean']['output'];
-  /** True when a fade transition is in progress (fade-in, fade-out, or crossfade) */
+  /** True when a fade-in transition is in progress */
   isFading: Scalars['Boolean']['output'];
+  /** True when a scene's values are currently active on DMX fixtures (stays true after fade completes until stopped) */
+  isPlaying: Scalars['Boolean']['output'];
   lastUpdated: Scalars['String']['output'];
   nextCue?: Maybe<Cue>;
   previousCue?: Maybe<Cue>;
@@ -351,8 +385,20 @@ export type ExportStats = {
   cuesCount: Scalars['Int']['output'];
   fixtureDefinitionsCount: Scalars['Int']['output'];
   fixtureInstancesCount: Scalars['Int']['output'];
+  sceneBoardsCount: Scalars['Int']['output'];
   scenesCount: Scalars['Int']['output'];
 };
+
+/**
+ * Determines how a channel behaves during scene transitions.
+ * FADE - Interpolate smoothly between values (default for intensity, colors)
+ * SNAP - Jump to target value at start of transition (for gobos, macros, effects)
+ * SNAP_END - Jump to target value at end of transition
+ */
+export type FadeBehavior =
+  | 'FADE'
+  | 'SNAP'
+  | 'SNAP_END';
 
 export type FixtureChannelAssignment = {
   __typename?: 'FixtureChannelAssignment';
@@ -514,14 +560,14 @@ export type FixtureUsage = {
 
 export type FixtureValue = {
   __typename?: 'FixtureValue';
-  channelValues: Array<Scalars['Int']['output']>;
+  channels: Array<ChannelValue>;
   fixture: FixtureInstance;
   id: Scalars['ID']['output'];
   sceneOrder?: Maybe<Scalars['Int']['output']>;
 };
 
 export type FixtureValueInput = {
-  channelValues: Array<Scalars['Int']['input']>;
+  channels: Array<ChannelValueInput>;
   fixtureId: Scalars['ID']['input'];
   sceneOrder?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -557,13 +603,16 @@ export type ImportStats = {
   cuesCreated: Scalars['Int']['output'];
   fixtureDefinitionsCreated: Scalars['Int']['output'];
   fixtureInstancesCreated: Scalars['Int']['output'];
+  sceneBoardsCreated: Scalars['Int']['output'];
   scenesCreated: Scalars['Int']['output'];
 };
 
 export type InstanceChannel = {
   __typename?: 'InstanceChannel';
   defaultValue: Scalars['Int']['output'];
+  fadeBehavior: FadeBehavior;
   id: Scalars['ID']['output'];
+  isDiscrete: Scalars['Boolean']['output'];
   maxValue: Scalars['Int']['output'];
   minValue: Scalars['Int']['output'];
   name: Scalars['String']['output'];
@@ -609,10 +658,13 @@ export type Mutation = {
   bulkUpdateCues: Array<Cue>;
   bulkUpdateFixtureDefinitions: Array<FixtureDefinition>;
   bulkUpdateFixtures: Array<FixtureInstance>;
+  bulkUpdateInstanceChannelsFadeBehavior: Array<InstanceChannel>;
   bulkUpdateProjects: Array<Project>;
   bulkUpdateSceneBoardButtons: Array<SceneBoardButton>;
   bulkUpdateSceneBoards: Array<SceneBoard>;
   bulkUpdateScenes: Array<Scene>;
+  /** Cancel an ongoing OFL import */
+  cancelOFLImport: Scalars['Boolean']['output'];
   cancelPreviewSession: Scalars['Boolean']['output'];
   cloneScene: Scene;
   commitPreviewSession: Scalars['Boolean']['output'];
@@ -656,12 +708,16 @@ export type Mutation = {
   startCueList: Scalars['Boolean']['output'];
   startPreviewSession: PreviewSession;
   stopCueList: Scalars['Boolean']['output'];
+  /** Trigger an OFL import/update operation */
+  triggerOFLImport: OflImportResult;
   updateAllRepositories: Array<UpdateResult>;
   updateCue: Cue;
   updateCueList: CueList;
+  updateFadeUpdateRate: Scalars['Boolean']['output'];
   updateFixtureDefinition: FixtureDefinition;
   updateFixtureInstance: FixtureInstance;
   updateFixturePositions: Scalars['Boolean']['output'];
+  updateInstanceChannelFadeBehavior: InstanceChannel;
   updatePreviewChannel: Scalars['Boolean']['output'];
   updateProject: Project;
   updateRepository: UpdateResult;
@@ -790,6 +846,11 @@ export type MutationBulkUpdateFixtureDefinitionsArgs = {
 
 export type MutationBulkUpdateFixturesArgs = {
   input: BulkFixtureUpdateInput;
+};
+
+
+export type MutationBulkUpdateInstanceChannelsFadeBehaviorArgs = {
+  updates: Array<ChannelFadeBehaviorInput>;
 };
 
 
@@ -1043,6 +1104,11 @@ export type MutationStopCueListArgs = {
 };
 
 
+export type MutationTriggerOflImportArgs = {
+  options?: InputMaybe<OflImportOptionsInput>;
+};
+
+
 export type MutationUpdateCueArgs = {
   id: Scalars['ID']['input'];
   input: CreateCueInput;
@@ -1052,6 +1118,11 @@ export type MutationUpdateCueArgs = {
 export type MutationUpdateCueListArgs = {
   id: Scalars['ID']['input'];
   input: CreateCueListInput;
+};
+
+
+export type MutationUpdateFadeUpdateRateArgs = {
+  rateHz: Scalars['Int']['input'];
 };
 
 
@@ -1069,6 +1140,12 @@ export type MutationUpdateFixtureInstanceArgs = {
 
 export type MutationUpdateFixturePositionsArgs = {
   positions: Array<FixturePositionInput>;
+};
+
+
+export type MutationUpdateInstanceChannelFadeBehaviorArgs = {
+  channelId: Scalars['ID']['input'];
+  fadeBehavior: FadeBehavior;
 };
 
 
@@ -1135,6 +1212,132 @@ export type NetworkInterfaceOption = {
   description: Scalars['String']['output'];
   interfaceType: Scalars['String']['output'];
   name: Scalars['String']['output'];
+};
+
+/** Type of fixture change detected during OFL update check */
+export type OflFixtureChangeType =
+  | 'NEW'
+  | 'UNCHANGED'
+  | 'UPDATED';
+
+/** Information about a fixture that may need updating */
+export type OflFixtureUpdate = {
+  __typename?: 'OFLFixtureUpdate';
+  /** Type of change */
+  changeType: OflFixtureChangeType;
+  /** Current hash (null if new) */
+  currentHash?: Maybe<Scalars['String']['output']>;
+  /** Unique key (manufacturer/model) */
+  fixtureKey: Scalars['String']['output'];
+  /** Number of instances using this definition */
+  instanceCount: Scalars['Int']['output'];
+  /** Whether this fixture is currently in use by any project */
+  isInUse: Scalars['Boolean']['output'];
+  /** Manufacturer name */
+  manufacturer: Scalars['String']['output'];
+  /** Model name */
+  model: Scalars['String']['output'];
+  /** New hash from OFL */
+  newHash: Scalars['String']['output'];
+};
+
+/** Options for triggering an OFL import */
+export type OflImportOptionsInput = {
+  /** Force reimport of all fixtures, even if unchanged */
+  forceReimport?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Only import specific manufacturers (empty = all) */
+  manufacturers?: InputMaybe<Array<Scalars['String']['input']>>;
+  /** Prefer bundled data over fetching from GitHub */
+  preferBundled?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Update fixtures that are currently in use by projects */
+  updateInUseFixtures?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** Phases of the OFL import process */
+export type OflImportPhase =
+  | 'CANCELLED'
+  | 'COMPLETE'
+  | 'DOWNLOADING'
+  | 'EXTRACTING'
+  | 'FAILED'
+  | 'IDLE'
+  | 'IMPORTING'
+  | 'PARSING';
+
+/** Final result of an OFL import operation */
+export type OflImportResult = {
+  __typename?: 'OFLImportResult';
+  errorMessage?: Maybe<Scalars['String']['output']>;
+  oflVersion: Scalars['String']['output'];
+  stats: OflImportStats;
+  success: Scalars['Boolean']['output'];
+};
+
+/** Statistics about an OFL import */
+export type OflImportStats = {
+  __typename?: 'OFLImportStats';
+  durationSeconds: Scalars['Float']['output'];
+  failedImports: Scalars['Int']['output'];
+  skippedDuplicates: Scalars['Int']['output'];
+  successfulImports: Scalars['Int']['output'];
+  totalProcessed: Scalars['Int']['output'];
+  updatedFixtures: Scalars['Int']['output'];
+};
+
+/** Real-time status of an OFL import operation */
+export type OflImportStatus = {
+  __typename?: 'OFLImportStatus';
+  /** When the import completed (if done) */
+  completedAt?: Maybe<Scalars['String']['output']>;
+  /** Name of the current fixture being imported */
+  currentFixture?: Maybe<Scalars['String']['output']>;
+  /** Current manufacturer being processed */
+  currentManufacturer?: Maybe<Scalars['String']['output']>;
+  /** Error message if phase is FAILED */
+  errorMessage?: Maybe<Scalars['String']['output']>;
+  /** Estimated seconds remaining (null if unknown) */
+  estimatedSecondsRemaining?: Maybe<Scalars['Int']['output']>;
+  /** Number of fixtures that failed to import */
+  failedCount: Scalars['Int']['output'];
+  /** Number of fixtures successfully imported */
+  importedCount: Scalars['Int']['output'];
+  /** Whether an import is currently in progress */
+  isImporting: Scalars['Boolean']['output'];
+  /** OFL version/commit being imported */
+  oflVersion?: Maybe<Scalars['String']['output']>;
+  /** Percentage complete (0-100) */
+  percentComplete: Scalars['Float']['output'];
+  /** Current phase of the import */
+  phase: OflImportPhase;
+  /** Number of fixtures skipped (already exist) */
+  skippedCount: Scalars['Int']['output'];
+  /** When the import started */
+  startedAt?: Maybe<Scalars['String']['output']>;
+  /** Total number of fixtures to import */
+  totalFixtures: Scalars['Int']['output'];
+  /** Whether using bundled data (offline) or fetched from GitHub */
+  usingBundledData: Scalars['Boolean']['output'];
+};
+
+/** Result of checking for OFL updates */
+export type OflUpdateCheckResult = {
+  __typename?: 'OFLUpdateCheckResult';
+  /** Number of changed fixtures */
+  changedFixtureCount: Scalars['Int']['output'];
+  /** Number of changed fixtures that are in use */
+  changedInUseCount: Scalars['Int']['output'];
+  /** When this check was performed */
+  checkedAt: Scalars['String']['output'];
+  /** Total fixtures in current database */
+  currentFixtureCount: Scalars['Int']['output'];
+  /** Detailed list of fixture changes (limited) */
+  fixtureUpdates: Array<OflFixtureUpdate>;
+  /** Number of new fixtures available */
+  newFixtureCount: Scalars['Int']['output'];
+  /** Total fixtures in OFL source */
+  oflFixtureCount: Scalars['Int']['output'];
+  /** OFL version/commit being checked */
+  oflVersion: Scalars['String']['output'];
 };
 
 export type PaginationInfo = {
@@ -1239,6 +1442,8 @@ export type Query = {
   allDmxOutput: Array<UniverseOutput>;
   availableVersions: Array<Scalars['String']['output']>;
   channelMap: ChannelMapResult;
+  /** Check for available OFL updates without importing */
+  checkOFLUpdates: OflUpdateCheckResult;
   compareScenes: SceneComparison;
   cue?: Maybe<Cue>;
   cueList?: Maybe<CueList>;
@@ -1257,6 +1462,8 @@ export type Query = {
   fixturesByIds: Array<FixtureInstance>;
   getQLCFixtureMappingSuggestions: QlcFixtureMappingResult;
   networkInterfaceOptions: Array<NetworkInterfaceOption>;
+  /** Get the current status of any ongoing OFL import */
+  oflImportStatus: OflImportStatus;
   previewSession?: Maybe<PreviewSession>;
   project?: Maybe<Project>;
   projects: Array<Project>;
@@ -1640,6 +1847,8 @@ export type Subscription = {
   __typename?: 'Subscription';
   cueListPlaybackUpdated: CueListPlaybackStatus;
   dmxOutputChanged: UniverseOutput;
+  /** Real-time updates during OFL import */
+  oflImportProgress: OflImportStatus;
   previewSessionUpdated: PreviewSession;
   projectUpdated: Project;
   systemInfoUpdated: SystemInfo;
@@ -1670,6 +1879,7 @@ export type SystemInfo = {
   __typename?: 'SystemInfo';
   artnetBroadcastAddress: Scalars['String']['output'];
   artnetEnabled: Scalars['Boolean']['output'];
+  fadeUpdateRateHz: Scalars['Int']['output'];
 };
 
 export type SystemVersionInfo = {
