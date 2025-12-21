@@ -31,13 +31,36 @@ describe('Lighting Types', () => {
       expect(ChannelType.GREEN).toBe('GREEN');
       expect(ChannelType.BLUE).toBe('BLUE');
       expect(ChannelType.WHITE).toBe('WHITE');
+      expect(ChannelType.CYAN).toBe('CYAN');
+      expect(ChannelType.MAGENTA).toBe('MAGENTA');
+      expect(ChannelType.YELLOW).toBe('YELLOW');
+      expect(ChannelType.LIME).toBe('LIME');
+      expect(ChannelType.INDIGO).toBe('INDIGO');
+      expect(ChannelType.COLD_WHITE).toBe('COLD_WHITE');
+      expect(ChannelType.WARM_WHITE).toBe('WARM_WHITE');
       expect(ChannelType.PAN).toBe('PAN');
       expect(ChannelType.TILT).toBe('TILT');
     });
 
-    it('should have 18 channel types', () => {
+    it('should have 25 channel types', () => {
       const types = Object.values(ChannelType);
-      expect(types).toHaveLength(18);
+      expect(types).toHaveLength(25);
+    });
+
+    it('should include all CMY color channels', () => {
+      expect(ChannelType.CYAN).toBe('CYAN');
+      expect(ChannelType.MAGENTA).toBe('MAGENTA');
+      expect(ChannelType.YELLOW).toBe('YELLOW');
+    });
+
+    it('should include extended gamut channels', () => {
+      expect(ChannelType.LIME).toBe('LIME');
+      expect(ChannelType.INDIGO).toBe('INDIGO');
+    });
+
+    it('should include dual white temperature channels', () => {
+      expect(ChannelType.COLD_WHITE).toBe('COLD_WHITE');
+      expect(ChannelType.WARM_WHITE).toBe('WARM_WHITE');
     });
   });
 
