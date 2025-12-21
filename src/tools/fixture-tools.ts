@@ -437,7 +437,7 @@ export class FixtureTools {
 
     return {
       hasColor: channelTypes.some((t) =>
-        ["RED", "GREEN", "BLUE", "WHITE", "AMBER", "UV"].includes(t),
+        ["RED", "GREEN", "BLUE", "WHITE", "AMBER", "UV", "CYAN", "MAGENTA", "YELLOW", "LIME", "INDIGO", "COLD_WHITE", "WARM_WHITE"].includes(t),
       ),
       hasRGB: ["RED", "GREEN", "BLUE"].every((color) =>
         channelTypes.includes(color as any),
@@ -468,7 +468,7 @@ export class FixtureTools {
     capabilities: any,
   ) {
     const colorChannels = fixture.channels.filter((ch) =>
-      ["RED", "GREEN", "BLUE", "WHITE", "AMBER", "UV", "COLOR_WHEEL"].includes(
+      ["RED", "GREEN", "BLUE", "WHITE", "AMBER", "UV", "CYAN", "MAGENTA", "YELLOW", "LIME", "INDIGO", "COLD_WHITE", "WARM_WHITE", "COLOR_WHEEL"].includes(
         ch.type,
       ),
     );
