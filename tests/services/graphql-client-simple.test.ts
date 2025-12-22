@@ -1784,4 +1784,112 @@ describe('LacyLightsGraphQLClient', () => {
       });
     });
   });
+
+  describe('getBuildInfo', () => {
+    it('should successfully fetch build info', async () => {
+      const mockBuildInfo = {
+        version: '1.2.3',
+        gitCommit: 'abc123def456',
+        buildTime: '2024-01-15T12:00:00Z'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { buildInfo: mockBuildInfo }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getBuildInfo();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('GetBuildInfo')
+        })
+      );
+      expect(result).toEqual(mockBuildInfo);
+    });
+
+    it('should include all required fields in query', async () => {
+      const mockBuildInfo = {
+        version: '1.0.0',
+        gitCommit: 'abc123',
+        buildTime: '2024-01-01T00:00:00Z'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { buildInfo: mockBuildInfo }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await client.getBuildInfo();
+
+      const callBody = mockFetch.mock.calls[0][1]?.body as string;
+      const parsedBody = JSON.parse(callBody);
+      const query = parsedBody.query;
+
+      expect(query).toContain('version');
+      expect(query).toContain('gitCommit');
+      expect(query).toContain('buildTime');
+      expect(query).toContain('buildInfo');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Build info not available' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.getBuildInfo()).rejects.toThrow('Build info not available');
+    });
+
+    it('should handle network errors', async () => {
+      mockFetch.mockRejectedValue(new Error('Network connection failed'));
+
+      await expect(client.getBuildInfo()).rejects.toThrow('Network connection failed');
+    });
+
+    it('should handle null response', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { buildInfo: null }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getBuildInfo();
+      expect(result).toBeNull();
+    });
+
+    it('should validate response structure', async () => {
+      const mockBuildInfo = {
+        version: '2.0.0-beta',
+        gitCommit: 'deadbeef1234567890abcdef',
+        buildTime: '2024-12-22T10:30:00Z'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { buildInfo: mockBuildInfo }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getBuildInfo();
+
+      expect(result).toHaveProperty('version');
+      expect(result).toHaveProperty('gitCommit');
+      expect(result).toHaveProperty('buildTime');
+      expect(typeof result.version).toBe('string');
+      expect(typeof result.gitCommit).toBe('string');
+      expect(typeof result.buildTime).toBe('string');
+    });
+  });
 });
