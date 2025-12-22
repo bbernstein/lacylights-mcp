@@ -9,6 +9,9 @@ const SetFadeUpdateRateSchema = z.object({
   rateHz: z.number().int().min(10).max(120),
 });
 
+// Schema for get_build_info
+const GetBuildInfoSchema = z.object({});
+
 /**
  * Settings tools for managing LacyLights system settings
  */
@@ -71,6 +74,27 @@ export class SettingsTools {
       };
     } catch (error) {
       throw new Error(`Failed to set fade update rate: ${error}`);
+    }
+  }
+
+  /**
+   * Get build information for the backend server
+   * @returns Build info including version, git commit, and build time
+   */
+  async getBuildInfo(args: z.infer<typeof GetBuildInfoSchema>) {
+    GetBuildInfoSchema.parse(args);
+
+    try {
+      const buildInfo = await this.graphqlClient.getBuildInfo();
+
+      return {
+        version: buildInfo.version,
+        gitCommit: buildInfo.gitCommit,
+        buildTime: buildInfo.buildTime,
+        message: `Backend server version ${buildInfo.version} (${buildInfo.gitCommit.substring(0, 7)})`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to get build info: ${error}`);
     }
   }
 }

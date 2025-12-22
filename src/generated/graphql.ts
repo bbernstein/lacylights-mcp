@@ -14,6 +14,17 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+/** Server build information for version verification */
+export type BuildInfo = {
+  __typename?: 'BuildInfo';
+  /** UTC timestamp when this build was created */
+  buildTime: Scalars['String']['output'];
+  /** Git commit hash from which this build was made */
+  gitCommit: Scalars['String']['output'];
+  /** Semantic version (e.g., v0.8.10) */
+  version: Scalars['String']['output'];
+};
+
 export type BulkCueCreateInput = {
   cues: Array<CreateCueInput>;
 };
@@ -1441,6 +1452,8 @@ export type Query = {
   __typename?: 'Query';
   allDmxOutput: Array<UniverseOutput>;
   availableVersions: Array<Scalars['String']['output']>;
+  /** Get server build information for version verification */
+  buildInfo: BuildInfo;
   channelMap: ChannelMapResult;
   /** Check for available OFL updates without importing */
   checkOFLUpdates: OflUpdateCheckResult;

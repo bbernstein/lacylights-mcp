@@ -15,6 +15,7 @@ describe('SettingsTools', () => {
     mockGraphQLClient = {
       getSetting: jest.fn(),
       setSetting: jest.fn(),
+      getBuildInfo: jest.fn(),
     } as any;
 
     MockGraphQLClient.mockImplementation(() => mockGraphQLClient);
@@ -153,6 +154,46 @@ describe('SettingsTools', () => {
         expect.any(String),
         expect.any(String)
       );
+    });
+  });
+
+  describe('getBuildInfo', () => {
+    it('should get build info from the server', async () => {
+      mockGraphQLClient.getBuildInfo.mockResolvedValue({
+        version: 'v0.8.10',
+        gitCommit: 'abc123def456',
+        buildTime: '2025-01-15T10:00:00Z',
+      });
+
+      const result = await settingsTools.getBuildInfo({});
+
+      expect(mockGraphQLClient.getBuildInfo).toHaveBeenCalled();
+      expect(result).toEqual({
+        version: 'v0.8.10',
+        gitCommit: 'abc123def456',
+        buildTime: '2025-01-15T10:00:00Z',
+        message: 'Backend server version v0.8.10 (abc123d)',
+      });
+    });
+
+    it('should truncate long git commit in message', async () => {
+      mockGraphQLClient.getBuildInfo.mockResolvedValue({
+        version: 'v1.0.0',
+        gitCommit: 'abcdef1234567890abcdef',
+        buildTime: '2025-12-22T00:00:00Z',
+      });
+
+      const result = await settingsTools.getBuildInfo({});
+
+      expect(result.message).toBe('Backend server version v1.0.0 (abcdef1)');
+      expect(result.gitCommit).toBe('abcdef1234567890abcdef');
+    });
+
+    it('should handle GraphQL client errors', async () => {
+      mockGraphQLClient.getBuildInfo.mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(settingsTools.getBuildInfo({}))
+        .rejects.toThrow('Failed to get build info: Error: GraphQL error');
     });
   });
 });
