@@ -2244,6 +2244,29 @@ export class LacyLightsGraphQLClient {
     return data.setSetting.value;
   }
 
+  /**
+   * Get build information for the backend server
+   * @returns Build info including version, git commit, and build time
+   */
+  async getBuildInfo(): Promise<{
+    version: string;
+    gitCommit: string;
+    buildTime: string;
+  }> {
+    const query = `
+      query GetBuildInfo {
+        buildInfo {
+          version
+          gitCommit
+          buildTime
+        }
+      }
+    `;
+
+    const data = await this.query(query, {});
+    return data.buildInfo;
+  }
+
   // ========================================================================
   // Scene Board Operations
   // ========================================================================

@@ -2318,6 +2318,24 @@ Note: Changes take effect immediately for new scene transitions.`,
               required: ["rateHz"],
             },
           },
+          {
+            name: "get_build_info",
+            description: `Get build information for the backend server.
+
+Returns version, git commit hash, and build timestamp for the running lacylights-go server. This is useful for:
+- Verifying the server version after updates
+- Debugging version mismatches
+- Confirming deployment success
+
+Returns:
+- version: Semantic version (e.g., "v0.8.10")
+- gitCommit: Full git commit hash
+- buildTime: UTC timestamp when the binary was built`,
+            inputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
           // Scene Board Tools
           {
             name: "list_scene_boards",
@@ -3746,6 +3764,20 @@ Returns lightweight scene board summaries with button counts.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.settingsTools.setFadeUpdateRate(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_build_info":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.settingsTools.getBuildInfo(args as any),
                     null,
                     2,
                   ),
