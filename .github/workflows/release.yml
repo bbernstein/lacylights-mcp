@@ -478,6 +478,55 @@ jobs:
 
           echo "✓ DynamoDB updated: component=$COMPONENT, version=$VERSION"
 
+      - name: Update versions.json index
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          set -e
+          COMPONENT="mcp"
+
+          echo "Querying DynamoDB for all $COMPONENT versions..."
+
+          # Query all versions for this component from DynamoDB
+          VERSIONS_DATA=$(aws dynamodb query \
+            --table-name lacylights-releases \
+            --key-condition-expression "component = :comp" \
+            --expression-attribute-values '{":comp": {"S": "'"$COMPONENT"'"}}' \
+            --projection-expression "#v, releaseDate, isPrerelease, sha256, #u, fileSize" \
+            --expression-attribute-names '{"#v": "version", "#u": "url"}' \
+            --output json)
+
+          # Build versions.json using jq
+          echo "$VERSIONS_DATA" | jq -r '
+            .Items | map({
+              version: .version.S,
+              releaseDate: .releaseDate.S,
+              isPrerelease: .isPrerelease.BOOL,
+              sha256: .sha256.S,
+              url: .url.S,
+              fileSize: (.fileSize.N | tonumber)
+            }) |
+            # Sort: stable versions first (by version desc), then prereleases (by version desc)
+            sort_by(.version) | reverse |
+            group_by(.isPrerelease) |
+            (map(select(.[0].isPrerelease == false)) | flatten) +
+            (map(select(.[0].isPrerelease == true)) | flatten)
+          ' > versions.json
+
+          echo "Generated versions.json with $(jq length versions.json) versions"
+          cat versions.json
+
+          # Upload versions.json
+          aws s3 cp versions.json \
+            "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${COMPONENT}/versions.json" \
+            --content-type "application/json" \
+            --cache-control "max-age=300, must-revalidate" \
+            --metadata-directive REPLACE
+
+          echo "✓ versions.json updated for $COMPONENT"
+
       - name: Summary
         run: |
           echo "## Release Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
@@ -495,3 +544,4 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**API Endpoints:**" >> $GITHUB_STEP_SUMMARY
           echo "- Latest: https://dist.lacylights.com/releases/mcp/latest.json" >> $GITHUB_STEP_SUMMARY
+          echo "- All versions: https://dist.lacylights.com/releases/mcp/versions.json" >> $GITHUB_STEP_SUMMARY
