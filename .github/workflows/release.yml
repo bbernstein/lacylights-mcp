@@ -502,7 +502,7 @@ jobs:
           # Filters out records with null/invalid versions
           echo "$VERSIONS_DATA" | jq -r '
             .Items
-            | map(select(.version.S != null and (.version.S | test("^[0-9]+\\.[0-9]+\\.[0-9]+"))))
+            | map(select(.version.S != null and (.version.S | test("^[0-9]+\\.[0-9]+\\.[0-9]+(-.+)?$"))))
             | map({
               version: .version.S,
               releaseDate: .releaseDate.S,
