@@ -499,20 +499,23 @@ jobs:
             --output json)
 
           # Build versions.json using jq with proper semver sorting
+          # Filters out records with null/invalid versions
           echo "$VERSIONS_DATA" | jq -r '
-            .Items | map({
+            .Items
+            | map(select(.version.S != null and (.version.S | test("^[0-9]+\\.[0-9]+\\.[0-9]+"))))
+            | map({
               version: .version.S,
               releaseDate: .releaseDate.S,
-              isPrerelease: .isPrerelease.BOOL,
+              isPrerelease: (.isPrerelease.BOOL // false),
               sha256: .sha256.S,
               url: .url.S,
-              fileSize: (.fileSize.N | tonumber)
+              fileSize: (.fileSize.N // "0" | tonumber)
             }) |
             # Add numeric semver components for proper semantic version sorting
             # Split version on "." and "-" to handle both base version and prerelease suffix
             map(. + {
               _v: (
-                .version | split("-")[0] | split(".") | map(tonumber)
+                .version | split("-")[0] | split(".") | map(tonumber? // 0)
               )
             }) |
             # Sort: stable versions first (by semantic version desc), then prereleases (by semantic version desc)
