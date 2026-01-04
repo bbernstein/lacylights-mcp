@@ -215,7 +215,7 @@ const BulkUpdateScenesPartialSchema = z.object({
       channels: z.array(channelValueSchema),
       sceneOrder: z.number().optional()
     })).optional(),
-    mergeFixtures: z.boolean().default(true)
+    mergeFixtures: z.boolean().optional().default(true)
   })),
 });
 
