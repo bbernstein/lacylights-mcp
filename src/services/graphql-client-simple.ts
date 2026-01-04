@@ -573,6 +573,45 @@ export class LacyLightsGraphQLClient {
     return data.updateScenePartial;
   }
 
+  async bulkUpdateScenesPartial(input: {
+    scenes: Array<{
+      sceneId: string;
+      name?: string;
+      description?: string;
+      fixtureValues?: Array<{
+        fixtureId: string;
+        channels: { offset: number; value: number; }[];
+        sceneOrder?: number;
+      }>;
+      mergeFixtures?: boolean;
+    }>;
+  }): Promise<Scene[]> {
+    const mutation = `
+      mutation BulkUpdateScenesPartial($input: BulkScenePartialUpdateInput!) {
+        bulkUpdateScenesPartial(input: $input) {
+          id
+          name
+          description
+          updatedAt
+          fixtureValues {
+            fixture {
+              id
+              name
+            }
+            channels {
+              offset
+              value
+            }
+            sceneOrder
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.bulkUpdateScenesPartial;
+  }
+
   async getCueList(id: string): Promise<CueList | null> {
     const query = `
       query GetCueList($id: ID!) {

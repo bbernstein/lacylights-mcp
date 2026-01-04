@@ -1490,6 +1490,69 @@ Use cases:
             },
           },
           {
+            name: "bulk_update_scenes_partial",
+            description: "Update multiple scenes with partial fixture value merging support. Each scene can independently specify name, description, fixtureValues, and mergeFixtures. Unlike bulk_update_scenes, this preserves existing fixtures not mentioned in the update (when mergeFixtures=true). This is useful for batch operations like changing a channel value across many scenes without affecting other fixtures.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                scenes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      sceneId: {
+                        type: "string",
+                        description: "Scene ID to update",
+                      },
+                      name: {
+                        type: "string",
+                        description: "New scene name",
+                      },
+                      description: {
+                        type: "string",
+                        description: "New scene description",
+                      },
+                      fixtureValues: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            fixtureId: { type: "string" },
+                            channels: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  offset: { type: "number", description: "Channel offset (0-based index)" },
+                                  value: { type: "number", minimum: 0, maximum: 255, description: "DMX value (0-255)" },
+                                },
+                                required: ["offset", "value"],
+                              },
+                            },
+                            sceneOrder: {
+                              type: "number",
+                              description: "Optional order in scene",
+                            },
+                          },
+                          required: ["fixtureId", "channels"],
+                        },
+                        description: "Fixture values to update/merge",
+                      },
+                      mergeFixtures: {
+                        type: "boolean",
+                        default: true,
+                        description: "Whether to merge fixtures (true, default) or replace all fixtures (false)",
+                      },
+                    },
+                    required: ["sceneId"],
+                  },
+                  description: "Array of scene partial updates to apply",
+                },
+              },
+              required: ["scenes"],
+            },
+          },
+          {
             name: "bulk_delete_scenes",
             description: "Delete multiple scenes in a single operation. Returns count of successfully deleted scenes and any failed IDs.",
             inputSchema: {
@@ -3366,6 +3429,20 @@ Returns lightweight scene board summaries with button counts.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.sceneTools.bulkUpdateScenes(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "bulk_update_scenes_partial":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.sceneTools.bulkUpdateScenesPartial(args as any),
                     null,
                     2,
                   ),

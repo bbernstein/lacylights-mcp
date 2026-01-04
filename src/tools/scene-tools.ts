@@ -205,6 +205,20 @@ const BulkDeleteScenesSchema = z.object({
   confirmDelete: z.boolean(),
 });
 
+const BulkUpdateScenesPartialSchema = z.object({
+  scenes: z.array(z.object({
+    sceneId: z.string(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    fixtureValues: z.array(z.object({
+      fixtureId: z.string(),
+      channels: z.array(channelValueSchema),
+      sceneOrder: z.number().optional()
+    })).optional(),
+    mergeFixtures: z.boolean().default(true)
+  })),
+});
+
 export class SceneTools {
   constructor(
     private graphqlClient: LacyLightsGraphQLClient,
@@ -1008,6 +1022,51 @@ export class SceneTools {
       };
     } catch (error) {
       throw new Error(`Failed to bulk update scenes: ${error}`);
+    }
+  }
+
+  /**
+   * Update multiple scenes with partial fixture value merging support.
+   * Each scene can independently specify name, description, fixtureValues, and mergeFixtures.
+   * This is useful for batch operations like changing a channel value across many scenes.
+   */
+  async bulkUpdateScenesPartial(args: z.infer<typeof BulkUpdateScenesPartialSchema>) {
+    const { scenes } = BulkUpdateScenesPartialSchema.parse(args);
+
+    try {
+      if (scenes.length === 0) {
+        throw new Error('No scenes provided for bulk partial update');
+      }
+
+      // Use the GraphQL client's bulk partial update method
+      const updatedScenes = await this.graphqlClient.bulkUpdateScenesPartial({
+        scenes,
+      });
+
+      return {
+        success: true,
+        updatedScenes: updatedScenes.map(scene => ({
+          sceneId: scene.id,
+          name: scene.name,
+          description: scene.description,
+          fixtureCount: scene.fixtureValues?.length || 0,
+          fixtureValues: scene.fixtureValues?.map(fv => ({
+            fixture: { id: fv.fixture.id, name: fv.fixture.name },
+            channels: fv.channels,
+            sceneOrder: fv.sceneOrder
+          }))
+        })),
+        summary: {
+          totalUpdated: updatedScenes.length,
+          scenesWithNameChange: scenes.filter(s => s.name).length,
+          scenesWithDescriptionChange: scenes.filter(s => s.description).length,
+          scenesWithFixtureValueChange: scenes.filter(s => s.fixtureValues).length,
+          scenesWithMergeEnabled: scenes.filter(s => s.mergeFixtures !== false).length,
+        },
+        message: `Successfully updated ${updatedScenes.length} scenes with partial merge`,
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk update scenes partially: ${error}`);
     }
   }
 
