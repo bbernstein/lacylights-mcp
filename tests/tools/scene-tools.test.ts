@@ -1924,6 +1924,123 @@ describe('SceneTools', () => {
       });
     });
 
+    describe('bulkUpdateScenesPartial', () => {
+      it('should update multiple scenes with partial merge successfully', async () => {
+        const mockUpdatedScenes = [
+          {
+            id: 'scene-1',
+            name: 'Updated Scene 1',
+            description: 'Updated first scene',
+            fixtureValues: [{ fixture: { id: 'f1', name: 'Fixture 1' }, channels: [{ offset: 0, value: 128 }], sceneOrder: 1 }]
+          },
+          {
+            id: 'scene-2',
+            name: 'Updated Scene 2',
+            description: 'Updated second scene',
+            fixtureValues: [{ fixture: { id: 'f1', name: 'Fixture 1' }, channels: [{ offset: 0, value: 64 }], sceneOrder: 1 }]
+          }
+        ];
+
+        mockGraphQLClient.bulkUpdateScenesPartial = jest.fn().mockResolvedValue(mockUpdatedScenes);
+
+        const result = await sceneTools.bulkUpdateScenesPartial({
+          scenes: [
+            {
+              sceneId: 'scene-1',
+              name: 'Updated Scene 1',
+              description: 'Updated first scene',
+              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 128 }] }]
+            },
+            {
+              sceneId: 'scene-2',
+              name: 'Updated Scene 2',
+              description: 'Updated second scene',
+              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 64 }] }]
+            }
+          ]
+        });
+
+        expect(mockGraphQLClient.bulkUpdateScenesPartial).toHaveBeenCalled();
+        expect(result.success).toBe(true);
+        expect(result.updatedScenes).toHaveLength(2);
+        expect(result.summary.totalUpdated).toBe(2);
+        expect(result.summary.scenesWithNameChange).toBe(2);
+        expect(result.summary.scenesWithDescriptionChange).toBe(2);
+        expect(result.summary.scenesWithFixtureValueChange).toBe(2);
+        expect(result.summary.scenesWithMergeEnabled).toBe(2);
+        expect(result.message).toContain('Successfully updated 2 scenes with partial merge');
+      });
+
+      it('should track mergeFixtures=false scenes correctly', async () => {
+        const mockUpdatedScenes = [
+          {
+            id: 'scene-1',
+            name: 'Scene 1',
+            description: null,
+            fixtureValues: []
+          }
+        ];
+
+        mockGraphQLClient.bulkUpdateScenesPartial = jest.fn().mockResolvedValue(mockUpdatedScenes);
+
+        const result = await sceneTools.bulkUpdateScenesPartial({
+          scenes: [
+            {
+              sceneId: 'scene-1',
+              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 128 }] }],
+              mergeFixtures: false
+            }
+          ]
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.summary.scenesWithMergeEnabled).toBe(0);
+      });
+
+      it('should throw error when no scenes provided', async () => {
+        await expect(sceneTools.bulkUpdateScenesPartial({
+          scenes: []
+        })).rejects.toThrow('No scenes provided for bulk partial update');
+      });
+
+      it('should handle bulk partial update errors', async () => {
+        mockGraphQLClient.bulkUpdateScenesPartial = jest.fn().mockRejectedValue(new Error('GraphQL error'));
+
+        await expect(sceneTools.bulkUpdateScenesPartial({
+          scenes: [{ sceneId: 'scene-1', fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 128 }] }] }]
+        })).rejects.toThrow('Failed to bulk update scenes partially');
+      });
+
+      it('should include fixture values in response', async () => {
+        const mockUpdatedScenes = [
+          {
+            id: 'scene-1',
+            name: 'Scene 1',
+            description: 'Test scene',
+            fixtureValues: [
+              { fixture: { id: 'f1', name: 'Par Light' }, channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }], sceneOrder: 1 }
+            ]
+          }
+        ];
+
+        mockGraphQLClient.bulkUpdateScenesPartial = jest.fn().mockResolvedValue(mockUpdatedScenes);
+
+        const result = await sceneTools.bulkUpdateScenesPartial({
+          scenes: [
+            {
+              sceneId: 'scene-1',
+              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }] }]
+            }
+          ]
+        });
+
+        expect(result.updatedScenes[0].fixtureValues).toBeDefined();
+        expect(result.updatedScenes[0].fixtureValues).toHaveLength(1);
+        expect(result.updatedScenes[0].fixtureValues![0].fixture.name).toBe('Par Light');
+        expect(result.updatedScenes[0].fixtureValues![0].channels).toHaveLength(2);
+      });
+    });
+
     describe('bulkDeleteScenes', () => {
       it('should delete multiple scenes successfully', async () => {
         mockGraphQLClient.bulkDeleteScenes = jest.fn().mockResolvedValue({
