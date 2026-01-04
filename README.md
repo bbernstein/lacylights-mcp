@@ -55,6 +55,7 @@ The system uses AI to understand artistic intent and translate it into precise D
 - **`get_scene_fixture_values`** - Read current fixture values in a scene
 - **`ensure_fixtures_in_scene`** - Ensure fixtures exist with specific values
 - **`update_scene_partial`** - Partial scene updates with fixture merging
+- **`bulk_update_scenes_partial`** - Batch partial updates across multiple scenes with fixture merging
 
 ### Cue Sequence Management
 
