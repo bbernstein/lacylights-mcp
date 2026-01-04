@@ -1949,13 +1949,15 @@ describe('SceneTools', () => {
               sceneId: 'scene-1',
               name: 'Updated Scene 1',
               description: 'Updated first scene',
-              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 128 }] }]
+              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 128 }] }],
+              mergeFixtures: true
             },
             {
               sceneId: 'scene-2',
               name: 'Updated Scene 2',
               description: 'Updated second scene',
-              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 64 }] }]
+              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 64 }] }],
+              mergeFixtures: true
             }
           ]
         });
@@ -2007,7 +2009,7 @@ describe('SceneTools', () => {
         mockGraphQLClient.bulkUpdateScenesPartial = jest.fn().mockRejectedValue(new Error('GraphQL error'));
 
         await expect(sceneTools.bulkUpdateScenesPartial({
-          scenes: [{ sceneId: 'scene-1', fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 128 }] }] }]
+          scenes: [{ sceneId: 'scene-1', fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 128 }] }], mergeFixtures: true }]
         })).rejects.toThrow('Failed to bulk update scenes partially');
       });
 
@@ -2029,7 +2031,8 @@ describe('SceneTools', () => {
           scenes: [
             {
               sceneId: 'scene-1',
-              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }] }]
+              fixtureValues: [{ fixtureId: 'f1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }] }],
+              mergeFixtures: true
             }
           ]
         });
