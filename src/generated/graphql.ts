@@ -14,6 +14,30 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type ApClient = {
+  __typename?: 'APClient';
+  connectedAt: Scalars['String']['output'];
+  hostname?: Maybe<Scalars['String']['output']>;
+  ipAddress?: Maybe<Scalars['String']['output']>;
+  macAddress: Scalars['String']['output'];
+};
+
+export type ApConfig = {
+  __typename?: 'APConfig';
+  channel: Scalars['Int']['output'];
+  clientCount: Scalars['Int']['output'];
+  ipAddress: Scalars['String']['output'];
+  minutesRemaining?: Maybe<Scalars['Int']['output']>;
+  ssid: Scalars['String']['output'];
+  timeoutMinutes: Scalars['Int']['output'];
+};
+
+export type ArtNetStatus = {
+  __typename?: 'ArtNetStatus';
+  broadcastAddress: Scalars['String']['output'];
+  enabled: Scalars['Boolean']['output'];
+};
+
 /** Server build information for version verification */
 export type BuildInfo = {
   __typename?: 'BuildInfo';
@@ -93,6 +117,15 @@ export type BulkSceneBoardUpdateInput = {
 
 export type BulkSceneCreateInput = {
   scenes: Array<CreateSceneInput>;
+};
+
+/**
+ * Updates multiple scenes with partial fixture value merging support.
+ * Each scene can independently specify name, description, fixtureValues, and mergeFixtures.
+ * Operations are applied in order and fail on first error.
+ */
+export type BulkScenePartialUpdateInput = {
+  scenes: Array<ScenePartialUpdateItem>;
 };
 
 export type BulkSceneUpdateInput = {
@@ -250,6 +283,8 @@ export type CreateModeInput = {
 
 export type CreateProjectInput = {
   description?: InputMaybe<Scalars['String']['input']>;
+  layoutCanvasHeight?: InputMaybe<Scalars['Int']['input']>;
+  layoutCanvasWidth?: InputMaybe<Scalars['Int']['input']>;
   name: Scalars['String']['input'];
 };
 
@@ -317,6 +352,8 @@ export type CueListPlaybackStatus = {
   fadeProgress?: Maybe<Scalars['Float']['output']>;
   /** True when a fade-in transition is in progress */
   isFading: Scalars['Boolean']['output'];
+  /** True when the cue list is paused (scene activated outside cue context, cue index preserved) */
+  isPaused: Scalars['Boolean']['output'];
   /** True when a scene's values are currently active on DMX fixtures (stays true after fade completes until stopped) */
   isPlaying: Scalars['Boolean']['output'];
   lastUpdated: Scalars['String']['output'];
@@ -583,6 +620,30 @@ export type FixtureValueInput = {
   sceneOrder?: InputMaybe<Scalars['Int']['input']>;
 };
 
+/** Global playback status - returns which cue list is currently playing or paused (if any) */
+export type GlobalPlaybackStatus = {
+  __typename?: 'GlobalPlaybackStatus';
+  /** Total number of cues in the playing cue list (null if not playing) */
+  cueCount?: Maybe<Scalars['Int']['output']>;
+  /** ID of the currently playing cue list (null if not playing) */
+  cueListId?: Maybe<Scalars['ID']['output']>;
+  /** Name of the currently playing cue list (null if not playing) */
+  cueListName?: Maybe<Scalars['String']['output']>;
+  /** Current cue index in the playing cue list (null if not playing) */
+  currentCueIndex?: Maybe<Scalars['Int']['output']>;
+  /** Name of the currently playing cue (null if not playing) */
+  currentCueName?: Maybe<Scalars['String']['output']>;
+  /** Fade progress percentage (0-100) */
+  fadeProgress?: Maybe<Scalars['Float']['output']>;
+  /** True if a fade transition is in progress */
+  isFading: Scalars['Boolean']['output'];
+  /** True if a cue list is paused (scene activated outside cue context) */
+  isPaused: Scalars['Boolean']['output'];
+  /** True if any cue list is currently playing */
+  isPlaying: Scalars['Boolean']['output'];
+  lastUpdated: Scalars['String']['output'];
+};
+
 export type ImportMode =
   | 'CREATE'
   | 'MERGE';
@@ -674,6 +735,7 @@ export type Mutation = {
   bulkUpdateSceneBoardButtons: Array<SceneBoardButton>;
   bulkUpdateSceneBoards: Array<SceneBoard>;
   bulkUpdateScenes: Array<Scene>;
+  bulkUpdateScenesPartial: Array<Scene>;
   /** Cancel an ongoing OFL import */
   cancelOFLImport: Scalars['Boolean']['output'];
   cancelPreviewSession: Scalars['Boolean']['output'];
@@ -713,11 +775,17 @@ export type Mutation = {
   reorderCues: Scalars['Boolean']['output'];
   reorderProjectFixtures: Scalars['Boolean']['output'];
   reorderSceneFixtures: Scalars['Boolean']['output'];
+  resetAPTimeout: Scalars['Boolean']['output'];
+  /** Resume a paused cue list by snapping to the current cue's scene values instantly */
+  resumeCueList: Scalars['Boolean']['output'];
+  setArtNetEnabled: ArtNetStatus;
   setChannelValue: Scalars['Boolean']['output'];
   setSceneLive: Scalars['Boolean']['output'];
   setWiFiEnabled: WiFiStatus;
+  startAPMode: WiFiModeResult;
   startCueList: Scalars['Boolean']['output'];
   startPreviewSession: PreviewSession;
+  stopAPMode: WiFiModeResult;
   stopCueList: Scalars['Boolean']['output'];
   /** Trigger an OFL import/update operation */
   triggerOFLImport: OflImportResult;
@@ -882,6 +950,11 @@ export type MutationBulkUpdateSceneBoardsArgs = {
 
 export type MutationBulkUpdateScenesArgs = {
   input: BulkSceneUpdateInput;
+};
+
+
+export type MutationBulkUpdateScenesPartialArgs = {
+  input: BulkScenePartialUpdateInput;
 };
 
 
@@ -1081,6 +1154,17 @@ export type MutationReorderSceneFixturesArgs = {
 };
 
 
+export type MutationResumeCueListArgs = {
+  cueListId: Scalars['ID']['input'];
+};
+
+
+export type MutationSetArtNetEnabledArgs = {
+  enabled: Scalars['Boolean']['input'];
+  fadeTime?: InputMaybe<Scalars['Float']['input']>;
+};
+
+
 export type MutationSetChannelValueArgs = {
   channel: Scalars['Int']['input'];
   universe: Scalars['Int']['input'];
@@ -1107,6 +1191,11 @@ export type MutationStartCueListArgs = {
 
 export type MutationStartPreviewSessionArgs = {
   projectId: Scalars['ID']['input'];
+};
+
+
+export type MutationStopApModeArgs = {
+  connectToSSID?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -1379,6 +1468,8 @@ export type Project = {
   fixtureCount: Scalars['Int']['output'];
   fixtures: Array<FixtureInstance>;
   id: Scalars['ID']['output'];
+  layoutCanvasHeight: Scalars['Int']['output'];
+  layoutCanvasWidth: Scalars['Int']['output'];
   name: Scalars['String']['output'];
   sceneBoards: Array<SceneBoard>;
   sceneCount: Scalars['Int']['output'];
@@ -1394,6 +1485,8 @@ export type ProjectRole =
 
 export type ProjectUpdateItem = {
   description?: InputMaybe<Scalars['String']['input']>;
+  layoutCanvasHeight?: InputMaybe<Scalars['Int']['input']>;
+  layoutCanvasWidth?: InputMaybe<Scalars['Int']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   projectId: Scalars['ID']['input'];
 };
@@ -1451,6 +1544,9 @@ export type QlcImportResult = {
 export type Query = {
   __typename?: 'Query';
   allDmxOutput: Array<UniverseOutput>;
+  apClients: Array<ApClient>;
+  apConfig?: Maybe<ApConfig>;
+  artNetStatus: ArtNetStatus;
   availableVersions: Array<Scalars['String']['output']>;
   /** Get server build information for version verification */
   buildInfo: BuildInfo;
@@ -1474,6 +1570,8 @@ export type Query = {
   fixtureUsage: FixtureUsage;
   fixturesByIds: Array<FixtureInstance>;
   getQLCFixtureMappingSuggestions: QlcFixtureMappingResult;
+  /** Get global playback status - which cue list is currently playing (if any) */
+  globalPlaybackStatus: GlobalPlaybackStatus;
   networkInterfaceOptions: Array<NetworkInterfaceOption>;
   /** Get the current status of any ongoing OFL import */
   oflImportStatus: OflImportStatus;
@@ -1499,6 +1597,7 @@ export type Query = {
   suggestChannelAssignment: ChannelAssignmentSuggestion;
   systemInfo: SystemInfo;
   systemVersions: SystemVersionInfo;
+  wifiMode: WiFiMode;
   wifiNetworks: Array<WiFiNetwork>;
   wifiStatus: WiFiStatus;
 };
@@ -1819,6 +1918,20 @@ export type ScenePage = {
   scenes: Array<SceneSummary>;
 };
 
+/**
+ * Partial update for a single scene in a bulk operation.
+ * When mergeFixtures is true (default), only specified fixtures are updated.
+ * When false, all existing fixtures are replaced with the provided list.
+ */
+export type ScenePartialUpdateItem = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  fixtureValues?: InputMaybe<Array<FixtureValueInput>>;
+  /** When true (default), only specified fixtures are updated. When false, replaces all fixtures. */
+  mergeFixtures?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  sceneId: Scalars['ID']['input'];
+};
+
 export type SceneSortField =
   | 'CREATED_AT'
   | 'NAME'
@@ -1860,11 +1973,14 @@ export type Subscription = {
   __typename?: 'Subscription';
   cueListPlaybackUpdated: CueListPlaybackStatus;
   dmxOutputChanged: UniverseOutput;
+  /** Global playback status updates - triggered when any cue list starts/stops/changes cue */
+  globalPlaybackStatusUpdated: GlobalPlaybackStatus;
   /** Real-time updates during OFL import */
   oflImportProgress: OflImportStatus;
   previewSessionUpdated: PreviewSession;
   projectUpdated: Project;
   systemInfoUpdated: SystemInfo;
+  wifiModeChanged: WiFiMode;
   wifiStatusUpdated: WiFiStatus;
 };
 
@@ -1990,6 +2106,20 @@ export type WiFiConnectionResult = {
   success: Scalars['Boolean']['output'];
 };
 
+export type WiFiMode =
+  | 'AP'
+  | 'CLIENT'
+  | 'CONNECTING'
+  | 'DISABLED'
+  | 'STARTING_AP';
+
+export type WiFiModeResult = {
+  __typename?: 'WiFiModeResult';
+  message?: Maybe<Scalars['String']['output']>;
+  mode: WiFiMode;
+  success: Scalars['Boolean']['output'];
+};
+
 export type WiFiNetwork = {
   __typename?: 'WiFiNetwork';
   frequency: Scalars['String']['output'];
@@ -2011,12 +2141,15 @@ export type WiFiSecurityType =
 
 export type WiFiStatus = {
   __typename?: 'WiFiStatus';
+  apConfig?: Maybe<ApConfig>;
   available: Scalars['Boolean']['output'];
   connected: Scalars['Boolean']['output'];
+  connectedClients?: Maybe<Array<ApClient>>;
   enabled: Scalars['Boolean']['output'];
   frequency?: Maybe<Scalars['String']['output']>;
   ipAddress?: Maybe<Scalars['String']['output']>;
   macAddress?: Maybe<Scalars['String']['output']>;
+  mode: WiFiMode;
   signalStrength?: Maybe<Scalars['Int']['output']>;
   ssid?: Maybe<Scalars['String']['output']>;
 };
