@@ -115,6 +115,8 @@ export interface Cue {
   fadeOutTime: number;
   followTime?: number;
   notes?: string;
+  /** When true, this cue is skipped during playback but remains visible in the UI */
+  skip: boolean;
 }
 
 export enum FixtureType {

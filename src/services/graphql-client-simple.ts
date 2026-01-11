@@ -883,6 +883,7 @@ export class LacyLightsGraphQLClient {
     fadeOutTime?: number;
     followTime?: number | null;
     notes?: string;
+    skip?: boolean;
   }): Promise<Cue> {
     const mutation = `
       mutation UpdateCue($id: ID!, $input: CreateCueInput!) {
@@ -894,6 +895,7 @@ export class LacyLightsGraphQLClient {
           fadeOutTime
           followTime
           notes
+          skip
           scene {
             id
             name
@@ -919,13 +921,14 @@ export class LacyLightsGraphQLClient {
           fadeOutTime
           followTime
           notes
+          skip
         }
       }
     `;
-    
+
     const cueData = await this.query(cueQuery, { id });
     const currentCue = cueData.cue;
-    
+
     const updateInput = {
       name: input.name ?? currentCue.name,
       cueNumber: input.cueNumber ?? currentCue.cueNumber,
@@ -934,11 +937,36 @@ export class LacyLightsGraphQLClient {
       fadeInTime: input.fadeInTime ?? currentCue.fadeInTime,
       fadeOutTime: input.fadeOutTime ?? currentCue.fadeOutTime,
       followTime: input.followTime !== undefined ? input.followTime : currentCue.followTime,
-      notes: input.notes !== undefined ? input.notes : currentCue.notes
+      notes: input.notes !== undefined ? input.notes : currentCue.notes,
+      skip: input.skip !== undefined ? input.skip : currentCue.skip
     };
 
     const data = await this.query(mutation, { id, input: updateInput });
     return data.updateCue;
+  }
+
+  async toggleCueSkip(cueId: string): Promise<Cue> {
+    const mutation = `
+      mutation ToggleCueSkip($cueId: ID!) {
+        toggleCueSkip(cueId: $cueId) {
+          id
+          name
+          cueNumber
+          fadeInTime
+          fadeOutTime
+          followTime
+          notes
+          skip
+          scene {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { cueId });
+    return data.toggleCueSkip;
   }
 
   async bulkUpdateCues(input: {
@@ -947,6 +975,7 @@ export class LacyLightsGraphQLClient {
     fadeOutTime?: number;
     followTime?: number | null;
     easingType?: string;
+    skip?: boolean;
   }): Promise<Cue[]> {
     const mutation = `
       mutation BulkUpdateCues($input: BulkCueUpdateInput!) {
@@ -958,6 +987,7 @@ export class LacyLightsGraphQLClient {
           fadeOutTime
           followTime
           notes
+          skip
           scene {
             id
             name

@@ -94,6 +94,7 @@ const BulkUpdateCuesSchema = z.object({
   fadeOutTime: z.number().optional(),
   followTime: z.number().nullable().optional(),
   easingType: z.string().optional(),
+  skip: z.boolean().optional(),
 });
 
 const BulkCreateCuesSchema = z.object({
@@ -144,6 +145,7 @@ interface BulkUpdateData {
   fadeOutTime?: number;
   followTime?: number | null;
   easingType?: string;
+  skip?: boolean;
 }
 
 // Type for cue response from GraphQL
@@ -988,6 +990,7 @@ export class CueTools {
     fadeOutTime?: number;
     followTime?: number | null;
     notes?: string;
+    skip?: boolean;
   }) {
     const { cueId, ...updateFields } = args;
 
@@ -1007,6 +1010,7 @@ export class CueTools {
           fadeOutTime: updatedCue.fadeOutTime,
           followTime: updatedCue.followTime,
           notes: updatedCue.notes,
+          skip: updatedCue.skip,
         },
         success: true,
       };
@@ -1015,8 +1019,36 @@ export class CueTools {
     }
   }
 
+  async toggleCueSkip(args: { cueId: string }) {
+    const { cueId } = args;
+
+    try {
+      const updatedCue = await this.graphqlClient.toggleCueSkip(cueId);
+
+      return {
+        cueId: updatedCue.id,
+        cue: {
+          name: updatedCue.name,
+          cueNumber: updatedCue.cueNumber,
+          sceneName: updatedCue.scene.name,
+          fadeInTime: updatedCue.fadeInTime,
+          fadeOutTime: updatedCue.fadeOutTime,
+          followTime: updatedCue.followTime,
+          notes: updatedCue.notes,
+          skip: updatedCue.skip,
+        },
+        success: true,
+        message: updatedCue.skip
+          ? "Cue will be skipped during playback"
+          : "Cue will be played during playback",
+      };
+    } catch (error) {
+      throw new Error(`Failed to toggle cue skip: ${error}`);
+    }
+  }
+
   async bulkUpdateCues(args: z.infer<typeof BulkUpdateCuesSchema>) {
-    const { cueIds, fadeInTime, fadeOutTime, followTime, easingType } =
+    const { cueIds, fadeInTime, fadeOutTime, followTime, easingType, skip } =
       BulkUpdateCuesSchema.parse(args);
 
     try {
@@ -1030,10 +1062,11 @@ export class CueTools {
       if (fadeOutTime !== undefined) updateData.fadeOutTime = fadeOutTime;
       if (followTime !== undefined) updateData.followTime = followTime;
       if (easingType !== undefined) updateData.easingType = easingType;
+      if (skip !== undefined) updateData.skip = skip;
 
       if (Object.keys(updateData).length === 0) {
         throw new Error(
-          "No update fields provided. At least one of fadeInTime, fadeOutTime, followTime, or easingType must be specified.",
+          "No update fields provided. At least one of fadeInTime, fadeOutTime, followTime, easingType, or skip must be specified.",
         );
       }
 
