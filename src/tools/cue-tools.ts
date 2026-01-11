@@ -88,6 +88,10 @@ const _StopCueListSchema = z.object({});
 
 const _GetCueListStatusSchema = z.object({});
 
+const ToggleCueSkipSchema = z.object({
+  cueId: z.string(),
+});
+
 const BulkUpdateCuesSchema = z.object({
   cueIds: z.array(z.string()),
   fadeInTime: z.number().optional(),
@@ -1019,8 +1023,8 @@ export class CueTools {
     }
   }
 
-  async toggleCueSkip(args: { cueId: string }) {
-    const { cueId } = args;
+  async toggleCueSkip(args: z.infer<typeof ToggleCueSkipSchema>) {
+    const { cueId } = ToggleCueSkipSchema.parse(args);
 
     try {
       const updatedCue = await this.graphqlClient.toggleCueSkip(cueId);

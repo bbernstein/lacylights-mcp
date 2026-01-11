@@ -110,6 +110,7 @@ describe('CueTools', () => {
       updateCue: jest.fn(),
       deleteCue: jest.fn(),
       bulkUpdateCues: jest.fn(),
+      toggleCueSkip: jest.fn(),
       bulkCreateCues: jest.fn(),
       bulkDeleteCues: jest.fn(),
       bulkCreateCueLists: jest.fn(),
@@ -795,6 +796,64 @@ describe('CueTools', () => {
         cueId: 'cue-1',
         name: 'Updated Cue'
       })).rejects.toThrow('Failed to update cue: Error: Update error');
+    });
+  });
+
+  describe('toggleCueSkip', () => {
+    it('should toggle cue skip to true and return appropriate message', async () => {
+      const mockUpdatedCue = {
+        id: 'cue-1',
+        name: 'Test Cue',
+        cueNumber: 1.0,
+        scene: { id: 'scene-1', name: 'Opening Scene' },
+        fadeInTime: 3,
+        fadeOutTime: 3,
+        followTime: undefined,
+        notes: 'Test notes',
+        skip: true
+      };
+      mockGraphQLClient.toggleCueSkip.mockResolvedValue(mockUpdatedCue as any);
+
+      const result = await cueTools.toggleCueSkip({ cueId: 'cue-1' });
+
+      expect(mockGraphQLClient.toggleCueSkip).toHaveBeenCalledWith('cue-1');
+      expect(result.success).toBe(true);
+      expect(result.cue.skip).toBe(true);
+      expect(result.message).toBe('Cue will be skipped during playback');
+    });
+
+    it('should toggle cue skip to false and return appropriate message', async () => {
+      const mockUpdatedCue = {
+        id: 'cue-1',
+        name: 'Test Cue',
+        cueNumber: 1.0,
+        scene: { id: 'scene-1', name: 'Opening Scene' },
+        fadeInTime: 3,
+        fadeOutTime: 3,
+        followTime: undefined,
+        notes: 'Test notes',
+        skip: false
+      };
+      mockGraphQLClient.toggleCueSkip.mockResolvedValue(mockUpdatedCue as any);
+
+      const result = await cueTools.toggleCueSkip({ cueId: 'cue-1' });
+
+      expect(mockGraphQLClient.toggleCueSkip).toHaveBeenCalledWith('cue-1');
+      expect(result.success).toBe(true);
+      expect(result.cue.skip).toBe(false);
+      expect(result.message).toBe('Cue will be played during playback');
+    });
+
+    it('should handle toggle errors', async () => {
+      mockGraphQLClient.toggleCueSkip.mockRejectedValue(new Error('Toggle error'));
+
+      await expect(cueTools.toggleCueSkip({
+        cueId: 'cue-1'
+      })).rejects.toThrow('Failed to toggle cue skip: Error: Toggle error');
+    });
+
+    it('should validate cueId parameter using Zod schema', async () => {
+      await expect(cueTools.toggleCueSkip({} as any)).rejects.toThrow();
     });
   });
 

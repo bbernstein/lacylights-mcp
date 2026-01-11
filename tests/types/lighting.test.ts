@@ -110,6 +110,7 @@ describe('Lighting Types', () => {
         scene: mockScene,
         fadeInTime: 3,
         fadeOutTime: 3,
+        skip: false,
       };
 
       expect(cue.cueNumber).toBe(1.0);
