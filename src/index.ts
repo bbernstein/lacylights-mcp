@@ -1830,6 +1830,24 @@ Use cases:
                   type: "string",
                   description: "New notes or description",
                 },
+                skip: {
+                  type: "boolean",
+                  description: "When true, this cue is skipped during playback but remains visible in the UI",
+                },
+              },
+              required: ["cueId"],
+            },
+          },
+          {
+            name: "toggle_cue_skip",
+            description: "Toggle the skip status of a cue. Skipped cues remain visible but are bypassed during playback.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                cueId: {
+                  type: "string",
+                  description: "ID of the cue to toggle skip status",
+                },
               },
               required: ["cueId"],
             },
@@ -1862,6 +1880,10 @@ Use cases:
                 easingType: {
                   type: "string",
                   description: "Easing type for transitions"
+                },
+                skip: {
+                  type: "boolean",
+                  description: "When set, updates the skip status of all selected cues"
                 }
               },
               required: ["cueIds"]
@@ -3571,6 +3593,20 @@ Returns lightweight scene board summaries with button counts.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.cueTools.updateCue(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "toggle_cue_skip":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.cueTools.toggleCueSkip(args as any),
                     null,
                     2,
                   ),

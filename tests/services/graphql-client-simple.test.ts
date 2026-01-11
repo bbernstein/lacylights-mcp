@@ -466,6 +466,53 @@ describe('LacyLightsGraphQLClient', () => {
     });
   });
 
+  describe('toggleCueSkip', () => {
+    it('should toggle cue skip status', async () => {
+      const mockCue = {
+        id: 'cue-1',
+        name: 'Test Cue',
+        cueNumber: 1.0,
+        fadeInTime: 3,
+        fadeOutTime: 3,
+        followTime: null,
+        notes: '',
+        skip: true,
+        scene: { id: 'scene-1', name: 'Test Scene' }
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { toggleCueSkip: mockCue }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.toggleCueSkip('cue-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('ToggleCueSkip')
+        })
+      );
+      expect(result).toEqual(mockCue);
+      expect(result.skip).toBe(true);
+    });
+
+    it('should handle toggle cue skip errors', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Cue not found' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.toggleCueSkip('invalid-cue')).rejects.toThrow('Cue not found');
+    });
+  });
+
   describe('deleteCue', () => {
     it('should delete cue', async () => {
       const mockResponse = {
