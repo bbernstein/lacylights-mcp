@@ -175,7 +175,8 @@ mockFetch.mockResolvedValue({
 | [lacylights-go](https://github.com/bbernstein/lacylights-go) | Backend API this MCP server calls |
 | [lacylights-fe](https://github.com/bbernstein/lacylights-fe) | Frontend UI (not directly connected) |
 | [lacylights-test](https://github.com/bbernstein/lacylights-test) | Integration tests for MCP tools |
-| [lacylights-mac](https://github.com/bbernstein/lacylights-mac) | macOS app that runs this MCP server |
+| [lacylights-terraform](https://github.com/bbernstein/lacylights-terraform) | Distribution infrastructure - releases uploaded here |
+| [lacylights-mac](https://github.com/bbernstein/lacylights-mac) | Production platform - hosts this MCP server (macOS only) |
 
 ## Important Notes
 
