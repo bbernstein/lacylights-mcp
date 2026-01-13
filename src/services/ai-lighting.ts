@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import {
   FixtureInstance,
-  GeneratedScene,
+  GeneratedLook,
   CueSequence,
   LightingDesignRequest,
 } from "../types/lighting";
@@ -18,11 +18,11 @@ export class AILightingService {
     this.ragService = ragService;
   }
 
-  async generateScene(request: LightingDesignRequest): Promise<GeneratedScene> {
+  async generateLook(request: LightingDesignRequest): Promise<GeneratedLook> {
     // Get AI recommendations from RAG
     const recommendations =
       await this.ragService.generateLightingRecommendations(
-        request.sceneDescription,
+        request.lookDescription,
         request.designPreferences?.mood || "neutral",
         request.availableFixtures.map((f) => f.type || "OTHER"),
       );
@@ -74,8 +74,8 @@ export class AILightingService {
     );
 
     return {
-      name: aiResponse.name || `Scene for ${request.sceneDescription}`,
-      description: aiResponse.description || request.sceneDescription,
+      name: aiResponse.name || `Look for ${request.lookDescription}`,
+      description: aiResponse.description || request.lookDescription,
       fixtureValues: validatedFixtureValues,
       reasoning:
         aiResponse.reasoning ||
@@ -85,7 +85,7 @@ export class AILightingService {
 
   async generateCueSequence(
     scriptContext: string,
-    scenes: GeneratedScene[],
+    looks: GeneratedLook[],
     transitionPreferences?: {
       defaultFadeIn: number;
       defaultFadeOut: number;
@@ -93,12 +93,12 @@ export class AILightingService {
     },
   ): Promise<CueSequence> {
     const prompt = `
-Create a theatrical cue sequence based on this script context and generated scenes.
+Create a theatrical cue sequence based on this script context and generated looks.
 
 Script Context: ${scriptContext}
 
-Generated Scenes:
-${scenes.map((scene, i) => `[${i}] ${scene.name}: ${scene.description}`).join("\n")}
+Generated Looks:
+${looks.map((look, i) => `[${i}] ${look.name}: ${look.description}`).join("\n")}
 
 Transition Preferences:
 - Default Fade In: ${transitionPreferences?.defaultFadeIn || 3}s
@@ -113,7 +113,7 @@ Create a cue sequence in this JSON format:
     {
       "name": "Cue name",
       "cueNumber": 1.0,
-      "sceneId": "0",  // Use the scene index number from above (0, 1, 2, etc.)
+      "lookId": "0",  // Use the look index number from above (0, 1, 2, etc.)
       "fadeInTime": 3.0,
       "fadeOutTime": 3.0,
       "followTime": null or number,
@@ -192,19 +192,19 @@ Consider:
         ? `\n(Showing first ${maxFixtures} of ${fixtureDetails.length} fixtures)`
         : "";
 
-    const sceneType = request.sceneType || "full";
-    const isAdditive = sceneType === "additive";
+    const lookType = request.lookType || "full";
+    const isAdditive = lookType === "additive";
 
-    let prompt = `Scene: ${request.sceneDescription}
+    let prompt = `Look: ${request.lookDescription}
 Mood: ${recommendations.reasoning || "Standard"}
 Colors: ${recommendations.colorSuggestions?.join(",") || "Default"}
 
 `;
 
     if (isAdditive) {
-      // For additive scenes, provide context about other fixtures but only modify specific ones
+      // For additive looks, provide context about other fixtures but only modify specific ones
       const limitedIds = new Set(limitedFixtures.map((f) => f.id));
-      
+
       const allFixtureDetails =
         request.allFixtures
           ?.filter((fixture) => fixture.channels && fixture.channels.length > 0)
@@ -218,7 +218,7 @@ Colors: ${recommendations.colorSuggestions?.join(",") || "Default"}
             };
           }) || [];
 
-      prompt += `ADDITIVE SCENE: Only modify the specified fixtures below. Other fixtures will remain unchanged.
+      prompt += `ADDITIVE LOOK: Only modify the specified fixtures below. Other fixtures will remain unchanged.
 
 Fixtures to modify (${limitedFixtures.length} of ${allFixtureDetails.length} total)${fixtureWarning}:
 ${limitedFixtures.map((f) => `${f.id}: ${f.name} (${f.type}, ${f.mode}) - Channels: ${f.channels}`).join("\n")}
@@ -235,7 +235,7 @@ ${allFixtureDetails
 IMPORTANT: Only include fixtureValues for the ${limitedFixtures.length} fixtures listed above to modify.
 `;
     } else {
-      prompt += `FULL SCENE: Use ALL fixtures to create a complete lighting state.
+      prompt += `FULL LOOK: Use ALL fixtures to create a complete lighting state.
 
 Fixtures (use ALL ${limitedFixtures.length} fixtures)${fixtureWarning}:
 ${limitedFixtures.map((f) => `${f.id}: ${f.name} (${f.type}, ${f.mode}) - Channels: ${f.channels}`).join("\n")}
@@ -247,7 +247,7 @@ IMPORTANT: Include values for ALL ${limitedFixtures.length} fixtures above.
     prompt += `
 Return JSON:
 {
-  "name": "Scene name",
+  "name": "Look name",
   "fixtureValues": [
     {"fixtureId": "fixture_id", "channels": [{"offset": 0, "value": 255}, {"offset": 1, "value": 128}]}
   ],
@@ -264,12 +264,12 @@ For each fixture, provide channels as an array of {offset, value} objects:
     return prompt;
   }
 
-  async optimizeSceneForFixtures(
-    scene: GeneratedScene,
+  async optimizeLookForFixtures(
+    look: GeneratedLook,
     availableFixtures: FixtureInstance[],
-  ): Promise<GeneratedScene> {
-    // Validate and optimize the generated scene
-    const optimizedFixtureValues = scene.fixtureValues.map((fv) => {
+  ): Promise<GeneratedLook> {
+    // Validate and optimize the generated look
+    const optimizedFixtureValues = look.fixtureValues.map((fv) => {
       const fixture = availableFixtures.find((f) => f.id === fv.fixtureId);
       if (!fixture || !fixture.channels) return fv;
 
@@ -312,13 +312,13 @@ For each fixture, provide channels as an array of {offset, value} objects:
     });
 
     return {
-      ...scene,
+      ...look,
       fixtureValues: optimizedFixtureValues,
     };
   }
 
   async suggestFixtureUsage(
-    sceneContext: string,
+    lookContext: string,
     availableFixtures: FixtureInstance[],
   ): Promise<{
     primaryFixtures: string[];
@@ -335,9 +335,9 @@ For each fixture, provide channels as an array of {offset, value} objects:
     }));
 
     const prompt = `
-Analyze these available fixtures and suggest which ones to use for this scene.
+Analyze these available fixtures and suggest which ones to use for this look.
 
-Scene Context: ${sceneContext}
+Look Context: ${lookContext}
 
 Available Fixtures:
 ${JSON.stringify(fixtureInfo, null, 2)}
@@ -346,14 +346,14 @@ Recommend fixture usage in this JSON format:
 {
   "primaryFixtures": ["fixture_ids for main lighting"],
   "supportingFixtures": ["fixture_ids for accent/fill lighting"],
-  "unusedFixtures": ["fixture_ids not needed for this scene"],
+  "unusedFixtures": ["fixture_ids not needed for this look"],
   "reasoning": "Explanation of fixture selection strategy"
 }
 
 Consider:
 - Fixture types and capabilities
 - Positioning and coverage
-- Scene requirements and mood
+- Look requirements and mood
 - Efficient use of available equipment
 - Standard lighting practices (key, fill, back light)
 `;

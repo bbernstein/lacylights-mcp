@@ -2,7 +2,7 @@ import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
 import { RAGService } from "../services/rag-service-simple";
 import { AILightingService } from "../services/ai-lighting";
-import { GeneratedScene } from "../types/lighting";
+import { GeneratedLook } from "../types/lighting";
 
 /**
  * Type for paginated cue format returned by getCueListWithPagination
@@ -15,15 +15,15 @@ interface PaginatedCue {
   fadeOutTime: number;
   followTime?: number;
   notes?: string;
-  sceneId: string;
-  sceneName: string;
-  scene?: any; // Full scene object when includeSceneDetails is true
+  lookId: string;
+  lookName: string;
+  look?: any; // Full look object when includeLookDetails is true
 }
 
 const CreateCueSequenceSchema = z.object({
   projectId: z.string(),
   scriptContext: z.string(),
-  sceneIds: z.array(z.string()),
+  lookIds: z.array(z.string()),
   sequenceName: z.string(),
   transitionPreferences: z
     .object({
@@ -39,7 +39,7 @@ const GenerateActCuesSchema = z.object({
   projectId: z.string(),
   actNumber: z.number(),
   scriptText: z.string(),
-  existingScenes: z.array(z.string()).optional(),
+  existingLooks: z.array(z.string()).optional(),
   cueListName: z.string().optional(),
 });
 
@@ -106,7 +106,7 @@ const BulkCreateCuesSchema = z.object({
     name: z.string(),
     cueNumber: z.number(),
     cueListId: z.string(),
-    sceneId: z.string(),
+    lookId: z.string(),
     fadeInTime: z.number().default(3),
     fadeOutTime: z.number().default(3),
     followTime: z.number().optional(),
@@ -157,7 +157,7 @@ interface CueResponse {
   id: string;
   name: string;
   cueNumber: number;
-  scene: {
+  look: {
     name: string;
   };
   fadeInTime: number;
@@ -169,8 +169,8 @@ interface CueResponse {
 // Removed CueListPlaybackState interface - now using backend's centralized state
 
 export class CueTools {
-  // Cache for scene-to-cue-list mapping to avoid expensive nested loops
-  private sceneToCueListCache: Map<
+  // Cache for look-to-cue-list mapping to avoid expensive nested loops
+  private lookToCueListCache: Map<
     string,
     { cueListId: string; cueId: string; expiresAt: number }
   > = new Map();
@@ -208,42 +208,42 @@ export class CueTools {
     const {
       projectId,
       scriptContext,
-      sceneIds,
+      lookIds,
       sequenceName,
       transitionPreferences,
     } = CreateCueSequenceSchema.parse(args);
 
     try {
-      // Get project and validate scenes
+      // Get project and validate looks
       const project = await this.graphqlClient.getProject(projectId);
       if (!project) {
         throw new Error(`Project with ID ${projectId} not found`);
       }
 
-      // Map scenes in the exact order of sceneIds to maintain consistency
-      const scenes = sceneIds.map((sceneId) => {
-        const scene = project.scenes.find((s) => s.id === sceneId);
-        if (!scene) {
-          throw new Error(`Scene with ID ${sceneId} not found in the project`);
+      // Map looks in the exact order of lookIds to maintain consistency
+      const looks = lookIds.map((lookId) => {
+        const look = project.looks.find((l) => l.id === lookId);
+        if (!look) {
+          throw new Error(`Look with ID ${lookId} not found in the project`);
         }
-        return scene;
+        return look;
       });
 
-      // Convert scenes to GeneratedScene format for AI processing
-      const generatedScenes: GeneratedScene[] = scenes.map((scene) => ({
-        name: scene.name,
-        description: scene.description || "",
-        fixtureValues: scene.fixtureValues.map((fv) => ({
+      // Convert looks to GeneratedLook format for AI processing
+      const generatedLooks: GeneratedLook[] = looks.map((look) => ({
+        name: look.name,
+        description: look.description || "",
+        fixtureValues: look.fixtureValues.map((fv) => ({
           fixtureId: fv.fixture.id,
           channels: fv.channels, // Sparse channel format
         })),
-        reasoning: `Existing scene: ${scene.name}`,
+        reasoning: `Existing look: ${look.name}`,
       }));
 
       // Generate cue sequence using AI
       const cueSequence = await this.aiLightingService.generateCueSequence(
         scriptContext,
-        generatedScenes,
+        generatedLooks,
         transitionPreferences,
       );
 
@@ -256,32 +256,32 @@ export class CueTools {
 
       // Prepare cue data for bulk creation
       const cueInputs = cueSequence.cues.map((cueData, i) => {
-        // The AI returns sceneId as a string that might be an index or scene reference
+        // The AI returns lookId as a string that might be an index or look reference
         // Try to parse it as an index first
-        let sceneId: string;
-        const sceneIdAsNumber = parseInt(cueData.sceneId);
+        let lookId: string;
+        const lookIdAsNumber = parseInt(cueData.lookId);
 
         if (
-          !isNaN(sceneIdAsNumber) &&
-          sceneIdAsNumber >= 0 &&
-          sceneIdAsNumber < sceneIds.length
+          !isNaN(lookIdAsNumber) &&
+          lookIdAsNumber >= 0 &&
+          lookIdAsNumber < lookIds.length
         ) {
           // It's a valid index, use it
-          sceneId = sceneIds[sceneIdAsNumber];
+          lookId = lookIds[lookIdAsNumber];
         } else {
-          // Try to find it in the sceneIds array
-          const sceneIndex = sceneIds.findIndex((id) => id === cueData.sceneId);
-          sceneId =
-            sceneIndex >= 0
-              ? sceneIds[sceneIndex]
-              : sceneIds[Math.min(i, sceneIds.length - 1)]; // Fallback to corresponding index or last scene
+          // Try to find it in the lookIds array
+          const lookIndex = lookIds.findIndex((id) => id === cueData.lookId);
+          lookId =
+            lookIndex >= 0
+              ? lookIds[lookIndex]
+              : lookIds[Math.min(i, lookIds.length - 1)]; // Fallback to corresponding index or last look
         }
 
         return {
           name: cueData.name,
           cueNumber: cueData.cueNumber,
           cueListId: cueList.id,
-          sceneId: sceneId,
+          lookId: lookId,
           fadeInTime: cueData.fadeInTime,
           fadeOutTime: cueData.fadeOutTime,
           followTime: cueData.followTime,
@@ -309,7 +309,7 @@ export class CueTools {
           fadeOutTime: cue.fadeOutTime,
           followTime: cue.followTime,
           notes: cue.notes,
-          sceneName: cue.scene.name,
+          lookName: cue.look.name,
         })),
         sequenceReasoning: cueSequence.reasoning,
         statistics: {
@@ -332,7 +332,7 @@ export class CueTools {
       projectId: _projectId,
       actNumber,
       scriptText,
-      existingScenes: _existingScenes,
+      existingLooks: _existingLooks,
       cueListName,
     } = GenerateActCuesSchema.parse(args);
 
@@ -475,13 +475,13 @@ export class CueTools {
           totalCues: cueList.cues.length,
           cueNumbering: this.analyzeCueNumbering(cueList.cues),
           fadeTimings: this.analyzeFadeTimings(cueList.cues),
-          sceneUsage: this.analyzeSceneUsage(cueList.cues, project.scenes),
+          lookUsage: this.analyzeLookUsage(cueList.cues, project.looks),
           followStructure: this.analyzeFollowStructure(cueList.cues),
         },
         patterns: {
           commonFadeTimes: this.findCommonFadeTimes(cueList.cues),
           timingPatterns: this.identifyTimingPatterns(cueList.cues),
-          sceneTransitions: this.analyzeSceneTransitions(cueList.cues),
+          lookTransitions: this.analyzeLookTransitions(cueList.cues),
         },
         potentialIssues: this.identifyPotentialIssues(cueList.cues),
         statistics: {
@@ -686,18 +686,18 @@ export class CueTools {
     };
   }
 
-  private analyzeSceneUsage(cues: any[], scenes: any[]) {
-    const sceneUsage = scenes.map((scene) => ({
-      sceneId: scene.id,
-      sceneName: scene.name,
-      usageCount: cues.filter((cue) => cue.scene.id === scene.id).length,
+  private analyzeLookUsage(cues: any[], looks: any[]) {
+    const lookUsage = looks.map((look) => ({
+      lookId: look.id,
+      lookName: look.name,
+      usageCount: cues.filter((cue) => cue.look.id === look.id).length,
     }));
 
     return {
-      totalScenes: scenes.length,
-      usedScenes: sceneUsage.filter((s) => s.usageCount > 0).length,
-      unusedScenes: sceneUsage.filter((s) => s.usageCount === 0),
-      mostUsedScene: sceneUsage.sort((a, b) => b.usageCount - a.usageCount)[0],
+      totalLooks: looks.length,
+      usedLooks: lookUsage.filter((l) => l.usageCount > 0).length,
+      unusedLooks: lookUsage.filter((l) => l.usageCount === 0),
+      mostUsedLook: lookUsage.sort((a, b) => b.usageCount - a.usageCount)[0],
     };
   }
 
@@ -741,12 +741,12 @@ export class CueTools {
     ];
   }
 
-  private analyzeSceneTransitions(cues: any[]): any[] {
+  private analyzeLookTransitions(cues: any[]): any[] {
     const transitions = [];
     for (let i = 0; i < cues.length - 1; i++) {
       transitions.push({
-        from: cues[i].scene.name,
-        to: cues[i + 1].scene.name,
+        from: cues[i].look.name,
+        to: cues[i + 1].look.name,
         fadeTime: cues[i + 1].fadeInTime,
         gap: cues[i + 1].cueNumber - cues[i].cueNumber,
       });
@@ -888,7 +888,7 @@ export class CueTools {
     cueListId: string;
     name: string;
     cueNumber: number;
-    sceneId: string;
+    lookId: string;
     fadeInTime?: number;
     fadeOutTime?: number;
     followTime?: number;
@@ -900,7 +900,7 @@ export class CueTools {
       cueListId,
       name,
       cueNumber,
-      sceneId,
+      lookId,
       fadeInTime = 3,
       fadeOutTime = 3,
       followTime,
@@ -944,7 +944,7 @@ export class CueTools {
         name,
         cueNumber: finalCueNumber,
         cueListId,
-        sceneId,
+        lookId,
         fadeInTime,
         fadeOutTime,
         followTime,
@@ -956,7 +956,7 @@ export class CueTools {
         cue: {
           name: createdCue.name,
           cueNumber: createdCue.cueNumber,
-          sceneName: createdCue.scene.name,
+          lookName: createdCue.look.name,
           fadeInTime: createdCue.fadeInTime,
           fadeOutTime: createdCue.fadeOutTime,
           followTime: createdCue.followTime,
@@ -989,7 +989,7 @@ export class CueTools {
     cueId: string;
     name?: string;
     cueNumber?: number;
-    sceneId?: string;
+    lookId?: string;
     fadeInTime?: number;
     fadeOutTime?: number;
     followTime?: number | null;
@@ -1009,7 +1009,7 @@ export class CueTools {
         cue: {
           name: updatedCue.name,
           cueNumber: updatedCue.cueNumber,
-          sceneName: updatedCue.scene.name,
+          lookName: updatedCue.look.name,
           fadeInTime: updatedCue.fadeInTime,
           fadeOutTime: updatedCue.fadeOutTime,
           followTime: updatedCue.followTime,
@@ -1034,7 +1034,7 @@ export class CueTools {
         cue: {
           name: updatedCue.name,
           cueNumber: updatedCue.cueNumber,
-          sceneName: updatedCue.scene.name,
+          lookName: updatedCue.look.name,
           fadeInTime: updatedCue.fadeInTime,
           fadeOutTime: updatedCue.fadeOutTime,
           followTime: updatedCue.followTime,
@@ -1085,7 +1085,7 @@ export class CueTools {
         cueId: cue.id,
         name: cue.name,
         cueNumber: cue.cueNumber,
-        sceneName: cue.scene.name,
+        lookName: cue.look.name,
         fadeInTime: cue.fadeInTime,
         fadeOutTime: cue.fadeOutTime,
         followTime: cue.followTime,
@@ -1140,7 +1140,7 @@ export class CueTools {
         cueId: cue.id,
         name: cue.name,
         cueNumber: cue.cueNumber,
-        sceneName: cue.scene.name,
+        lookName: cue.look.name,
         fadeInTime: cue.fadeInTime,
         fadeOutTime: cue.fadeOutTime,
         followTime: cue.followTime,
@@ -1465,7 +1465,7 @@ export class CueTools {
           index: startIndex + 1, // 1-based for user display
           number: firstCue.cueNumber,
           name: firstCue.name,
-          scene: firstCue.scene.name,
+          look: firstCue.look.name,
         },
         message: `Started playing cue list "${cueList.name}" from cue ${firstCue.cueNumber}`,
       };
@@ -1474,27 +1474,27 @@ export class CueTools {
     }
   }
 
-  // Helper function to get scene name for a cue by index
-  private getSceneNameFromCueList(cueList: any, cueIndex: number): string {
+  // Helper function to get look name for a cue by index
+  private getLookNameFromCueList(cueList: any, cueIndex: number): string {
     const sortedCues = cueList.cues.sort(
       (a: any, b: any) => a.cueNumber - b.cueNumber,
     );
     if (
       cueIndex >= 0 &&
       cueIndex < sortedCues.length &&
-      sortedCues[cueIndex].scene
+      sortedCues[cueIndex].look
     ) {
-      return sortedCues[cueIndex].scene.name;
+      return sortedCues[cueIndex].look.name;
     }
-    return "Unknown Scene";
+    return "Unknown Look";
   }
 
-  // Helper method to find cue list containing a specific scene with caching
-  private async findCueListForScene(
-    sceneId: string,
+  // Helper method to find cue list containing a specific look with caching
+  private async findCueListForLook(
+    lookId: string,
   ): Promise<{ cueListId: string; cueId: string } | null> {
     // Check cache first
-    const cached = this.sceneToCueListCache.get(sceneId);
+    const cached = this.lookToCueListCache.get(lookId);
     if (cached && cached.expiresAt > Date.now()) {
       return { cueListId: cached.cueListId, cueId: cached.cueId };
     }
@@ -1509,11 +1509,11 @@ export class CueTools {
             if (!fullCueList) continue;
 
             const matchingCue = fullCueList.cues.find(
-              (cue) => cue.scene.id === sceneId,
+              (cue) => cue.look.id === lookId,
             );
             if (matchingCue) {
               // Cache the result
-              this.sceneToCueListCache.set(sceneId, {
+              this.lookToCueListCache.set(lookId, {
                 cueListId: cueList.id,
                 cueId: matchingCue.id,
                 expiresAt: Date.now() + this.CACHE_TTL_MS,
@@ -1554,11 +1554,11 @@ export class CueTools {
         };
       }
 
-      // Get cue list to extract scene name
+      // Get cue list to extract look name
       const cueList = await this.graphqlClient.getCueList(cueListId);
-      const sceneName = cueList
-        ? this.getSceneNameFromCueList(cueList, status.currentCueIndex)
-        : "Unknown Scene";
+      const lookName = cueList
+        ? this.getLookNameFromCueList(cueList, status.currentCueIndex)
+        : "Unknown Look";
 
       return {
         success: true,
@@ -1566,7 +1566,7 @@ export class CueTools {
           index: status.currentCueIndex + 1, // 1-based for user display
           number: status.currentCue?.cueNumber || 0,
           name: status.currentCue?.name || "",
-          scene: sceneName,
+          look: lookName,
         },
         fadeTime: fadeInTime || status.currentCue?.fadeInTime,
         message: `Advanced to cue ${status.currentCue?.cueNumber} - "${status.currentCue?.name}"`,
@@ -1596,11 +1596,11 @@ export class CueTools {
         };
       }
 
-      // Get cue list to extract scene name
+      // Get cue list to extract look name
       const cueList = await this.graphqlClient.getCueList(cueListId);
-      const sceneName = cueList
-        ? this.getSceneNameFromCueList(cueList, status.currentCueIndex)
-        : "Unknown Scene";
+      const lookName = cueList
+        ? this.getLookNameFromCueList(cueList, status.currentCueIndex)
+        : "Unknown Look";
 
       return {
         success: true,
@@ -1608,7 +1608,7 @@ export class CueTools {
           index: status.currentCueIndex + 1, // 1-based for user display
           number: status.currentCue?.cueNumber || 0,
           name: status.currentCue?.name || "",
-          scene: sceneName,
+          look: lookName,
         },
         fadeTime: fadeInTime || status.currentCue?.fadeInTime,
         message: `Went back to cue ${status.currentCue?.cueNumber} - "${status.currentCue?.name}"`,
@@ -1662,7 +1662,7 @@ export class CueTools {
       const status =
         await this.graphqlClient.getCueListPlaybackStatus(cueListId);
 
-      const sceneName = this.getSceneNameFromCueList(cueList, targetIndex);
+      const lookName = this.getLookNameFromCueList(cueList, targetIndex);
 
       return {
         success: true,
@@ -1671,7 +1671,7 @@ export class CueTools {
           number:
             status?.currentCue?.cueNumber || sortedCues[targetIndex].cueNumber,
           name: status?.currentCue?.name || sortedCues[targetIndex].name,
-          scene: sceneName,
+          look: lookName,
         },
         fadeTime: fadeInTime || status?.currentCue?.fadeInTime,
         message: `Jumped to cue ${status?.currentCue?.cueNumber} - "${status?.currentCue?.name}"`,
@@ -1747,7 +1747,7 @@ export class CueTools {
                     index: currentIndex + 1,
                     number: status.currentCue.cueNumber,
                     name: status.currentCue.name,
-                    scene: this.getSceneNameFromCueList(cueList, currentIndex),
+                    look: this.getLookNameFromCueList(cueList, currentIndex),
                     fadeInTime: status.currentCue.fadeInTime,
                     fadeOutTime: status.currentCue.fadeOutTime,
                     followTime: status.currentCue.followTime,
@@ -1779,18 +1779,18 @@ export class CueTools {
         // No active cue list playback, continue to check for active scene
       }
 
-      // No active cue list playback - check if there's an active scene that matches a cue
-      const currentScene = await this.graphqlClient.getCurrentActiveScene();
-      if (!currentScene) {
+      // No active cue list playback - check if there's an active look that matches a cue
+      const currentLook = await this.graphqlClient.getCurrentActiveLook();
+      if (!currentLook) {
         return {
           isPlaying: false,
           message:
-            "No cue list is currently playing and no active scene was found",
+            "No cue list is currently playing and no active look was found",
         };
       }
 
-      // Use cached search to find cue list containing this scene
-      const cueListMatch = await this.findCueListForScene(currentScene.id);
+      // Use cached search to find cue list containing this look
+      const cueListMatch = await this.findCueListForLook(currentLook.id);
       if (cueListMatch) {
         try {
           const fullCueList = await this.graphqlClient.getCueList(
@@ -1811,7 +1811,7 @@ export class CueTools {
               const isLastCue = currentIndex === sortedCues.length - 1;
 
               return {
-                isPlaying: false, // Scene is active but not formal cue list playback
+                isPlaying: false, // Look is active but not formal cue list playback
                 cueList: {
                   id: cueListMatch.cueListId,
                   name: fullCueList.name,
@@ -1821,7 +1821,7 @@ export class CueTools {
                   index: currentIndex + 1,
                   number: matchingCue.cueNumber,
                   name: matchingCue.name,
-                  scene: currentScene.name,
+                  look: currentLook.name,
                   fadeInTime: matchingCue.fadeInTime,
                   fadeOutTime: matchingCue.fadeOutTime,
                   followTime: matchingCue.followTime,
@@ -1844,7 +1844,7 @@ export class CueTools {
                         }
                       : null,
                 },
-                message: `Scene "${currentScene.name}" matches cue ${matchingCue.cueNumber} in "${fullCueList.name}". Use start_cue_list to enable formal playback.`,
+                message: `Look "${currentLook.name}" matches cue ${matchingCue.cueNumber} in "${fullCueList.name}". Use start_cue_list to enable formal playback.`,
                 startedAt: new Date().toISOString(),
               };
             }
@@ -1856,7 +1856,7 @@ export class CueTools {
 
       return {
         isPlaying: false,
-        message: `Active scene "${currentScene.name}" was found but does not match any cue in available cue lists`,
+        message: `Active look "${currentLook.name}" was found but does not match any cue in available cue lists`,
       };
     } catch (error) {
       throw new Error(`Failed to get cue list status: ${error}`);
@@ -1899,12 +1899,12 @@ export class CueTools {
     cueListId: string;
     page?: number;
     perPage?: number;
-    includeSceneDetails?: boolean;
-    sortBy?: "cueNumber" | "name" | "sceneName";
+    includeLookDetails?: boolean;
+    sortBy?: "cueNumber" | "name" | "lookName";
     filterBy?: {
       cueNumberRange?: { min: number; max: number };
       nameContains?: string;
-      sceneNameContains?: string;
+      lookNameContains?: string;
       hasFollowTime?: boolean;
       fadeTimeRange?: { min: number; max: number };
     };
@@ -1913,7 +1913,7 @@ export class CueTools {
       cueListId,
       page = 1,
       perPage = 50,
-      includeSceneDetails = false,
+      includeLookDetails = false,
       sortBy = "cueNumber",
       filterBy,
     } = args;
@@ -1924,7 +1924,7 @@ export class CueTools {
         cueListId,
         page,
         perPage,
-        includeSceneDetails
+        includeLookDetails
       );
 
       if (!cueList) {
@@ -1951,10 +1951,10 @@ export class CueTools {
           );
         }
 
-        if (filterBy.sceneNameContains) {
-          const search = filterBy.sceneNameContains.toLowerCase();
+        if (filterBy.lookNameContains) {
+          const search = filterBy.lookNameContains.toLowerCase();
           cues = cues.filter((cue) =>
-            cue.sceneName.toLowerCase().includes(search)
+            cue.lookName.toLowerCase().includes(search)
           );
         }
 
@@ -1984,9 +1984,9 @@ export class CueTools {
         case "name":
           cues.sort((a, b) => a.name.localeCompare(b.name));
           break;
-        case "sceneName":
+        case "lookName":
           cues.sort((a, b) =>
-            a.sceneName.localeCompare(b.sceneName)
+            a.lookName.localeCompare(b.lookName)
           );
           break;
       }
@@ -2014,7 +2014,7 @@ export class CueTools {
         followCuesCount: cues.filter(
           (c: any) => c.followTime !== null && c.followTime !== undefined
         ).length,
-        uniqueScenes: [...new Set(cues.map((c: any) => c.sceneId))].length,
+        uniqueLooks: [...new Set(cues.map((c: any) => c.lookId))].length,
       };
 
       // Create lookup tables for easy reference
@@ -2025,7 +2025,7 @@ export class CueTools {
             {
               cueId: cue.id,
               name: cue.name,
-              sceneName: cue.sceneName,
+              lookName: cue.lookName,
             },
           ])
         ),
@@ -2035,16 +2035,16 @@ export class CueTools {
             {
               cueId: cue.id,
               cueNumber: cue.cueNumber,
-              sceneName: cue.sceneName,
+              lookName: cue.lookName,
             },
           ])
         ),
-        bySceneName: cues.reduce((acc: any, cue: any) => {
-          const sceneName = cue.sceneName.toLowerCase();
-          if (!acc[sceneName]) {
-            acc[sceneName] = [];
+        byLookName: cues.reduce((acc: any, cue: any) => {
+          const lookName = cue.lookName.toLowerCase();
+          if (!acc[lookName]) {
+            acc[lookName] = [];
           }
-          acc[sceneName].push({
+          acc[lookName].push({
             cueId: cue.id,
             cueNumber: cue.cueNumber,
             cueName: cue.name,
@@ -2069,7 +2069,7 @@ export class CueTools {
         query: {
           sortedBy: sortBy,
           filtersApplied: filterBy ? Object.keys(filterBy).length : 0,
-          includeSceneDetails,
+          includeLookDetails,
         },
       };
     } catch (error) {
@@ -2101,10 +2101,10 @@ export class CueTools {
           followTime: cue.followTime,
           notes: cue.notes,
         },
-        scene: {
-          id: cue.scene.id,
-          name: cue.scene.name,
-          description: cue.scene.description,
+        look: {
+          id: cue.look.id,
+          name: cue.look.name,
+          description: cue.look.description,
         },
         cueList: cue.cueList
           ? {

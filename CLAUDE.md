@@ -45,7 +45,7 @@ lacylights-mcp/
 │   ├── tools/                # MCP tool implementations
 │   │   ├── project-tools.ts  # Project CRUD operations
 │   │   ├── fixture-tools.ts  # Fixture management
-│   │   ├── scene-tools.ts    # Scene generation and control
+│   │   ├── look-tools.ts     # Look generation and control
 │   │   └── cue-tools.ts      # Cue sequence and playback
 │   ├── services/             # Core services
 │   │   ├── graphql-client-simple.ts  # Apollo client for backend
@@ -98,14 +98,14 @@ When adding new MCP tools:
 }
 ```
 
-### Safe Scene Updates
-Use "safe" scene update functions to preserve existing fixtures:
-- `addFixturesToScene`: Add without affecting others
-- `removeFixturesFromScene`: Remove specific fixtures only
-- `ensureFixturesInScene`: Add only if missing
-- `updateScenePartial`: Merge updates instead of replacing
+### Safe Look Updates
+Use "safe" look update functions to preserve existing fixtures:
+- `addFixturesToLook`: Add without affecting others
+- `removeFixturesFromLook`: Remove specific fixtures only
+- `ensureFixturesInLook`: Add only if missing
+- `updateLookPartial`: Merge updates instead of replacing
 
-**Always prefer these over `updateScene` to avoid data loss.**
+**Always prefer these over `updateLook` to avoid data loss.**
 
 ### GraphQL Client Usage
 All backend communication through `LacyLightsGraphQLClient`:
@@ -196,10 +196,10 @@ mockFetch.mockResolvedValue({
 - `get_fixture_inventory`, `analyze_fixture_capabilities`
 - `get_channel_map`, `suggest_channel_assignment`
 
-### Scene Tools
-- `generate_scene`, `analyze_script`, `optimize_scene`
-- `list_scenes`, `get_scene`, `activate_scene`
-- Safe updates: `add_fixtures_to_scene`, `remove_fixtures_from_scene`
+### Look Tools
+- `generate_look`, `analyze_script`, `optimize_look`
+- `list_looks`, `get_look`, `activate_look`
+- Safe updates: `add_fixtures_to_look`, `remove_fixtures_from_look`
 
 ### Cue Tools
 - `create_cue_sequence`, `generate_act_cues`

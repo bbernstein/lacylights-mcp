@@ -11,11 +11,11 @@ import { LacyLightsGraphQLClient } from "./services/graphql-client-simple";
 import { RAGService } from "./services/rag-service-simple";
 import { AILightingService } from "./services/ai-lighting";
 import { FixtureTools } from "./tools/fixture-tools";
-import { SceneTools } from "./tools/scene-tools";
+import { LookTools } from "./tools/look-tools";
 import { CueTools } from "./tools/cue-tools";
 import { ProjectTools } from "./tools/project-tools";
 import { SettingsTools } from "./tools/settings-tools";
-import { SceneBoardTools } from "./tools/scene-board-tools";
+import { LookBoardTools } from "./tools/look-board-tools";
 import { logger } from "./utils/logger";
 
 class LacyLightsMCPServer {
@@ -24,11 +24,11 @@ class LacyLightsMCPServer {
   private ragService: RAGService;
   private aiLightingService: AILightingService;
   private fixtureTools: FixtureTools;
-  private sceneTools: SceneTools;
+  private lookTools: LookTools;
   private cueTools: CueTools;
   private projectTools: ProjectTools;
   private settingsTools: SettingsTools;
-  private sceneBoardTools: SceneBoardTools;
+  private lookBoardTools: LookBoardTools;
 
   constructor() {
     this.server = new Server(
@@ -53,7 +53,7 @@ class LacyLightsMCPServer {
 
     // Initialize tools
     this.fixtureTools = new FixtureTools(this.graphqlClient);
-    this.sceneTools = new SceneTools(
+    this.lookTools = new LookTools(
       this.graphqlClient,
       this.ragService,
       this.aiLightingService,
@@ -65,7 +65,7 @@ class LacyLightsMCPServer {
     );
     this.projectTools = new ProjectTools(this.graphqlClient);
     this.settingsTools = new SettingsTools(this.graphqlClient);
-    this.sceneBoardTools = new SceneBoardTools(this.graphqlClient);
+    this.lookBoardTools = new LookBoardTools(this.graphqlClient);
 
     this.setupHandlers();
   }
@@ -84,7 +84,7 @@ Parameters:
 
 Returns:
 - Basic info (id, name, description) always
-- Resource counts (fixtureCount, sceneCount, cueListCount) when includeDetails=true
+- Resource counts (fixtureCount, lookCount, cueListCount) when includeDetails=true
 
 Use includeDetails=false for quick project listing.
 Use includeDetails=true when you need to understand project sizes.`,
@@ -94,7 +94,7 @@ Use includeDetails=true when you need to understand project sizes.`,
                 includeDetails: {
                   type: "boolean",
                   default: false,
-                  description: "Include fixture/scene/cue counts",
+                  description: "Include fixture/look/cue counts",
                 },
               },
             },
@@ -123,11 +123,11 @@ Use includeDetails=true when you need to understand project sizes.`,
 
 Returns:
 - Project metadata (id, name, description, timestamps)
-- Resource counts (fixtureCount, sceneCount, cueListCount)
+- Resource counts (fixtureCount, lookCount, cueListCount)
 
 Does NOT include:
 - Fixture details (use list_fixtures or get_fixture_inventory)
-- Scene details (use list_scenes)
+- Look details (use list_looks)
 - Cue list details (use list_cue_lists or get_cue_list_details)
 
 Use this tool first to understand project scope before drilling down into specific resources.`,
@@ -144,7 +144,7 @@ Use this tool first to understand project scope before drilling down into specif
           },
           {
             name: "get_project_details",
-            description: "Get detailed information about a specific project including all fixtures, scenes, and cue lists. This returns a lot of data and should only be used when you need comprehensive project information.",
+            description: "Get detailed information about a specific project including all fixtures, looks, and cue lists. This returns a lot of data and should only be used when you need comprehensive project information.",
             inputSchema: {
               type: "object",
               properties: {
@@ -243,7 +243,7 @@ Returns lightweight fixture information:
 
 Does NOT include:
 - Full channel definitions (use get_fixture for that)
-- Scene usage (use get_fixture_usage)
+- Look usage (use get_fixture_usage)
 
 Pagination:
 - Default: 50 items per page
@@ -568,7 +568,7 @@ Use list_fixtures instead if you only need basic fixture information.`,
           {
             name: "delete_fixture_instance",
             description:
-              "Delete a fixture instance from a project (will remove it from all scenes)",
+              "Delete a fixture instance from a project (will remove it from all looks)",
             inputSchema: {
               type: "object",
               properties: {
@@ -807,26 +807,26 @@ Use list_fixtures instead if you only need basic fixture information.`,
               required: ["definitions"],
             },
           },
-          // Scene Tools
-          // MCP API Refactor - Task 2.4: Scene Query Tools
+          // Look Tools
+          // MCP API Refactor - Task 2.4: Look Query Tools
           {
-            name: "list_scenes",
-            description: `List scenes in a project with pagination and filtering.
+            name: "list_looks",
+            description: `List looks in a project with pagination and filtering.
 
-Returns lightweight scene summaries:
+Returns lightweight look summaries:
 - Metadata (id, name, description)
 - Fixture count
 - Timestamps
 
 Does NOT include:
-- Fixture values (use get_scene for that)
-- Usage information (use get_scene_usage)
+- Fixture values (use get_look for that)
+- Usage information (use get_look_usage)
 
-This is the most efficient way to browse available scenes.
+This is the most efficient way to browse available looks.
 
 Filtering:
-- nameContains: Filter by scene name (case-insensitive)
-- usesFixture: Filter to scenes using specific fixture ID
+- nameContains: Filter by look name (case-insensitive)
+- usesFixture: Filter to looks using specific fixture ID
 
 Sorting:
 - name: Alphabetical by name
@@ -837,7 +837,7 @@ Sorting:
               properties: {
                 projectId: {
                   type: "string",
-                  description: "Project ID to list scenes from",
+                  description: "Project ID to list looks from",
                 },
                 page: {
                   type: "number",
@@ -854,11 +854,11 @@ Sorting:
                 },
                 nameContains: {
                   type: "string",
-                  description: "Filter scenes by name (case-insensitive substring match)",
+                  description: "Filter looks by name (case-insensitive substring match)",
                 },
                 usesFixture: {
                   type: "string",
-                  description: "Filter to scenes that use this fixture ID",
+                  description: "Filter to looks that use this fixture ID",
                 },
                 sortBy: {
                   type: "string",
@@ -871,24 +871,24 @@ Sorting:
             },
           },
           {
-            name: "get_scene",
-            description: `Get full details for a specific scene.
+            name: "get_look",
+            description: `Get full details for a specific look.
 
 Parameters:
-- sceneId: Scene to retrieve
+- lookId: Look to retrieve
 - includeFixtureValues: Include all DMX channel values (default: true)
 
 Set includeFixtureValues=false if you only need to know which fixtures
-are in the scene, not their specific values. This is much faster for
-large scenes.
+are in the look, not their specific values. This is much faster for
+large looks.
 
-Use get_scene_fixtures instead if you only need fixture metadata.`,
+Use get_look_fixtures instead if you only need fixture metadata.`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to retrieve",
+                  description: "Look ID to retrieve",
                 },
                 includeFixtureValues: {
                   type: "boolean",
@@ -896,58 +896,58 @@ Use get_scene_fixtures instead if you only need fixture metadata.`,
                   description: "Include fixture DMX channel values",
                 },
               },
-              required: ["sceneId"],
+              required: ["lookId"],
             },
           },
           {
-            name: "get_scene_fixtures",
-            description: `Get just the fixtures used in a scene without their values.
+            name: "get_look_fixtures",
+            description: `Get just the fixtures used in a look without their values.
 
 Returns:
 - Fixture IDs, names, and types
 
-This is the fastest way to understand scene composition without
+This is the fastest way to understand look composition without
 loading full DMX channel data.
 
 Use cases:
-- "Which fixtures does this scene use?"
-- "What type of fixtures are in this scene?"
-- Quick scene composition analysis`,
+- "Which fixtures does this look use?"
+- "What type of fixtures are in this look?"
+- Quick look composition analysis`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to get fixtures for",
+                  description: "Look ID to get fixtures for",
                 },
               },
-              required: ["sceneId"],
+              required: ["lookId"],
             },
           },
           {
-            name: "generate_scene",
+            name: "generate_look",
             description:
-              "Generate a lighting scene based on script context and design preferences",
+              "Generate a lighting look based on script context and design preferences",
             inputSchema: {
               type: "object",
               properties: {
                 projectId: {
                   type: "string",
-                  description: "Project ID to create scene in",
+                  description: "Project ID to create look in",
                 },
-                sceneDescription: {
+                lookDescription: {
                   type: "string",
-                  description: "Description of the scene to light",
+                  description: "Description of the look to light",
                 },
                 scriptContext: {
                   type: "string",
-                  description: "Optional script context for the scene",
+                  description: "Optional script context for the look",
                 },
-                sceneType: {
+                lookType: {
                   type: "string",
                   enum: ["full", "additive"],
                   default: "full",
-                  description: "Type of scene: 'full' uses all fixtures (default), 'additive' only modifies specified fixtures",
+                  description: "Type of look: 'full' uses all fixtures (default), 'additive' only modifies specified fixtures",
                 },
                 designPreferences: {
                   type: "object",
@@ -955,11 +955,11 @@ Use cases:
                     colorPalette: {
                       type: "array",
                       items: { type: "string" },
-                      description: "Preferred colors for the scene",
+                      description: "Preferred colors for the look",
                     },
                     mood: {
                       type: "string",
-                      description: "Mood or atmosphere for the scene",
+                      description: "Mood or atmosphere for the look",
                     },
                     intensity: {
                       type: "string",
@@ -1010,10 +1010,10 @@ Use cases:
                 },
                 activate: {
                   type: "boolean",
-                  description: "Automatically activate the scene after creation",
+                  description: "Automatically activate the look after creation",
                 },
               },
-              required: ["projectId", "sceneDescription"],
+              required: ["projectId", "lookDescription"],
             },
           },
           {
@@ -1032,28 +1032,28 @@ Use cases:
                   default: true,
                   description: "Extract specific lighting cues from the script",
                 },
-                suggestScenes: {
+                suggestLooks: {
                   type: "boolean",
                   default: true,
-                  description: "Generate scene suggestions based on analysis",
+                  description: "Generate look suggestions based on analysis",
                 },
               },
               required: ["scriptText"],
             },
           },
           {
-            name: "optimize_scene",
-            description: "Optimize an existing scene for specific goals",
+            name: "optimize_look",
+            description: "Optimize an existing look for specific goals",
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to optimize",
+                  description: "Look ID to optimize",
                 },
                 projectId: {
                   type: "string",
-                  description: "Project ID containing the scene",
+                  description: "Project ID containing the look",
                 },
                 optimizationGoals: {
                   type: "array",
@@ -1070,26 +1070,26 @@ Use cases:
                   description: "Goals for optimization",
                 },
               },
-              required: ["sceneId", "projectId"],
+              required: ["lookId", "projectId"],
             },
           },
           {
-            name: "update_scene",
-            description: "Update an existing scene with new values",
+            name: "update_look",
+            description: "Update an existing look with new values",
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to update",
+                  description: "Look ID to update",
                 },
                 name: {
                   type: "string",
-                  description: "Optional new name for the scene",
+                  description: "Optional new name for the look",
                 },
                 description: {
                   type: "string",
-                  description: "Optional new description for the scene",
+                  description: "Optional new description for the look",
                 },
                 fixtureValues: {
                   type: "array",
@@ -1126,12 +1126,12 @@ Use cases:
                   description: "Optional fixture values to update",
                 },
               },
-              required: ["sceneId"],
+              required: ["lookId"],
             },
           },
           {
-            name: "activate_scene",
-            description: "Activate a lighting scene by name or ID",
+            name: "activate_look",
+            description: "Activate a lighting look by name or ID",
             inputSchema: {
               type: "object",
               properties: {
@@ -1139,13 +1139,13 @@ Use cases:
                   type: "string",
                   description: "Optional project ID to search within",
                 },
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to activate",
+                  description: "Look ID to activate",
                 },
-                sceneName: {
+                lookName: {
                   type: "string",
-                  description: "Scene name to activate (searches across projects if projectId not provided)",
+                  description: "Look name to activate (searches across projects if projectId not provided)",
                 },
               },
             },
@@ -1165,23 +1165,23 @@ Use cases:
             },
           },
           {
-            name: "get_current_active_scene",
-            description: "Get the currently active scene if any",
+            name: "get_current_active_look",
+            description: "Get the currently active look if any",
             inputSchema: {
               type: "object",
               properties: {},
             },
           },
-          // Safe Scene Management Tools
+          // Safe Look Management Tools
           {
-            name: "add_fixtures_to_scene",
-            description: "Safely add fixtures to a scene without affecting existing fixtures",
+            name: "add_fixtures_to_look",
+            description: "Safely add fixtures to a look without affecting existing fixtures",
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to add fixtures to",
+                  description: "Look ID to add fixtures to",
                 },
                 fixtureValues: {
                   type: "array",
@@ -1212,14 +1212,14 @@ Use cases:
                         },
                         description: "Sparse array of channel values",
                       },
-                      sceneOrder: {
+                      lookOrder: {
                         type: "number",
-                        description: "Optional order in scene",
+                        description: "Optional order in look",
                       },
                     },
                     required: ["fixtureId", "channels"],
                   },
-                  description: "Fixtures to add to the scene",
+                  description: "Fixtures to add to the look",
                 },
                 overwriteExisting: {
                   type: "boolean",
@@ -1227,18 +1227,18 @@ Use cases:
                   description: "Whether to overwrite existing fixture values",
                 },
               },
-              required: ["sceneId", "fixtureValues"],
+              required: ["lookId", "fixtureValues"],
             },
           },
           {
-            name: "remove_fixtures_from_scene",
-            description: "Safely remove specific fixtures from a scene",
+            name: "remove_fixtures_from_look",
+            description: "Safely remove specific fixtures from a look",
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to remove fixtures from",
+                  description: "Look ID to remove fixtures from",
                 },
                 fixtureIds: {
                   type: "array",
@@ -1246,32 +1246,32 @@ Use cases:
                   description: "Array of fixture IDs to remove",
                 },
               },
-              required: ["sceneId", "fixtureIds"],
+              required: ["lookId", "fixtureIds"],
             },
           },
           {
-            name: "get_scene_fixture_values",
-            description: "Get current fixture values for a scene (read-only)",
+            name: "get_look_fixture_values",
+            description: "Get current fixture values for a look (read-only)",
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to get fixture values for",
+                  description: "Look ID to get fixture values for",
                 },
               },
-              required: ["sceneId"],
+              required: ["lookId"],
             },
           },
           {
-            name: "ensure_fixtures_in_scene",
-            description: "Ensure specific fixtures exist in a scene with given values, adding only if missing",
+            name: "ensure_fixtures_in_look",
+            description: "Ensure specific fixtures exist in a look with given values, adding only if missing",
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to ensure fixtures in",
+                  description: "Look ID to ensure fixtures in",
                 },
                 fixtureValues: {
                   type: "array",
@@ -1302,36 +1302,36 @@ Use cases:
                         },
                         description: "Sparse array of channel values",
                       },
-                      sceneOrder: {
+                      lookOrder: {
                         type: "number",
-                        description: "Optional order in scene",
+                        description: "Optional order in look",
                       },
                     },
                     required: ["fixtureId", "channels"],
                   },
-                  description: "Fixtures to ensure exist in the scene",
+                  description: "Fixtures to ensure exist in the look",
                 },
               },
-              required: ["sceneId", "fixtureValues"],
+              required: ["lookId", "fixtureValues"],
             },
           },
           {
-            name: "update_scene_partial",
-            description: "Safely update scene metadata and optionally merge fixture values",
+            name: "update_look_partial",
+            description: "Safely update look metadata and optionally merge fixture values",
             inputSchema: {
               type: "object",
               properties: {
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to update",
+                  description: "Look ID to update",
                 },
                 name: {
                   type: "string",
-                  description: "Optional new name for the scene",
+                  description: "Optional new name for the look",
                 },
                 description: {
                   type: "string",
-                  description: "Optional new description for the scene",
+                  description: "Optional new description for the look",
                 },
                 fixtureValues: {
                   type: "array",
@@ -1362,9 +1362,9 @@ Use cases:
                         },
                         description: "Sparse array of channel values",
                       },
-                      sceneOrder: {
+                      lookOrder: {
                         type: "number",
-                        description: "Optional order in scene",
+                        description: "Optional order in look",
                       },
                     },
                     required: ["fixtureId", "channels"],
@@ -1377,32 +1377,32 @@ Use cases:
                   description: "Whether to merge fixtures (true) or replace all (false)",
                 },
               },
-              required: ["sceneId"],
+              required: ["lookId"],
             },
           },
-          // Bulk Scene Operations
+          // Bulk Look Operations
           {
-            name: "bulk_create_scenes",
-            description: "Create multiple scenes in a single operation. Returns all created scenes with their IDs.",
+            name: "bulk_create_looks",
+            description: "Create multiple looks in a single operation. Returns all created looks with their IDs.",
             inputSchema: {
               type: "object",
               properties: {
-                scenes: {
+                looks: {
                   type: "array",
                   items: {
                     type: "object",
                     properties: {
                       name: {
                         type: "string",
-                        description: "Scene name",
+                        description: "Look name",
                       },
                       description: {
                         type: "string",
-                        description: "Scene description",
+                        description: "Look description",
                       },
                       projectId: {
                         type: "string",
-                        description: "Project ID to create scene in",
+                        description: "Project ID to create look in",
                       },
                       fixtureValues: {
                         type: "array",
@@ -1424,39 +1424,39 @@ Use cases:
                           },
                           required: ["fixtureId", "channels"],
                         },
-                        description: "Fixture values for the scene",
+                        description: "Fixture values for the look",
                       },
                     },
                     required: ["name", "projectId", "fixtureValues"],
                   },
-                  description: "Array of scenes to create",
+                  description: "Array of looks to create",
                 },
               },
-              required: ["scenes"],
+              required: ["looks"],
             },
           },
           {
-            name: "bulk_update_scenes",
-            description: "Update multiple scenes in a single operation. Supports updating name, description, and fixture values.",
+            name: "bulk_update_looks",
+            description: "Update multiple looks in a single operation. Supports updating name, description, and fixture values.",
             inputSchema: {
               type: "object",
               properties: {
-                scenes: {
+                looks: {
                   type: "array",
                   items: {
                     type: "object",
                     properties: {
-                      sceneId: {
+                      lookId: {
                         type: "string",
-                        description: "Scene ID to update",
+                        description: "Look ID to update",
                       },
                       name: {
                         type: "string",
-                        description: "New scene name",
+                        description: "New look name",
                       },
                       description: {
                         type: "string",
-                        description: "New scene description",
+                        description: "New look description",
                       },
                       fixtureValues: {
                         type: "array",
@@ -1478,39 +1478,39 @@ Use cases:
                           },
                           required: ["fixtureId", "channels"],
                         },
-                        description: "New fixture values for the scene",
+                        description: "New fixture values for the look",
                       },
                     },
-                    required: ["sceneId"],
+                    required: ["lookId"],
                   },
-                  description: "Array of scene updates to apply",
+                  description: "Array of look updates to apply",
                 },
               },
-              required: ["scenes"],
+              required: ["looks"],
             },
           },
           {
-            name: "bulk_update_scenes_partial",
-            description: "Update multiple scenes with partial fixture value merging support. Each scene can independently specify name, description, fixtureValues, and mergeFixtures. Unlike bulk_update_scenes, this preserves existing fixtures not mentioned in the update (when mergeFixtures=true). This is useful for batch operations like changing a channel value across many scenes without affecting other fixtures.",
+            name: "bulk_update_looks_partial",
+            description: "Update multiple looks with partial fixture value merging support. Each look can independently specify name, description, fixtureValues, and mergeFixtures. Unlike bulk_update_looks, this preserves existing fixtures not mentioned in the update (when mergeFixtures=true). This is useful for batch operations like changing a channel value across many looks without affecting other fixtures.",
             inputSchema: {
               type: "object",
               properties: {
-                scenes: {
+                looks: {
                   type: "array",
                   items: {
                     type: "object",
                     properties: {
-                      sceneId: {
+                      lookId: {
                         type: "string",
-                        description: "Scene ID to update",
+                        description: "Look ID to update",
                       },
                       name: {
                         type: "string",
-                        description: "New scene name",
+                        description: "New look name",
                       },
                       description: {
                         type: "string",
-                        description: "New scene description",
+                        description: "New look description",
                       },
                       fixtureValues: {
                         type: "array",
@@ -1529,9 +1529,9 @@ Use cases:
                                 required: ["offset", "value"],
                               },
                             },
-                            sceneOrder: {
+                            lookOrder: {
                               type: "number",
-                              description: "Optional order in scene",
+                              description: "Optional order in look",
                             },
                           },
                           required: ["fixtureId", "channels"],
@@ -1544,38 +1544,38 @@ Use cases:
                         description: "Whether to merge fixtures (true, default) or replace all fixtures (false)",
                       },
                     },
-                    required: ["sceneId"],
+                    required: ["lookId"],
                   },
-                  description: "Array of scene partial updates to apply",
+                  description: "Array of look partial updates to apply",
                 },
               },
-              required: ["scenes"],
+              required: ["looks"],
             },
           },
           {
-            name: "bulk_delete_scenes",
-            description: "Delete multiple scenes in a single operation. Returns count of successfully deleted scenes and any failed IDs.",
+            name: "bulk_delete_looks",
+            description: "Delete multiple looks in a single operation. Returns count of successfully deleted looks and any failed IDs.",
             inputSchema: {
               type: "object",
               properties: {
-                sceneIds: {
+                lookIds: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Array of scene IDs to delete",
+                  description: "Array of look IDs to delete",
                 },
                 confirmDelete: {
                   type: "boolean",
                   description: "Confirm deletion (required to be true for safety)",
                 },
               },
-              required: ["sceneIds", "confirmDelete"],
+              required: ["lookIds", "confirmDelete"],
             },
           },
           // Cue Tools
           {
             name: "create_cue_sequence",
             description:
-              "Create a sequence of lighting cues from existing scenes",
+              "Create a sequence of lighting cues from existing looks",
             inputSchema: {
               type: "object",
               properties: {
@@ -1587,10 +1587,10 @@ Use cases:
                   type: "string",
                   description: "Script context for the cue sequence",
                 },
-                sceneIds: {
+                lookIds: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Scene IDs to include in sequence",
+                  description: "Look IDs to include in sequence",
                 },
                 sequenceName: {
                   type: "string",
@@ -1609,7 +1609,7 @@ Use cases:
               required: [
                 "projectId",
                 "scriptContext",
-                "sceneIds",
+                "lookIds",
                 "sequenceName",
               ],
             },
@@ -1633,10 +1633,10 @@ Use cases:
                   type: "string",
                   description: "Script text for the act",
                 },
-                existingScenes: {
+                existingLooks: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Optional existing scene IDs to reference",
+                  description: "Optional existing look IDs to reference",
                 },
                 cueListName: {
                   type: "string",
@@ -1743,9 +1743,9 @@ Use cases:
                   type: "number",
                   description: "Cue number (e.g., 1.5, 2.0)",
                 },
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to use for this cue",
+                  description: "Look ID to use for this cue",
                 },
                 fadeInTime: {
                   type: "number",
@@ -1775,7 +1775,7 @@ Use cases:
                   description: "Cue number to insert before/after",
                 },
               },
-              required: ["cueListId", "name", "cueNumber", "sceneId"],
+              required: ["cueListId", "name", "cueNumber", "lookId"],
             },
           },
           {
@@ -1810,9 +1810,9 @@ Use cases:
                   type: "number",
                   description: "New cue number",
                 },
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "New scene ID",
+                  description: "New look ID",
                 },
                 fadeInTime: {
                   type: "number",
@@ -1912,9 +1912,9 @@ Use cases:
                         type: "string",
                         description: "Cue list ID to add cue to",
                       },
-                      sceneId: {
+                      lookId: {
                         type: "string",
-                        description: "Scene ID for this cue",
+                        description: "Look ID for this cue",
                       },
                       fadeInTime: {
                         type: "number",
@@ -1935,7 +1935,7 @@ Use cases:
                         description: "Notes or description for the cue",
                       },
                     },
-                    required: ["name", "cueNumber", "cueListId", "sceneId"],
+                    required: ["name", "cueNumber", "cueListId", "lookId"],
                   },
                   description: "Array of cues to create",
                 },
@@ -2007,7 +2007,7 @@ Returns:
 
 Does NOT include:
 - Individual cues (use get_cue_list_details)
-- Scene details (use get_scene)
+- Look details (use get_look)
 
 This is the most efficient way to browse available cue lists.
 Projects typically have < 10 cue lists, so no pagination needed.
@@ -2035,12 +2035,12 @@ Parameters:
 - cueListId: Cue list to retrieve
 - page: Page number (default: 1)
 - perPage: Items per page (default: 50, max: 100)
-- includeSceneDetails: Include full scene data for each cue (default: false)
-- sortBy: Sort cues by cueNumber, name, or sceneName
+- includeLookDetails: Include full look data for each cue (default: false)
+- sortBy: Sort cues by cueNumber, name, or lookName
 - filterBy: Optional filters (cueNumberRange, nameContains, etc.)
 
-By default, each cue includes sceneId and sceneName but NOT full scene
-fixture values. Set includeSceneDetails=true only if you need full scene
+By default, each cue includes lookId and lookName but NOT full look
+fixture values. Set includeLookDetails=true only if you need full look
 data for every cue (this can be very large).
 
 For large cue lists (50+ cues), use pagination to avoid context overflow.
@@ -2073,17 +2073,17 @@ Example workflow:
                   default: 50,
                   description: "Items per page (min 1, max 100)",
                 },
-                includeSceneDetails: {
+                includeLookDetails: {
                   type: "boolean",
                   default: false,
                   description:
-                    "Include full scene data for each cue (default: false for performance)",
+                    "Include full look data for each cue (default: false for performance)",
                 },
                 sortBy: {
                   type: "string",
-                  enum: ["cueNumber", "name", "sceneName"],
+                  enum: ["cueNumber", "name", "lookName"],
                   default: "cueNumber",
-                  description: "Sort cues by cue number, name, or scene name",
+                  description: "Sort cues by cue number, name, or look name",
                 },
                 filterBy: {
                   type: "object",
@@ -2101,10 +2101,10 @@ Example workflow:
                       description:
                         "Filter cues where name contains this text (case-insensitive)",
                     },
-                    sceneNameContains: {
+                    lookNameContains: {
                       type: "string",
                       description:
-                        "Filter cues where scene name contains this text (case-insensitive)",
+                        "Filter cues where look name contains this text (case-insensitive)",
                     },
                     hasFollowTime: {
                       type: "boolean",
@@ -2132,14 +2132,14 @@ Example workflow:
 
 Returns:
 - Cue metadata (name, number, fade times, follow time, notes)
-- Scene information (id, name, description)
+- Look information (id, name, description)
 - Cue list information (id, name)
 
 Use this when you need to inspect a single cue in detail.
 
 Use cases:
 - "Show me details for cue 5.5"
-- "What scene does this cue use?"
+- "What look does this cue use?"
 - "What are the fade times for this cue?"
 
 Note: To look up a cue by number or name, use get_cue_list_details
@@ -2361,7 +2361,7 @@ with filters and lookup tables instead.`,
             name: "get_fade_update_rate",
             description: `Get the current fade engine update rate in Hz.
 
-The fade update rate controls how frequently the fade engine updates DMX channel values during scene transitions. Higher rates provide smoother fades but use more CPU.
+The fade update rate controls how frequently the fade engine updates DMX channel values during look transitions. Higher rates provide smoother fades but use more CPU.
 
 Returns:
 - Current update rate in Hz (default: 60Hz)
@@ -2380,7 +2380,7 @@ Typical values:
             name: "set_fade_update_rate",
             description: `Set the fade engine update rate in Hz.
 
-The fade update rate controls how frequently the fade engine updates DMX channel values during scene transitions.
+The fade update rate controls how frequently the fade engine updates DMX channel values during look transitions.
 
 Valid range: 10-120 Hz
 
@@ -2389,7 +2389,7 @@ Guidelines:
 - 30-60Hz: Good balance of smoothness and efficiency
 - 60-120Hz: Maximum smoothness for professional applications
 
-Note: Changes take effect immediately for new scene transitions.`,
+Note: Changes take effect immediately for new look transitions.`,
             inputSchema: {
               type: "object",
               properties: {
@@ -2421,54 +2421,54 @@ Returns:
               properties: {},
             },
           },
-          // Scene Board Tools
+          // Look Board Tools
           {
-            name: "list_scene_boards",
-            description: `List all scene boards in a project.
+            name: "list_look_boards",
+            description: `List all look boards in a project.
 
-Returns lightweight scene board summaries with button counts.`,
+Returns lightweight look board summaries with button counts.`,
             inputSchema: {
               type: "object",
               properties: {
                 projectId: {
                   type: "string",
-                  description: "Project ID to list scene boards from",
+                  description: "Project ID to list look boards from",
                 },
               },
               required: ["projectId"],
             },
           },
           {
-            name: "get_scene_board",
-            description: `Get a specific scene board with all its buttons and layout information.`,
+            name: "get_look_board",
+            description: `Get a specific look board with all its buttons and layout information.`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneBoardId: {
+                lookBoardId: {
                   type: "string",
-                  description: "Scene board ID to retrieve",
+                  description: "Look board ID to retrieve",
                 },
               },
-              required: ["sceneBoardId"],
+              required: ["lookBoardId"],
             },
           },
           {
-            name: "create_scene_board",
-            description: `Create a new scene board for organizing scenes with custom layout.`,
+            name: "create_look_board",
+            description: `Create a new look board for organizing looks with custom layout.`,
             inputSchema: {
               type: "object",
               properties: {
                 name: {
                   type: "string",
-                  description: "Scene board name",
+                  description: "Look board name",
                 },
                 description: {
                   type: "string",
-                  description: "Scene board description",
+                  description: "Look board description",
                 },
                 projectId: {
                   type: "string",
-                  description: "Project ID to create scene board in",
+                  description: "Project ID to create look board in",
                 },
                 defaultFadeTime: {
                   type: "number",
@@ -2495,22 +2495,22 @@ Returns lightweight scene board summaries with button counts.`,
             },
           },
           {
-            name: "update_scene_board",
-            description: `Update an existing scene board's metadata and settings.`,
+            name: "update_look_board",
+            description: `Update an existing look board's metadata and settings.`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneBoardId: {
+                lookBoardId: {
                   type: "string",
-                  description: "Scene board ID to update",
+                  description: "Look board ID to update",
                 },
                 name: {
                   type: "string",
-                  description: "New scene board name",
+                  description: "New look board name",
                 },
                 description: {
                   type: "string",
-                  description: "New scene board description",
+                  description: "New look board description",
                 },
                 defaultFadeTime: {
                   type: "number",
@@ -2529,36 +2529,36 @@ Returns lightweight scene board summaries with button counts.`,
                   description: "New canvas height in pixels",
                 },
               },
-              required: ["sceneBoardId"],
+              required: ["lookBoardId"],
             },
           },
           {
-            name: "delete_scene_board",
-            description: `Delete a scene board and all its buttons.`,
+            name: "delete_look_board",
+            description: `Delete a look board and all its buttons.`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneBoardId: {
+                lookBoardId: {
                   type: "string",
-                  description: "Scene board ID to delete",
+                  description: "Look board ID to delete",
                 },
                 confirmDelete: {
                   type: "boolean",
-                  description: "Confirm deletion of scene board and all its buttons (required to be true for safety)",
+                  description: "Confirm deletion of look board and all its buttons (required to be true for safety)",
                 },
               },
-              required: ["sceneBoardId", "confirmDelete"],
+              required: ["lookBoardId", "confirmDelete"],
             },
           },
           {
-            name: "bulk_create_scene_boards",
-            description: `Create multiple scene boards in a single operation.`,
+            name: "bulk_create_look_boards",
+            description: `Create multiple look boards in a single operation.`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneBoards: {
+                lookBoards: {
                   type: "array",
-                  description: "Array of scene boards to create",
+                  description: "Array of look boards to create",
                   items: {
                     type: "object",
                     properties: {
@@ -2574,22 +2574,22 @@ Returns lightweight scene board summaries with button counts.`,
                   },
                 },
               },
-              required: ["sceneBoards"],
+              required: ["lookBoards"],
             },
           },
           {
-            name: "bulk_update_scene_boards",
-            description: `Update multiple scene boards in a single operation.`,
+            name: "bulk_update_look_boards",
+            description: `Update multiple look boards in a single operation.`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneBoards: {
+                lookBoards: {
                   type: "array",
-                  description: "Array of scene board updates to apply",
+                  description: "Array of look board updates to apply",
                   items: {
                     type: "object",
                     properties: {
-                      sceneBoardId: { type: "string" },
+                      lookBoardId: { type: "string" },
                       name: { type: "string" },
                       description: { type: "string" },
                       defaultFadeTime: { type: "number" },
@@ -2597,22 +2597,22 @@ Returns lightweight scene board summaries with button counts.`,
                       canvasWidth: { type: "number" },
                       canvasHeight: { type: "number" },
                     },
-                    required: ["sceneBoardId"],
+                    required: ["lookBoardId"],
                   },
                 },
               },
-              required: ["sceneBoards"],
+              required: ["lookBoards"],
             },
           },
           {
-            name: "bulk_delete_scene_boards",
-            description: `Delete multiple scene boards in a single operation.`,
+            name: "bulk_delete_look_boards",
+            description: `Delete multiple look boards in a single operation.`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneBoardIds: {
+                lookBoardIds: {
                   type: "array",
-                  description: "Array of scene board IDs to delete",
+                  description: "Array of look board IDs to delete",
                   items: { type: "string" },
                 },
                 confirmDelete: {
@@ -2620,22 +2620,22 @@ Returns lightweight scene board summaries with button counts.`,
                   description: "Confirm deletion (required to be true for safety)",
                 },
               },
-              required: ["sceneBoardIds", "confirmDelete"],
+              required: ["lookBoardIds", "confirmDelete"],
             },
           },
           {
-            name: "add_scene_to_board",
-            description: `Add a scene as a button to a scene board at a specific position.`,
+            name: "add_look_to_board",
+            description: `Add a look as a button to a look board at a specific position.`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneBoardId: {
+                lookBoardId: {
                   type: "string",
-                  description: "Scene board ID to add button to",
+                  description: "Look board ID to add button to",
                 },
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID for this button",
+                  description: "Look ID for this button",
                 },
                 layoutX: {
                   type: "number",
@@ -2664,12 +2664,12 @@ Returns lightweight scene board summaries with button counts.`,
                   description: "Button label/text override",
                 },
               },
-              required: ["sceneBoardId", "sceneId", "layoutX", "layoutY"],
+              required: ["lookBoardId", "lookId", "layoutX", "layoutY"],
             },
           },
           {
-            name: "update_scene_board_button",
-            description: `Update a scene board button's properties (position, size, color, label).`,
+            name: "update_look_board_button",
+            description: `Update a look board button's properties (position, size, color, label).`,
             inputSchema: {
               type: "object",
               properties: {
@@ -2706,8 +2706,8 @@ Returns lightweight scene board summaries with button counts.`,
             },
           },
           {
-            name: "remove_scene_from_board",
-            description: `Remove a button from a scene board.`,
+            name: "remove_look_from_board",
+            description: `Remove a button from a look board.`,
             inputSchema: {
               type: "object",
               properties: {
@@ -2720,7 +2720,7 @@ Returns lightweight scene board summaries with button counts.`,
             },
           },
           {
-            name: "update_scene_board_button_positions",
+            name: "update_look_board_button_positions",
             description: `Update positions of multiple buttons in a single operation (useful for drag-and-drop).`,
             inputSchema: {
               type: "object",
@@ -2743,7 +2743,7 @@ Returns lightweight scene board summaries with button counts.`,
             },
           },
           {
-            name: "bulk_create_scene_board_buttons",
+            name: "bulk_create_look_board_buttons",
             description: `Create multiple buttons in a single operation.`,
             inputSchema: {
               type: "object",
@@ -2754,8 +2754,8 @@ Returns lightweight scene board summaries with button counts.`,
                   items: {
                     type: "object",
                     properties: {
-                      sceneBoardId: { type: "string" },
-                      sceneId: { type: "string" },
+                      lookBoardId: { type: "string" },
+                      lookId: { type: "string" },
                       layoutX: { type: "number" },
                       layoutY: { type: "number" },
                       width: { type: "number", default: 200 },
@@ -2763,7 +2763,7 @@ Returns lightweight scene board summaries with button counts.`,
                       color: { type: "string" },
                       label: { type: "string" },
                     },
-                    required: ["sceneBoardId", "sceneId", "layoutX", "layoutY"],
+                    required: ["lookBoardId", "lookId", "layoutX", "layoutY"],
                   },
                 },
               },
@@ -2771,7 +2771,7 @@ Returns lightweight scene board summaries with button counts.`,
             },
           },
           {
-            name: "bulk_update_scene_board_buttons",
+            name: "bulk_update_look_board_buttons",
             description: `Update multiple buttons in a single operation.`,
             inputSchema: {
               type: "object",
@@ -2798,7 +2798,7 @@ Returns lightweight scene board summaries with button counts.`,
             },
           },
           {
-            name: "bulk_delete_scene_board_buttons",
+            name: "bulk_delete_look_board_buttons",
             description: `Delete multiple buttons in a single operation.`,
             inputSchema: {
               type: "object",
@@ -2817,44 +2817,44 @@ Returns lightweight scene board summaries with button counts.`,
             },
           },
           {
-            name: "activate_scene_from_board",
-            description: `Activate a scene from a board (uses board's default fade time unless overridden).`,
+            name: "activate_look_from_board",
+            description: `Activate a look from a board (uses board's default fade time unless overridden).`,
             inputSchema: {
               type: "object",
               properties: {
-                sceneBoardId: {
+                lookBoardId: {
                   type: "string",
-                  description: "Scene board ID",
+                  description: "Look board ID",
                 },
-                sceneId: {
+                lookId: {
                   type: "string",
-                  description: "Scene ID to activate",
+                  description: "Look ID to activate",
                 },
                 fadeTimeOverride: {
                   type: "number",
                   description: "Optional fade time override in seconds",
                 },
               },
-              required: ["sceneBoardId", "sceneId"],
+              required: ["lookBoardId", "lookId"],
             },
           },
           {
-            name: "create_scene_board_with_buttons",
-            description: `Create a complete scene board with buttons in a single operation. Allows defining an entire scene board layout in one command.`,
+            name: "create_look_board_with_buttons",
+            description: `Create a complete look board with buttons in a single operation. Allows defining an entire look board layout in one command.`,
             inputSchema: {
               type: "object",
               properties: {
                 name: {
                   type: "string",
-                  description: "Scene board name",
+                  description: "Look board name",
                 },
                 description: {
                   type: "string",
-                  description: "Scene board description",
+                  description: "Look board description",
                 },
                 projectId: {
                   type: "string",
-                  description: "Project ID to create scene board in",
+                  description: "Project ID to create look board in",
                 },
                 defaultFadeTime: {
                   type: "number",
@@ -2882,7 +2882,7 @@ Returns lightweight scene board summaries with button counts.`,
                   items: {
                     type: "object",
                     properties: {
-                      sceneId: { type: "string" },
+                      lookId: { type: "string" },
                       layoutX: { type: "number" },
                       layoutY: { type: "number" },
                       width: { type: "number", default: 200 },
@@ -2890,7 +2890,7 @@ Returns lightweight scene board summaries with button counts.`,
                       color: { type: "string" },
                       label: { type: "string" },
                     },
-                    required: ["sceneId", "layoutX", "layoutY"],
+                    required: ["lookId", "layoutX", "layoutY"],
                   },
                 },
               },
@@ -3216,15 +3216,15 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          // Scene Tools
-          // MCP API Refactor - Task 2.4: Scene Query Tool Handlers
-          case "list_scenes":
+          // Look Tools
+          // MCP API Refactor - Task 2.4: Look Query Tool Handlers
+          case "list_looks":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.listScenes(args as any),
+                    await this.lookTools.listLooks(args as any),
                     null,
                     2,
                   ),
@@ -3232,13 +3232,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "get_scene":
+          case "get_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.getSceneDetails(args as any),
+                    await this.lookTools.getLookDetails(args as any),
                     null,
                     2,
                   ),
@@ -3246,13 +3246,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "get_scene_fixtures":
+          case "get_look_fixtures":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.getSceneFixtures(args as any),
+                    await this.lookTools.getLookFixtures(args as any),
                     null,
                     2,
                   ),
@@ -3260,13 +3260,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "generate_scene":
+          case "generate_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.generateScene(args as any),
+                    await this.lookTools.generateLook(args as any),
                     null,
                     2,
                   ),
@@ -3280,7 +3280,7 @@ Returns lightweight scene board summaries with button counts.`,
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.analyzeScript(args as any),
+                    await this.lookTools.analyzeScript(args as any),
                     null,
                     2,
                   ),
@@ -3288,13 +3288,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "optimize_scene":
+          case "optimize_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.optimizeScene(args as any),
+                    await this.lookTools.optimizeLook(args as any),
                     null,
                     2,
                   ),
@@ -3302,13 +3302,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "update_scene":
+          case "update_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.updateScene(args as any),
+                    await this.lookTools.updateLook(args as any),
                     null,
                     2,
                   ),
@@ -3316,13 +3316,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "activate_scene":
+          case "activate_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.activateScene(args as any),
+                    await this.lookTools.activateLook(args as any),
                     null,
                     2,
                   ),
@@ -3336,7 +3336,7 @@ Returns lightweight scene board summaries with button counts.`,
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.fadeToBlack(args as any),
+                    await this.lookTools.fadeToBlack(args as any),
                     null,
                     2,
                   ),
@@ -3344,13 +3344,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "get_current_active_scene":
+          case "get_current_active_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.getCurrentActiveScene(),
+                    await this.lookTools.getCurrentActiveLook(),
                     null,
                     2,
                   ),
@@ -3358,14 +3358,14 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          // Safe Scene Management Tools
-          case "add_fixtures_to_scene":
+          // Safe Look Management Tools
+          case "add_fixtures_to_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.addFixturesToScene(args as any),
+                    await this.lookTools.addFixturesToLook(args as any),
                     null,
                     2,
                   ),
@@ -3373,13 +3373,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "remove_fixtures_from_scene":
+          case "remove_fixtures_from_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.removeFixturesFromScene(args as any),
+                    await this.lookTools.removeFixturesFromLook(args as any),
                     null,
                     2,
                   ),
@@ -3387,13 +3387,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "get_scene_fixture_values":
+          case "get_look_fixture_values":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.getSceneFixtureValues(args as any),
+                    await this.lookTools.getLookFixtureValues(args as any),
                     null,
                     2,
                   ),
@@ -3401,13 +3401,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "ensure_fixtures_in_scene":
+          case "ensure_fixtures_in_look":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.ensureFixturesInScene(args as any),
+                    await this.lookTools.ensureFixturesInLook(args as any),
                     null,
                     2,
                   ),
@@ -3415,13 +3415,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "update_scene_partial":
+          case "update_look_partial":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.updateScenePartial(args as any),
+                    await this.lookTools.updateLookPartial(args as any),
                     null,
                     2,
                   ),
@@ -3429,14 +3429,14 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          // Bulk Scene Operations
-          case "bulk_create_scenes":
+          // Bulk Look Operations
+          case "bulk_create_looks":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.bulkCreateScenes(args as any),
+                    await this.lookTools.bulkCreateLooks(args as any),
                     null,
                     2,
                   ),
@@ -3444,13 +3444,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_update_scenes":
+          case "bulk_update_looks":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.bulkUpdateScenes(args as any),
+                    await this.lookTools.bulkUpdateLooks(args as any),
                     null,
                     2,
                   ),
@@ -3458,13 +3458,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_update_scenes_partial":
+          case "bulk_update_looks_partial":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.bulkUpdateScenesPartial(args as any),
+                    await this.lookTools.bulkUpdateLooksPartial(args as any),
                     null,
                     2,
                   ),
@@ -3472,13 +3472,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_delete_scenes":
+          case "bulk_delete_looks":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneTools.bulkDeleteScenes(args as any),
+                    await this.lookTools.bulkDeleteLooks(args as any),
                     null,
                     2,
                   ),
@@ -3898,14 +3898,14 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          // Scene Board Tools
-          case "list_scene_boards":
+          // Look Board Tools
+          case "list_look_boards":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.listSceneBoards(args as any),
+                    await this.lookBoardTools.listLookBoards(args as any),
                     null,
                     2,
                   ),
@@ -3913,13 +3913,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "get_scene_board":
+          case "get_look_board":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.getSceneBoard(args as any),
+                    await this.lookBoardTools.getLookBoard(args as any),
                     null,
                     2,
                   ),
@@ -3927,13 +3927,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "create_scene_board":
+          case "create_look_board":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.createSceneBoard(args as any),
+                    await this.lookBoardTools.createLookBoard(args as any),
                     null,
                     2,
                   ),
@@ -3941,13 +3941,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "update_scene_board":
+          case "update_look_board":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.updateSceneBoard(args as any),
+                    await this.lookBoardTools.updateLookBoard(args as any),
                     null,
                     2,
                   ),
@@ -3955,13 +3955,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "delete_scene_board":
+          case "delete_look_board":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.deleteSceneBoard(args as any),
+                    await this.lookBoardTools.deleteLookBoard(args as any),
                     null,
                     2,
                   ),
@@ -3969,13 +3969,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_create_scene_boards":
+          case "bulk_create_look_boards":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.bulkCreateSceneBoards(args as any),
+                    await this.lookBoardTools.bulkCreateLookBoards(args as any),
                     null,
                     2,
                   ),
@@ -3983,13 +3983,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_update_scene_boards":
+          case "bulk_update_look_boards":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.bulkUpdateSceneBoards(args as any),
+                    await this.lookBoardTools.bulkUpdateLookBoards(args as any),
                     null,
                     2,
                   ),
@@ -3997,13 +3997,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_delete_scene_boards":
+          case "bulk_delete_look_boards":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.bulkDeleteSceneBoards(args as any),
+                    await this.lookBoardTools.bulkDeleteLookBoards(args as any),
                     null,
                     2,
                   ),
@@ -4011,13 +4011,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "add_scene_to_board":
+          case "add_look_to_board":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.addSceneToBoard(args as any),
+                    await this.lookBoardTools.addLookToBoard(args as any),
                     null,
                     2,
                   ),
@@ -4025,13 +4025,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "update_scene_board_button":
+          case "update_look_board_button":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.updateSceneBoardButton(args as any),
+                    await this.lookBoardTools.updateLookBoardButton(args as any),
                     null,
                     2,
                   ),
@@ -4039,13 +4039,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "remove_scene_from_board":
+          case "remove_look_from_board":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.removeSceneFromBoard(args as any),
+                    await this.lookBoardTools.removeLookFromBoard(args as any),
                     null,
                     2,
                   ),
@@ -4053,13 +4053,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "update_scene_board_button_positions":
+          case "update_look_board_button_positions":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.updateSceneBoardButtonPositions(args as any),
+                    await this.lookBoardTools.updateLookBoardButtonPositions(args as any),
                     null,
                     2,
                   ),
@@ -4067,13 +4067,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_create_scene_board_buttons":
+          case "bulk_create_look_board_buttons":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.bulkCreateSceneBoardButtons(args as any),
+                    await this.lookBoardTools.bulkCreateLookBoardButtons(args as any),
                     null,
                     2,
                   ),
@@ -4081,13 +4081,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_update_scene_board_buttons":
+          case "bulk_update_look_board_buttons":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.bulkUpdateSceneBoardButtons(args as any),
+                    await this.lookBoardTools.bulkUpdateLookBoardButtons(args as any),
                     null,
                     2,
                   ),
@@ -4095,13 +4095,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "bulk_delete_scene_board_buttons":
+          case "bulk_delete_look_board_buttons":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.bulkDeleteSceneBoardButtons(args as any),
+                    await this.lookBoardTools.bulkDeleteLookBoardButtons(args as any),
                     null,
                     2,
                   ),
@@ -4109,13 +4109,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "activate_scene_from_board":
+          case "activate_look_from_board":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.activateSceneFromBoard(args as any),
+                    await this.lookBoardTools.activateLookFromBoard(args as any),
                     null,
                     2,
                   ),
@@ -4123,13 +4123,13 @@ Returns lightweight scene board summaries with button counts.`,
               ],
             };
 
-          case "create_scene_board_with_buttons":
+          case "create_look_board_with_buttons":
             return {
               content: [
                 {
                   type: "text",
                   text: JSON.stringify(
-                    await this.sceneBoardTools.createSceneBoardWithButtons(args as any),
+                    await this.lookBoardTools.createLookBoardWithButtons(args as any),
                     null,
                     2,
                   ),

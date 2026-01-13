@@ -35,14 +35,14 @@ describe('GraphQL Client Integration Contract Tests', () => {
         expect(project).toHaveProperty('id');
         expect(project).toHaveProperty('name');
         expect(project).toHaveProperty('fixtures');
-        expect(project).toHaveProperty('scenes');
+        expect(project).toHaveProperty('looks');
         expect(project).toHaveProperty('cueLists');
 
         // Validate types
         expect(typeof project.id).toBe('string');
         expect(typeof project.name).toBe('string');
         expect(Array.isArray(project.fixtures)).toBe(true);
-        expect(Array.isArray(project.scenes)).toBe(true);
+        expect(Array.isArray(project.looks)).toBe(true);
         expect(Array.isArray(project.cueLists)).toBe(true);
       }
     });
@@ -60,7 +60,7 @@ describe('GraphQL Client Integration Contract Tests', () => {
           expect(project.id).toBe(projectId);
           expect(project).toHaveProperty('name');
           expect(project).toHaveProperty('fixtures');
-          expect(project).toHaveProperty('scenes');
+          expect(project).toHaveProperty('looks');
           expect(project).toHaveProperty('cueLists');
         }
       } else {
@@ -147,8 +147,8 @@ describe('GraphQL Client Integration Contract Tests', () => {
     });
   });
 
-  describe('Scene Operations', () => {
-    it('should fetch project scenes', async () => {
+  describe('Look Operations', () => {
+    it('should fetch project looks', async () => {
       const projects = await client.getProjects();
 
       if (projects.length > 0) {
@@ -158,38 +158,38 @@ describe('GraphQL Client Integration Contract Tests', () => {
         expect(project).not.toBeNull();
 
         if (project) {
-          expect(Array.isArray(project.scenes)).toBe(true);
+          expect(Array.isArray(project.looks)).toBe(true);
 
-          // Validate scene structure if scenes exist
-          if (project.scenes.length > 0) {
-            const scene = project.scenes[0];
-            expect(scene).toHaveProperty('id');
-            expect(scene).toHaveProperty('name');
-            expect(typeof scene.id).toBe('string');
-            expect(typeof scene.name).toBe('string');
+          // Validate look structure if looks exist
+          if (project.looks.length > 0) {
+            const look = project.looks[0];
+            expect(look).toHaveProperty('id');
+            expect(look).toHaveProperty('name');
+            expect(typeof look.id).toBe('string');
+            expect(typeof look.name).toBe('string');
           }
         }
       } else {
-        console.log('Skipping scene test - no projects in database');
+        console.log('Skipping look test - no projects in database');
       }
     });
 
-    it('should fetch individual scene by ID', async () => {
+    it('should fetch individual look by ID', async () => {
       const projects = await client.getProjects();
 
-      if (projects.length > 0 && projects[0].scenes.length > 0) {
-        const sceneId = projects[0].scenes[0].id;
-        const scene = await client.getScene(sceneId);
+      if (projects.length > 0 && projects[0].looks.length > 0) {
+        const lookId = projects[0].looks[0].id;
+        const look = await client.getLook(lookId);
 
-        expect(scene).not.toBeNull();
+        expect(look).not.toBeNull();
 
-        if (scene) {
-          expect(scene.id).toBe(sceneId);
-          expect(scene).toHaveProperty('name');
-          expect(scene).toHaveProperty('fixtureValues');
+        if (look) {
+          expect(look.id).toBe(lookId);
+          expect(look).toHaveProperty('name');
+          expect(look).toHaveProperty('fixtureValues');
         }
       } else {
-        console.log('Skipping individual scene test - no scenes in database');
+        console.log('Skipping individual look test - no looks in database');
       }
     });
   });
@@ -210,9 +210,9 @@ describe('GraphQL Client Integration Contract Tests', () => {
           expect(typeof project.fixtures[0].id).toBe('string');
         }
 
-        // Validate nested scenes IDs
-        if (project.scenes.length > 0) {
-          expect(typeof project.scenes[0].id).toBe('string');
+        // Validate nested looks IDs
+        if (project.looks.length > 0) {
+          expect(typeof project.looks[0].id).toBe('string');
         }
 
         // Validate nested cue lists IDs

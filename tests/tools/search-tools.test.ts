@@ -15,7 +15,7 @@ describe('SearchTools', () => {
 
     mockGraphQLClient = {
       searchFixtures: jest.fn(),
-      searchScenes: jest.fn(),
+      searchLooks: jest.fn(),
       searchCues: jest.fn(),
     } as any;
 
@@ -215,12 +215,12 @@ describe('SearchTools', () => {
     });
   });
 
-  describe('searchScenes', () => {
-    it('should search scenes by query', async () => {
+  describe('searchLooks', () => {
+    it('should search looks by query', async () => {
       const mockResponse = {
-        scenes: [
+        looks: [
           {
-            id: 'scene-1',
+            id: 'look-1',
             name: 'Warm Wash',
             description: 'Warm amber wash for intimate moments',
             fixtureCount: 5,
@@ -228,7 +228,7 @@ describe('SearchTools', () => {
             updatedAt: '2024-01-01T00:00:00Z'
           },
           {
-            id: 'scene-2',
+            id: 'look-2',
             name: 'Cool Wash',
             description: 'Cool blue wash for nighttime',
             fixtureCount: 5,
@@ -245,14 +245,14 @@ describe('SearchTools', () => {
         }
       };
 
-      mockGraphQLClient.searchScenes.mockResolvedValue(mockResponse as any);
+      mockGraphQLClient.searchLooks.mockResolvedValue(mockResponse as any);
 
-      const result = await searchTools.searchScenes({
+      const result = await searchTools.searchLooks({
         projectId: 'project-1',
         query: 'wash'
       });
 
-      expect(mockGraphQLClient.searchScenes).toHaveBeenCalledWith(
+      expect(mockGraphQLClient.searchLooks).toHaveBeenCalledWith(
         'project-1',
         'wash',
         undefined,
@@ -263,14 +263,14 @@ describe('SearchTools', () => {
       expect(result.results[0].name).toBe('Warm Wash');
       expect(result.results[0].fixtureCount).toBe(5);
       expect(result.pagination.totalResults).toBe(2);
-      expect(result.message).toContain('Found 2 scene(s)');
+      expect(result.message).toContain('Found 2 look(s)');
     });
 
-    it('should search scenes with filters', async () => {
+    it('should search looks with filters', async () => {
       const mockResponse = {
-        scenes: [
+        looks: [
           {
-            id: 'scene-1',
+            id: 'look-1',
             name: 'Warm Wash',
             description: 'Warm amber wash',
             fixtureCount: 5,
@@ -287,9 +287,9 @@ describe('SearchTools', () => {
         }
       };
 
-      mockGraphQLClient.searchScenes.mockResolvedValue(mockResponse as any);
+      mockGraphQLClient.searchLooks.mockResolvedValue(mockResponse as any);
 
-      const result = await searchTools.searchScenes({
+      const result = await searchTools.searchLooks({
         projectId: 'project-1',
         query: 'wash',
         filter: {
@@ -298,7 +298,7 @@ describe('SearchTools', () => {
         }
       });
 
-      expect(mockGraphQLClient.searchScenes).toHaveBeenCalledWith(
+      expect(mockGraphQLClient.searchLooks).toHaveBeenCalledWith(
         'project-1',
         'wash',
         {
@@ -315,10 +315,10 @@ describe('SearchTools', () => {
 
     it('should handle pagination', async () => {
       const mockResponse = {
-        scenes: [
+        looks: [
           {
-            id: 'scene-3',
-            name: 'Test Scene',
+            id: 'look-3',
+            name: 'Test Look',
             description: 'Test',
             fixtureCount: 3,
             createdAt: '2024-01-01T00:00:00Z',
@@ -334,18 +334,18 @@ describe('SearchTools', () => {
         }
       };
 
-      mockGraphQLClient.searchScenes.mockResolvedValue(mockResponse as any);
+      mockGraphQLClient.searchLooks.mockResolvedValue(mockResponse as any);
 
-      const result = await searchTools.searchScenes({
+      const result = await searchTools.searchLooks({
         projectId: 'project-1',
-        query: 'scene',
+        query: 'look',
         page: 3,
         perPage: 10
       });
 
-      expect(mockGraphQLClient.searchScenes).toHaveBeenCalledWith(
+      expect(mockGraphQLClient.searchLooks).toHaveBeenCalledWith(
         'project-1',
-        'scene',
+        'look',
         undefined,
         3,
         10
@@ -356,14 +356,14 @@ describe('SearchTools', () => {
     });
 
     it('should handle GraphQL errors', async () => {
-      mockGraphQLClient.searchScenes.mockRejectedValue(new Error('GraphQL error'));
+      mockGraphQLClient.searchLooks.mockRejectedValue(new Error('GraphQL error'));
 
       await expect(
-        searchTools.searchScenes({
+        searchTools.searchLooks({
           projectId: 'project-1',
           query: 'wash'
         })
-      ).rejects.toThrow('Failed to search scenes: Error: GraphQL error');
+      ).rejects.toThrow('Failed to search looks: Error: GraphQL error');
     });
   });
 
@@ -379,8 +379,8 @@ describe('SearchTools', () => {
             fadeInTime: 5.0,
             fadeOutTime: 3.0,
             followTime: undefined,
-            scene: {
-              id: 'scene-1',
+            look: {
+              id: 'look-1',
               name: 'Warm Wash',
               fixtureValues: []
             } as any,
@@ -391,14 +391,14 @@ describe('SearchTools', () => {
           },
           {
             id: 'cue-2',
-            name: 'Night Scene',
+            name: 'Night Look',
             cueNumber: 2.0,
             notes: 'Quick snap to blue moonlight',
             fadeInTime: 2.0,
             fadeOutTime: 2.0,
             followTime: undefined,
-            scene: {
-              id: 'scene-2',
+            look: {
+              id: 'look-2',
               name: 'Cool Wash',
               fixtureValues: []
             } as any,
@@ -449,9 +449,9 @@ describe('SearchTools', () => {
             fadeInTime: 3.0,
             fadeOutTime: 3.0,
             followTime: undefined,
-            scene: {
-              id: 'scene-1',
-              name: 'Test Scene',
+            look: {
+              id: 'look-1',
+              name: 'Test Look',
               fixtureValues: []
             } as any,
             cueList: {

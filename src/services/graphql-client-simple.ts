@@ -3,17 +3,17 @@ import {
   Project,
   FixtureDefinition,
   FixtureInstance,
-  Scene,
+  Look,
   CueList,
   Cue,
   FixtureUsage,
-  SceneUsage,
-  SceneComparison,
-  SceneSummary,
-  SceneFixtureSummary,
-  SceneSortField,
-  SceneBoard,
-  SceneBoardButton
+  LookUsage,
+  LookComparison,
+  LookSummary,
+  LookFixtureSummary,
+  LookSortField,
+  LookBoard,
+  LookBoardButton
 } from '../types/lighting';
 import { PaginatedResponse } from '../types/pagination';
 import { normalizePaginationParams } from '../utils/pagination';
@@ -44,7 +44,7 @@ export class LacyLightsGraphQLClient {
     });
 
     const result = await response.json();
-    
+
     if (result.errors) {
       throw new Error(result.errors[0].message);
     }
@@ -85,7 +85,7 @@ export class LacyLightsGraphQLClient {
               defaultValue
             }
           }
-          scenes {
+          looks {
             id
             name
             description
@@ -140,7 +140,7 @@ export class LacyLightsGraphQLClient {
               defaultValue
             }
           }
-          scenes {
+          looks {
             id
             name
             description
@@ -171,7 +171,7 @@ export class LacyLightsGraphQLClient {
               fadeOutTime
               followTime
               notes
-              scene {
+              look {
                 id
                 name
               }
@@ -197,7 +197,7 @@ export class LacyLightsGraphQLClient {
     createdAt: string;
     updatedAt: string;
     fixtureCount: number;
-    sceneCount: number;
+    lookCount: number;
     cueListCount: number;
   } | null> {
     const query = `
@@ -209,7 +209,7 @@ export class LacyLightsGraphQLClient {
           createdAt
           updatedAt
           fixtureCount
-          sceneCount
+          lookCount
           cueListCount
         }
       }
@@ -231,7 +231,7 @@ export class LacyLightsGraphQLClient {
     createdAt: string;
     updatedAt: string;
     fixtureCount: number;
-    sceneCount: number;
+    lookCount: number;
     cueListCount: number;
   }>> {
     const query = `
@@ -243,7 +243,7 @@ export class LacyLightsGraphQLClient {
           createdAt
           updatedAt
           fixtureCount
-          sceneCount
+          lookCount
           cueListCount
         }
       }
@@ -400,7 +400,7 @@ export class LacyLightsGraphQLClient {
     return data.fixtureInstance;
   }
 
-  async createScene(input: {
+  async createLook(input: {
     name: string;
     description?: string;
     projectId: string;
@@ -408,10 +408,10 @@ export class LacyLightsGraphQLClient {
       fixtureId: string;
       channels: { offset: number; value: number; }[];
     }>;
-  }): Promise<Scene> {
+  }): Promise<Look> {
     const mutation = `
-      mutation CreateScene($input: CreateSceneInput!) {
-        createScene(input: $input) {
+      mutation CreateLook($input: CreateLookInput!) {
+        createLook(input: $input) {
           id
           name
           description
@@ -432,20 +432,20 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { input });
-    return data.createScene;
+    return data.createLook;
   }
 
-  async updateScene(id: string, input: {
+  async updateLook(id: string, input: {
     name?: string;
     description?: string;
     fixtureValues?: Array<{
       fixtureId: string;
       channels: { offset: number; value: number; }[];
     }>;
-  }): Promise<Scene> {
+  }): Promise<Look> {
     const mutation = `
-      mutation UpdateScene($id: ID!, $input: UpdateSceneInput!) {
-        updateScene(id: $id, input: $input) {
+      mutation UpdateLook($id: ID!, $input: UpdateLookInput!) {
+        updateLook(id: $id, input: $input) {
           id
           name
           description
@@ -465,18 +465,18 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { id, input });
-    return data.updateScene;
+    return data.updateLook;
   }
 
-  // 🛡️ SAFE SCENE UPDATE METHODS
-  async addFixturesToScene(sceneId: string, fixtureValues: Array<{
+  // SAFE LOOK UPDATE METHODS
+  async addFixturesToLook(lookId: string, fixtureValues: Array<{
     fixtureId: string;
     channels: { offset: number; value: number; }[];
-    sceneOrder?: number;
-  }>, overwriteExisting: boolean = false): Promise<Scene> {
+    lookOrder?: number;
+  }>, overwriteExisting: boolean = false): Promise<Look> {
     const mutation = `
-      mutation AddFixturesToScene($sceneId: ID!, $fixtureValues: [FixtureValueInput!]!, $overwriteExisting: Boolean) {
-        addFixturesToScene(sceneId: $sceneId, fixtureValues: $fixtureValues, overwriteExisting: $overwriteExisting) {
+      mutation AddFixturesToLook($lookId: ID!, $fixtureValues: [FixtureValueInput!]!, $overwriteExisting: Boolean) {
+        addFixturesToLook(lookId: $lookId, fixtureValues: $fixtureValues, overwriteExisting: $overwriteExisting) {
           id
           name
           description
@@ -490,24 +490,24 @@ export class LacyLightsGraphQLClient {
               offset
               value
             }
-            sceneOrder
+            lookOrder
           }
         }
       }
     `;
 
     const data = await this.query(mutation, {
-      sceneId,
+      lookId,
       fixtureValues,
       overwriteExisting
     });
-    return data.addFixturesToScene;
+    return data.addFixturesToLook;
   }
 
-  async removeFixturesFromScene(sceneId: string, fixtureIds: string[]): Promise<Scene> {
+  async removeFixturesFromLook(lookId: string, fixtureIds: string[]): Promise<Look> {
     const mutation = `
-      mutation RemoveFixturesFromScene($sceneId: ID!, $fixtureIds: [ID!]!) {
-        removeFixturesFromScene(sceneId: $sceneId, fixtureIds: $fixtureIds) {
+      mutation RemoveFixturesFromLook($lookId: ID!, $fixtureIds: [ID!]!) {
+        removeFixturesFromLook(lookId: $lookId, fixtureIds: $fixtureIds) {
           id
           name
           description
@@ -521,29 +521,29 @@ export class LacyLightsGraphQLClient {
               offset
               value
             }
-            sceneOrder
+            lookOrder
           }
         }
       }
     `;
 
-    const data = await this.query(mutation, { sceneId, fixtureIds });
-    return data.removeFixturesFromScene;
+    const data = await this.query(mutation, { lookId, fixtureIds });
+    return data.removeFixturesFromLook;
   }
 
-  async updateScenePartial(sceneId: string, updates: {
+  async updateLookPartial(lookId: string, updates: {
     name?: string;
     description?: string;
     fixtureValues?: Array<{
       fixtureId: string;
       channels: { offset: number; value: number; }[];
-      sceneOrder?: number;
+      lookOrder?: number;
     }>;
     mergeFixtures?: boolean;
-  }): Promise<Scene> {
+  }): Promise<Look> {
     const mutation = `
-      mutation UpdateScenePartial($sceneId: ID!, $name: String, $description: String, $fixtureValues: [FixtureValueInput!], $mergeFixtures: Boolean) {
-        updateScenePartial(sceneId: $sceneId, name: $name, description: $description, fixtureValues: $fixtureValues, mergeFixtures: $mergeFixtures) {
+      mutation UpdateLookPartial($lookId: ID!, $name: String, $description: String, $fixtureValues: [FixtureValueInput!], $mergeFixtures: Boolean) {
+        updateLookPartial(lookId: $lookId, name: $name, description: $description, fixtureValues: $fixtureValues, mergeFixtures: $mergeFixtures) {
           id
           name
           description
@@ -557,38 +557,38 @@ export class LacyLightsGraphQLClient {
               offset
               value
             }
-            sceneOrder
+            lookOrder
           }
         }
       }
     `;
 
     const data = await this.query(mutation, {
-      sceneId,
+      lookId,
       name: updates.name,
       description: updates.description,
       fixtureValues: updates.fixtureValues,
       mergeFixtures: updates.mergeFixtures
     });
-    return data.updateScenePartial;
+    return data.updateLookPartial;
   }
 
-  async bulkUpdateScenesPartial(input: {
-    scenes: Array<{
-      sceneId: string;
+  async bulkUpdateLooksPartial(input: {
+    looks: Array<{
+      lookId: string;
       name?: string;
       description?: string;
       fixtureValues?: Array<{
         fixtureId: string;
         channels: { offset: number; value: number; }[];
-        sceneOrder?: number;
+        lookOrder?: number;
       }>;
       mergeFixtures?: boolean;
     }>;
-  }): Promise<Scene[]> {
+  }): Promise<Look[]> {
     const mutation = `
-      mutation BulkUpdateScenesPartial($input: BulkScenePartialUpdateInput!) {
-        bulkUpdateScenesPartial(input: $input) {
+      mutation BulkUpdateLooksPartial($input: BulkLookPartialUpdateInput!) {
+        bulkUpdateLooksPartial(input: $input) {
           id
           name
           description
@@ -602,14 +602,14 @@ export class LacyLightsGraphQLClient {
               offset
               value
             }
-            sceneOrder
+            lookOrder
           }
         }
       }
     `;
 
     const data = await this.query(mutation, { input });
-    return data.bulkUpdateScenesPartial;
+    return data.bulkUpdateLooksPartial;
   }
 
   async getCueList(id: string): Promise<CueList | null> {
@@ -632,7 +632,7 @@ export class LacyLightsGraphQLClient {
             fadeOutTime
             followTime
             notes
-            scene {
+            look {
               id
               name
             }
@@ -677,7 +677,7 @@ export class LacyLightsGraphQLClient {
     cueListId: string,
     page: number = 1,
     perPage: number = 50,
-    includeSceneDetails: boolean = false
+    includeLookDetails: boolean = false
   ): Promise<any> {
     // For now, use the existing getCueList and apply client-side pagination
     // This will be replaced with a backend paginated query once backend pagination support is added
@@ -691,7 +691,7 @@ export class LacyLightsGraphQLClient {
     const end = start + perPage;
     const paginatedCues = cues.slice(start, end);
 
-    // Format cues with optional scene details
+    // Format cues with optional look details
     const formattedCues = paginatedCues.map((cue: any) => {
       const baseCue = {
         id: cue.id,
@@ -701,14 +701,14 @@ export class LacyLightsGraphQLClient {
         fadeOutTime: cue.fadeOutTime,
         followTime: cue.followTime,
         notes: cue.notes,
-        sceneId: cue.scene.id,
-        sceneName: cue.scene.name,
+        lookId: cue.look.id,
+        lookName: cue.look.name,
       };
 
-      if (includeSceneDetails) {
+      if (includeLookDetails) {
         return {
           ...baseCue,
-          scene: cue.scene,
+          look: cue.look,
         };
       }
 
@@ -787,7 +787,7 @@ export class LacyLightsGraphQLClient {
     name: string;
     cueNumber: number;
     cueListId: string;
-    sceneId: string;
+    lookId: string;
     fadeInTime: number;
     fadeOutTime: number;
     followTime?: number;
@@ -803,7 +803,7 @@ export class LacyLightsGraphQLClient {
           fadeOutTime
           followTime
           notes
-          scene {
+          look {
             id
             name
           }
@@ -837,7 +837,7 @@ export class LacyLightsGraphQLClient {
             fadeOutTime
             followTime
             notes
-            scene {
+            look {
               id
               name
             }
@@ -860,7 +860,7 @@ export class LacyLightsGraphQLClient {
         }
       }
     `;
-    
+
     const cueListData = await this.query(cueListQuery, { id });
     const projectId = cueListData.cueList.project.id;
 
@@ -878,7 +878,7 @@ export class LacyLightsGraphQLClient {
   async updateCue(id: string, input: {
     name?: string;
     cueNumber?: number;
-    sceneId?: string;
+    lookId?: string;
     fadeInTime?: number;
     fadeOutTime?: number;
     followTime?: number | null;
@@ -896,7 +896,7 @@ export class LacyLightsGraphQLClient {
           followTime
           notes
           skip
-          scene {
+          look {
             id
             name
           }
@@ -914,7 +914,7 @@ export class LacyLightsGraphQLClient {
           cueList {
             id
           }
-          scene {
+          look {
             id
           }
           fadeInTime
@@ -933,7 +933,7 @@ export class LacyLightsGraphQLClient {
       name: input.name ?? currentCue.name,
       cueNumber: input.cueNumber ?? currentCue.cueNumber,
       cueListId: currentCue.cueList.id,
-      sceneId: input.sceneId ?? currentCue.scene.id,
+      lookId: input.lookId ?? currentCue.look.id,
       fadeInTime: input.fadeInTime ?? currentCue.fadeInTime,
       fadeOutTime: input.fadeOutTime ?? currentCue.fadeOutTime,
       followTime: input.followTime !== undefined ? input.followTime : currentCue.followTime,
@@ -957,7 +957,7 @@ export class LacyLightsGraphQLClient {
           followTime
           notes
           skip
-          scene {
+          look {
             id
             name
           }
@@ -988,7 +988,7 @@ export class LacyLightsGraphQLClient {
           followTime
           notes
           skip
-          scene {
+          look {
             id
             name
           }
@@ -1278,10 +1278,10 @@ export class LacyLightsGraphQLClient {
     return data.bulkDeleteFixtures;
   }
 
-  // Bulk Scene Operations
+  // Bulk Look Operations
 
-  async bulkCreateScenes(input: {
-    scenes: Array<{
+  async bulkCreateLooks(input: {
+    looks: Array<{
       name: string;
       description?: string;
       projectId: string;
@@ -1290,10 +1290,10 @@ export class LacyLightsGraphQLClient {
         channels: { offset: number; value: number; }[];
       }>;
     }>;
-  }): Promise<Scene[]> {
+  }): Promise<Look[]> {
     const mutation = `
-      mutation BulkCreateScenes($input: BulkSceneCreateInput!) {
-        bulkCreateScenes(input: $input) {
+      mutation BulkCreateLooks($input: BulkLookCreateInput!) {
+        bulkCreateLooks(input: $input) {
           id
           name
           description
@@ -1314,12 +1314,12 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { input });
-    return data.bulkCreateScenes;
+    return data.bulkCreateLooks;
   }
 
-  async bulkUpdateScenes(input: {
-    scenes: Array<{
-      sceneId: string;
+  async bulkUpdateLooks(input: {
+    looks: Array<{
+      lookId: string;
       name?: string;
       description?: string;
       fixtureValues?: Array<{
@@ -1327,10 +1327,10 @@ export class LacyLightsGraphQLClient {
         channels: { offset: number; value: number; }[];
       }>;
     }>;
-  }): Promise<Scene[]> {
+  }): Promise<Look[]> {
     const mutation = `
-      mutation BulkUpdateScenes($input: BulkSceneUpdateInput!) {
-        bulkUpdateScenes(input: $input) {
+      mutation BulkUpdateLooks($input: BulkLookUpdateInput!) {
+        bulkUpdateLooks(input: $input) {
           id
           name
           description
@@ -1350,21 +1350,21 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { input });
-    return data.bulkUpdateScenes;
+    return data.bulkUpdateLooks;
   }
 
-  async bulkDeleteScenes(sceneIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteLooks(lookIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
     const mutation = `
-      mutation BulkDeleteScenes($sceneIds: [ID!]!) {
-        bulkDeleteScenes(sceneIds: $sceneIds) {
+      mutation BulkDeleteLooks($lookIds: [ID!]!) {
+        bulkDeleteLooks(lookIds: $lookIds) {
           successCount
           failedIds
         }
       }
     `;
 
-    const data = await this.query(mutation, { sceneIds });
-    return data.bulkDeleteScenes;
+    const data = await this.query(mutation, { lookIds });
+    return data.bulkDeleteLooks;
   }
 
   // Bulk Cue Operations
@@ -1374,7 +1374,7 @@ export class LacyLightsGraphQLClient {
       name: string;
       cueNumber: number;
       cueListId: string;
-      sceneId: string;
+      lookId: string;
       fadeInTime: number;
       fadeOutTime: number;
       followTime?: number;
@@ -1391,7 +1391,7 @@ export class LacyLightsGraphQLClient {
           fadeOutTime
           followTime
           notes
-          scene {
+          look {
             id
             name
           }
@@ -1582,15 +1582,15 @@ export class LacyLightsGraphQLClient {
     return data.bulkCreateFixtureDefinitions;
   }
 
-  async setSceneLive(sceneId: string): Promise<boolean> {
+  async setLookLive(lookId: string): Promise<boolean> {
     const mutation = `
-      mutation ActivateScene($sceneId: ID!) {
-        setSceneLive(sceneId: $sceneId)
+      mutation ActivateLook($lookId: ID!) {
+        setLookLive(lookId: $lookId)
       }
     `;
 
-    const data = await this.query(mutation, { sceneId });
-    return data.setSceneLive;
+    const data = await this.query(mutation, { lookId });
+    return data.setLookLive;
   }
 
   async fadeToBlack(fadeOutTime: number): Promise<boolean> {
@@ -1604,10 +1604,10 @@ export class LacyLightsGraphQLClient {
     return data.fadeToBlack;
   }
 
-  async getScene(id: string): Promise<Scene | null> {
+  async getLook(id: string): Promise<Look | null> {
     const query = `
-      query GetScene($id: ID!) {
-        scene(id: $id) {
+      query GetLook($id: ID!) {
+        look(id: $id) {
           id
           name
           description
@@ -1628,13 +1628,13 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(query, { id });
-    return data.scene;
+    return data.look;
   }
 
-  async getCurrentActiveScene(): Promise<Scene | null> {
+  async getCurrentActiveLook(): Promise<Look | null> {
     const query = `
-      query GetCurrentActiveScene {
-        currentActiveScene {
+      query GetCurrentActiveLook {
+        currentActiveLook {
           id
           name
           description
@@ -1659,29 +1659,29 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(query);
-    return data.currentActiveScene;
+    return data.currentActiveLook;
   }
 
-  // MCP API Refactor - Task 2.4: Scene Query Tools
+  // MCP API Refactor - Task 2.4: Look Query Tools
 
   /**
-   * List scenes in a project with pagination and filtering (Task 2.4)
-   * Returns lightweight scene summaries without fixture values
+   * List looks in a project with pagination and filtering (Task 2.4)
+   * Returns lightweight look summaries without fixture values
    */
-  async listScenes(params: {
+  async listLooks(params: {
     projectId: string;
     page?: number;
     perPage?: number;
     nameContains?: string;
     usesFixture?: string;
-    sortBy?: SceneSortField;
-  }): Promise<PaginatedResponse<SceneSummary>> {
+    sortBy?: LookSortField;
+  }): Promise<PaginatedResponse<LookSummary>> {
     const { page: normalizedPage, perPage: normalizedPerPage } = normalizePaginationParams(params.page, params.perPage);
 
     const query = `
-      query ListScenes($projectId: ID!, $page: Int!, $perPage: Int!, $filter: SceneFilterInput, $sortBy: SceneSortField) {
-        scenes(projectId: $projectId, page: $page, perPage: $perPage, filter: $filter, sortBy: $sortBy) {
-          scenes {
+      query ListLooks($projectId: ID!, $page: Int!, $perPage: Int!, $filter: LookFilterInput, $sortBy: LookSortField) {
+        looks(projectId: $projectId, page: $page, perPage: $perPage, filter: $filter, sortBy: $sortBy) {
+          looks {
             id
             name
             description
@@ -1709,24 +1709,24 @@ export class LacyLightsGraphQLClient {
       page: normalizedPage,
       perPage: normalizedPerPage,
       filter: Object.keys(filter).length > 0 ? filter : undefined,
-      sortBy: params.sortBy || SceneSortField.CREATED_AT
+      sortBy: params.sortBy || LookSortField.CREATED_AT
     };
 
     const data = await this.query(query, variables);
     return {
-      items: data.scenes.scenes,
-      pagination: data.scenes.pagination
+      items: data.looks.looks,
+      pagination: data.looks.pagination
     };
   }
 
   /**
-   * Get full scene details with optional fixture values (Task 2.4)
+   * Get full look details with optional fixture values (Task 2.4)
    * Set includeFixtureValues=false for faster queries when values not needed
    */
-  async getSceneWithOptions(id: string, includeFixtureValues: boolean = true): Promise<Scene | null> {
+  async getLookWithOptions(id: string, includeFixtureValues: boolean = true): Promise<Look | null> {
     const query = `
-      query GetSceneWithOptions($id: ID!, $includeFixtureValues: Boolean!) {
-        scene(id: $id, includeFixtureValues: $includeFixtureValues) {
+      query GetLookWithOptions($id: ID!, $includeFixtureValues: Boolean!) {
+        look(id: $id, includeFixtureValues: $includeFixtureValues) {
           id
           name
           description
@@ -1741,24 +1741,24 @@ export class LacyLightsGraphQLClient {
               offset
               value
             }
-            sceneOrder
+            lookOrder
           }
         }
       }
     `;
 
     const data = await this.query(query, { id, includeFixtureValues });
-    return data.scene;
+    return data.look;
   }
 
   /**
-   * Get just the fixtures used in a scene without their values (Task 2.4)
-   * Fastest way to understand scene composition
+   * Get just the fixtures used in a look without their values (Task 2.4)
+   * Fastest way to understand look composition
    */
-  async getSceneFixtures(sceneId: string): Promise<SceneFixtureSummary[]> {
+  async getLookFixtures(lookId: string): Promise<LookFixtureSummary[]> {
     const query = `
-      query GetSceneFixtures($sceneId: ID!) {
-        sceneFixtures(sceneId: $sceneId) {
+      query GetLookFixtures($lookId: ID!) {
+        lookFixtures(lookId: $lookId) {
           fixtureId
           fixtureName
           fixtureType
@@ -1766,8 +1766,8 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(query, { sceneId });
-    return data.sceneFixtures;
+    const data = await this.query(query, { lookId });
+    return data.lookFixtures;
   }
 
   async getCue(id: string): Promise<Cue | null> {
@@ -1785,7 +1785,7 @@ export class LacyLightsGraphQLClient {
             id
             name
           }
-          scene {
+          look {
             id
             name
             description
@@ -1890,75 +1890,8 @@ export class LacyLightsGraphQLClient {
     return data.stopCueList;
   }
 
-  // importProjectFromQLC method removed - import functionality moved to web UI due to file size constraints
-  // async importProjectFromQLC(xmlContent: string, originalFileName: string): Promise<any> {
-    /*const mutation = `
-      mutation ImportProjectFromQLC($xmlContent: String!, $originalFileName: String!) {
-        importProjectFromQLC(xmlContent: $xmlContent, originalFileName: $originalFileName) {
-          project {
-            id
-            name
-            description
-            createdAt
-            updatedAt
-            fixtures {
-              id
-              name
-              manufacturer
-              model
-              universe
-              startChannel
-              channelCount
-            }
-            scenes {
-              id
-              name
-              description
-              fixtureValues {
-                fixture {
-                  id
-                  name
-                }
-                channels {
-                  offset
-                  value
-                }
-              }
-            }
-            cueLists {
-              id
-              name
-              description
-              cues {
-                id
-                name
-                cueNumber
-                fadeInTime
-                fadeOutTime
-                scene {
-                  id
-                  name
-                }
-              }
-            }
-          }
-          originalFileName
-          fixtureCount
-          sceneCount
-          cueListCount
-          warnings
-        }
-      }
-    `;
-
-    const data = await this.query(mutation, { xmlContent, originalFileName });
-    return data.importProjectFromQLC;
-  }*/
-
-
-
   /**
-   * Get fixture usage information - shows which scenes and cues use this fixture
+   * Get fixture usage information - shows which looks and cues use this fixture
    * Part of MCP API Refactor - Task 2.7
    */
   async getFixtureUsage(fixtureId: string): Promise<FixtureUsage> {
@@ -1967,7 +1900,7 @@ export class LacyLightsGraphQLClient {
         fixtureUsage(fixtureId: $fixtureId) {
           fixtureId
           fixtureName
-          scenes {
+          looks {
             id
             name
             description
@@ -1991,15 +1924,15 @@ export class LacyLightsGraphQLClient {
   }
 
   /**
-   * Get scene usage information - shows which cues use this scene
+   * Get look usage information - shows which cues use this look
    * Part of MCP API Refactor - Task 2.7
    */
-  async getSceneUsage(sceneId: string): Promise<SceneUsage> {
+  async getLookUsage(lookId: string): Promise<LookUsage> {
     const query = `
-      query GetSceneUsage($sceneId: ID!) {
-        sceneUsage(sceneId: $sceneId) {
-          sceneId
-          sceneName
+      query GetLookUsage($lookId: ID!) {
+        lookUsage(lookId: $lookId) {
+          lookId
+          lookName
           cues {
             cueId
             cueNumber
@@ -2011,19 +1944,19 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(query, { sceneId });
-    return data.sceneUsage;
+    const data = await this.query(query, { lookId });
+    return data.lookUsage;
   }
 
   /**
-   * Compare two scenes to identify differences
+   * Compare two looks to identify differences
    * Part of MCP API Refactor - Task 2.7
    */
-  async compareScenes(sceneId1: string, sceneId2: string): Promise<SceneComparison> {
+  async compareLooks(lookId1: string, lookId2: string): Promise<LookComparison> {
     const query = `
-      query CompareScenes($sceneId1: ID!, $sceneId2: ID!) {
-        compareScenes(sceneId1: $sceneId1, sceneId2: $sceneId2) {
-          scene1 {
+      query CompareLooks($lookId1: ID!, $lookId2: ID!) {
+        compareLooks(lookId1: $lookId1, lookId2: $lookId2) {
+          look1 {
             id
             name
             description
@@ -2031,7 +1964,7 @@ export class LacyLightsGraphQLClient {
             updatedAt
             fixtureCount
           }
-          scene2 {
+          look2 {
             id
             name
             description
@@ -2043,8 +1976,8 @@ export class LacyLightsGraphQLClient {
             fixtureId
             fixtureName
             differenceType
-            scene1Values
-            scene2Values
+            look1Values
+            look2Values
           }
           identicalFixtureCount
           differentFixtureCount
@@ -2052,8 +1985,8 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(query, { sceneId1, sceneId2 });
-    return data.compareScenes;
+    const data = await this.query(query, { lookId1, lookId2 });
+    return data.compareLooks;
   }
 
   // Search methods
@@ -2137,7 +2070,7 @@ export class LacyLightsGraphQLClient {
     return data.searchFixtures;
   }
 
-  async searchScenes(
+  async searchLooks(
     projectId: string,
     query: string,
     filter?: {
@@ -2147,7 +2080,7 @@ export class LacyLightsGraphQLClient {
     page?: number,
     perPage?: number
   ): Promise<{
-    scenes: Array<{
+    looks: Array<{
       id: string;
       name: string;
       description?: string;
@@ -2164,21 +2097,21 @@ export class LacyLightsGraphQLClient {
     };
   }> {
     const gqlQuery = `
-      query SearchScenes(
+      query SearchLooks(
         $projectId: ID!
         $query: String!
-        $filter: SceneFilterInput
+        $filter: LookFilterInput
         $page: Int
         $perPage: Int
       ) {
-        searchScenes(
+        searchLooks(
           projectId: $projectId
           query: $query
           filter: $filter
           page: $page
           perPage: $perPage
         ) {
-          scenes {
+          looks {
             id
             name
             description
@@ -2204,7 +2137,7 @@ export class LacyLightsGraphQLClient {
       page,
       perPage,
     });
-    return data.searchScenes;
+    return data.searchLooks;
   }
 
   async searchCues(
@@ -2243,7 +2176,7 @@ export class LacyLightsGraphQLClient {
             fadeOutTime
             followTime
             notes
-            scene {
+            look {
               id
               name
             }
@@ -2337,16 +2270,16 @@ export class LacyLightsGraphQLClient {
   }
 
   // ========================================================================
-  // Scene Board Operations
+  // Look Board Operations
   // ========================================================================
 
   /**
-   * List all scene boards in a project
+   * List all look boards in a project
    */
-  async listSceneBoards(projectId: string): Promise<SceneBoard[]> {
+  async listLookBoards(projectId: string): Promise<LookBoard[]> {
     const query = `
-      query ListSceneBoards($projectId: ID!) {
-        sceneBoards(projectId: $projectId) {
+      query ListLookBoards($projectId: ID!) {
+        lookBoards(projectId: $projectId) {
           id
           name
           description
@@ -2360,7 +2293,7 @@ export class LacyLightsGraphQLClient {
           canvasHeight
           buttons {
             id
-            scene {
+            look {
               id
               name
             }
@@ -2380,16 +2313,16 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(query, { projectId });
-    return data.sceneBoards;
+    return data.lookBoards;
   }
 
   /**
-   * Get a specific scene board with all its buttons
+   * Get a specific look board with all its buttons
    */
-  async getSceneBoard(sceneBoardId: string): Promise<SceneBoard | null> {
+  async getLookBoard(lookBoardId: string): Promise<LookBoard | null> {
     const query = `
-      query GetSceneBoard($sceneBoardId: ID!) {
-        sceneBoard(id: $sceneBoardId) {
+      query GetLookBoard($lookBoardId: ID!) {
+        lookBoard(id: $lookBoardId) {
           id
           name
           description
@@ -2403,11 +2336,11 @@ export class LacyLightsGraphQLClient {
           canvasHeight
           buttons {
             id
-            sceneBoard {
+            lookBoard {
               id
               name
             }
-            scene {
+            look {
               id
               name
             }
@@ -2426,14 +2359,14 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(query, { sceneBoardId });
-    return data.sceneBoard;
+    const data = await this.query(query, { lookBoardId });
+    return data.lookBoard;
   }
 
   /**
-   * Create a new scene board
+   * Create a new look board
    */
-  async createSceneBoard(input: {
+  async createLookBoard(input: {
     name: string;
     description?: string;
     projectId: string;
@@ -2441,10 +2374,10 @@ export class LacyLightsGraphQLClient {
     gridSize?: number;
     canvasWidth?: number;
     canvasHeight?: number;
-  }): Promise<SceneBoard> {
+  }): Promise<LookBoard> {
     const mutation = `
-      mutation CreateSceneBoard($input: CreateSceneBoardInput!) {
-        createSceneBoard(input: $input) {
+      mutation CreateLookBoard($input: CreateLookBoardInput!) {
+        createLookBoard(input: $input) {
           id
           name
           description
@@ -2466,14 +2399,14 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { input });
-    return data.createSceneBoard;
+    return data.createLookBoard;
   }
 
   /**
-   * Update an existing scene board
+   * Update an existing look board
    */
-  async updateSceneBoard(
-    sceneBoardId: string,
+  async updateLookBoard(
+    lookBoardId: string,
     input: {
       name?: string;
       description?: string;
@@ -2482,10 +2415,10 @@ export class LacyLightsGraphQLClient {
       canvasWidth?: number;
       canvasHeight?: number;
     }
-  ): Promise<SceneBoard> {
+  ): Promise<LookBoard> {
     const mutation = `
-      mutation UpdateSceneBoard($id: ID!, $input: UpdateSceneBoardInput!) {
-        updateSceneBoard(id: $id, input: $input) {
+      mutation UpdateLookBoard($id: ID!, $input: UpdateLookBoardInput!) {
+        updateLookBoard(id: $id, input: $input) {
           id
           name
           description
@@ -2503,28 +2436,28 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(mutation, { id: sceneBoardId, input });
-    return data.updateSceneBoard;
+    const data = await this.query(mutation, { id: lookBoardId, input });
+    return data.updateLookBoard;
   }
 
   /**
-   * Delete a scene board and all its buttons
+   * Delete a look board and all its buttons
    */
-  async deleteSceneBoard(sceneBoardId: string): Promise<boolean> {
+  async deleteLookBoard(lookBoardId: string): Promise<boolean> {
     const mutation = `
-      mutation DeleteSceneBoard($id: ID!) {
-        deleteSceneBoard(id: $id)
+      mutation DeleteLookBoard($id: ID!) {
+        deleteLookBoard(id: $id)
       }
     `;
 
-    const data = await this.query(mutation, { id: sceneBoardId });
-    return data.deleteSceneBoard;
+    const data = await this.query(mutation, { id: lookBoardId });
+    return data.deleteLookBoard;
   }
 
   /**
-   * Bulk create multiple scene boards
+   * Bulk create multiple look boards
    */
-  async bulkCreateSceneBoards(input: Array<{
+  async bulkCreateLookBoards(input: Array<{
     name: string;
     description?: string;
     projectId: string;
@@ -2532,10 +2465,10 @@ export class LacyLightsGraphQLClient {
     gridSize?: number;
     canvasWidth?: number;
     canvasHeight?: number;
-  }>): Promise<SceneBoard[]> {
+  }>): Promise<LookBoard[]> {
     const mutation = `
-      mutation BulkCreateSceneBoards($input: BulkSceneBoardCreateInput!) {
-        bulkCreateSceneBoards(input: $input) {
+      mutation BulkCreateLookBoards($input: BulkLookBoardCreateInput!) {
+        bulkCreateLookBoards(input: $input) {
           id
           name
           description
@@ -2553,25 +2486,25 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(mutation, { input: { sceneBoards: input } });
-    return data.bulkCreateSceneBoards;
+    const data = await this.query(mutation, { input: { lookBoards: input } });
+    return data.bulkCreateLookBoards;
   }
 
   /**
-   * Bulk update multiple scene boards
+   * Bulk update multiple look boards
    */
-  async bulkUpdateSceneBoards(input: Array<{
-    sceneBoardId: string;
+  async bulkUpdateLookBoards(input: Array<{
+    lookBoardId: string;
     name?: string;
     description?: string;
     defaultFadeTime?: number;
     gridSize?: number;
     canvasWidth?: number;
     canvasHeight?: number;
-  }>): Promise<SceneBoard[]> {
+  }>): Promise<LookBoard[]> {
     const mutation = `
-      mutation BulkUpdateSceneBoards($input: BulkSceneBoardUpdateInput!) {
-        bulkUpdateSceneBoards(input: $input) {
+      mutation BulkUpdateLookBoards($input: BulkLookBoardUpdateInput!) {
+        bulkUpdateLookBoards(input: $input) {
           id
           name
           description
@@ -2584,56 +2517,56 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(mutation, { input: { sceneBoards: input } });
-    return data.bulkUpdateSceneBoards;
+    const data = await this.query(mutation, { input: { lookBoards: input } });
+    return data.bulkUpdateLookBoards;
   }
 
   /**
-   * Bulk delete multiple scene boards
+   * Bulk delete multiple look boards
    */
-  async bulkDeleteSceneBoards(sceneBoardIds: string[]): Promise<{
+  async bulkDeleteLookBoards(lookBoardIds: string[]): Promise<{
     successCount: number;
     failedIds: string[];
   }> {
     const mutation = `
-      mutation BulkDeleteSceneBoards($sceneBoardIds: [ID!]!) {
-        bulkDeleteSceneBoards(sceneBoardIds: $sceneBoardIds) {
+      mutation BulkDeleteLookBoards($lookBoardIds: [ID!]!) {
+        bulkDeleteLookBoards(lookBoardIds: $lookBoardIds) {
           successCount
           failedIds
         }
       }
     `;
 
-    const data = await this.query(mutation, { sceneBoardIds });
-    return data.bulkDeleteSceneBoards;
+    const data = await this.query(mutation, { lookBoardIds });
+    return data.bulkDeleteLookBoards;
   }
 
   // ========================================================================
-  // Scene Board Button Operations
+  // Look Board Button Operations
   // ========================================================================
 
   /**
-   * Add a scene to a board (create button)
+   * Add a look to a board (create button)
    */
-  async addSceneToBoard(input: {
-    sceneBoardId: string;
-    sceneId: string;
+  async addLookToBoard(input: {
+    lookBoardId: string;
+    lookId: string;
     layoutX: number;
     layoutY: number;
     width?: number;
     height?: number;
     color?: string;
     label?: string;
-  }): Promise<SceneBoardButton> {
+  }): Promise<LookBoardButton> {
     const mutation = `
-      mutation AddSceneToBoard($input: CreateSceneBoardButtonInput!) {
-        addSceneToBoard(input: $input) {
+      mutation AddLookToBoard($input: CreateLookBoardButtonInput!) {
+        addLookToBoard(input: $input) {
           id
-          sceneBoard {
+          lookBoard {
             id
             name
           }
-          scene {
+          look {
             id
             name
           }
@@ -2650,13 +2583,13 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { input });
-    return data.addSceneToBoard;
+    return data.addLookToBoard;
   }
 
   /**
-   * Update a scene board button
+   * Update a look board button
    */
-  async updateSceneBoardButton(
+  async updateLookBoardButton(
     buttonId: string,
     input: {
       layoutX?: number;
@@ -2666,16 +2599,16 @@ export class LacyLightsGraphQLClient {
       color?: string;
       label?: string;
     }
-  ): Promise<SceneBoardButton> {
+  ): Promise<LookBoardButton> {
     const mutation = `
-      mutation UpdateSceneBoardButton($id: ID!, $input: UpdateSceneBoardButtonInput!) {
-        updateSceneBoardButton(id: $id, input: $input) {
+      mutation UpdateLookBoardButton($id: ID!, $input: UpdateLookBoardButtonInput!) {
+        updateLookBoardButton(id: $id, input: $input) {
           id
-          sceneBoard {
+          lookBoard {
             id
             name
           }
-          scene {
+          look {
             id
             name
           }
@@ -2691,63 +2624,63 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { id: buttonId, input });
-    return data.updateSceneBoardButton;
+    return data.updateLookBoardButton;
   }
 
   /**
-   * Remove a scene from board (delete button)
+   * Remove a look from board (delete button)
    */
-  async removeSceneFromBoard(buttonId: string): Promise<boolean> {
+  async removeLookFromBoard(buttonId: string): Promise<boolean> {
     const mutation = `
-      mutation RemoveSceneFromBoard($buttonId: ID!) {
-        removeSceneFromBoard(buttonId: $buttonId)
+      mutation RemoveLookFromBoard($buttonId: ID!) {
+        removeLookFromBoard(buttonId: $buttonId)
       }
     `;
 
     const data = await this.query(mutation, { buttonId });
-    return data.removeSceneFromBoard;
+    return data.removeLookFromBoard;
   }
 
   /**
    * Update multiple button positions in batch
    */
-  async updateSceneBoardButtonPositions(positions: Array<{
+  async updateLookBoardButtonPositions(positions: Array<{
     buttonId: string;
     layoutX: number;
     layoutY: number;
   }>): Promise<boolean> {
     const mutation = `
-      mutation UpdateSceneBoardButtonPositions($positions: [SceneBoardButtonPositionInput!]!) {
-        updateSceneBoardButtonPositions(positions: $positions)
+      mutation UpdateLookBoardButtonPositions($positions: [LookBoardButtonPositionInput!]!) {
+        updateLookBoardButtonPositions(positions: $positions)
       }
     `;
 
     const data = await this.query(mutation, { positions });
-    return data.updateSceneBoardButtonPositions;
+    return data.updateLookBoardButtonPositions;
   }
 
   /**
    * Bulk create multiple buttons
    */
-  async bulkCreateSceneBoardButtons(input: Array<{
-    sceneBoardId: string;
-    sceneId: string;
+  async bulkCreateLookBoardButtons(input: Array<{
+    lookBoardId: string;
+    lookId: string;
     layoutX: number;
     layoutY: number;
     width?: number;
     height?: number;
     color?: string;
     label?: string;
-  }>): Promise<SceneBoardButton[]> {
+  }>): Promise<LookBoardButton[]> {
     const mutation = `
-      mutation BulkCreateSceneBoardButtons($input: BulkSceneBoardButtonCreateInput!) {
-        bulkCreateSceneBoardButtons(input: $input) {
+      mutation BulkCreateLookBoardButtons($input: BulkLookBoardButtonCreateInput!) {
+        bulkCreateLookBoardButtons(input: $input) {
           id
-          sceneBoard {
+          lookBoard {
             id
             name
           }
-          scene {
+          look {
             id
             name
           }
@@ -2764,13 +2697,13 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { input: { buttons: input } });
-    return data.bulkCreateSceneBoardButtons;
+    return data.bulkCreateLookBoardButtons;
   }
 
   /**
    * Bulk update multiple buttons
    */
-  async bulkUpdateSceneBoardButtons(input: Array<{
+  async bulkUpdateLookBoardButtons(input: Array<{
     buttonId: string;
     layoutX?: number;
     layoutY?: number;
@@ -2778,12 +2711,12 @@ export class LacyLightsGraphQLClient {
     height?: number;
     color?: string;
     label?: string;
-  }>): Promise<SceneBoardButton[]> {
+  }>): Promise<LookBoardButton[]> {
     const mutation = `
-      mutation BulkUpdateSceneBoardButtons($input: BulkSceneBoardButtonUpdateInput!) {
-        bulkUpdateSceneBoardButtons(input: $input) {
+      mutation BulkUpdateLookBoardButtons($input: BulkLookBoardButtonUpdateInput!) {
+        bulkUpdateLookBoardButtons(input: $input) {
           id
-          scene {
+          look {
             id
             name
           }
@@ -2799,19 +2732,19 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { input: { buttons: input } });
-    return data.bulkUpdateSceneBoardButtons;
+    return data.bulkUpdateLookBoardButtons;
   }
 
   /**
    * Bulk delete multiple buttons
    */
-  async bulkDeleteSceneBoardButtons(buttonIds: string[]): Promise<{
+  async bulkDeleteLookBoardButtons(buttonIds: string[]): Promise<{
     successCount: number;
     failedIds: string[];
   }> {
     const mutation = `
-      mutation BulkDeleteSceneBoardButtons($buttonIds: [ID!]!) {
-        bulkDeleteSceneBoardButtons(buttonIds: $buttonIds) {
+      mutation BulkDeleteLookBoardButtons($buttonIds: [ID!]!) {
+        bulkDeleteLookBoardButtons(buttonIds: $buttonIds) {
           successCount
           failedIds
         }
@@ -2819,32 +2752,32 @@ export class LacyLightsGraphQLClient {
     `;
 
     const data = await this.query(mutation, { buttonIds });
-    return data.bulkDeleteSceneBoardButtons;
+    return data.bulkDeleteLookBoardButtons;
   }
 
   /**
-   * Activate a scene from a board (uses board's default fade time unless overridden)
+   * Activate a look from a board (uses board's default fade time unless overridden)
    */
-  async activateSceneFromBoard(
-    sceneBoardId: string,
-    sceneId: string,
+  async activateLookFromBoard(
+    lookBoardId: string,
+    lookId: string,
     fadeTimeOverride?: number
   ): Promise<boolean> {
     const mutation = `
-      mutation ActivateSceneFromBoard(
-        $sceneBoardId: ID!
-        $sceneId: ID!
+      mutation ActivateLookFromBoard(
+        $lookBoardId: ID!
+        $lookId: ID!
         $fadeTimeOverride: Float
       ) {
-        activateSceneFromBoard(
-          sceneBoardId: $sceneBoardId
-          sceneId: $sceneId
+        activateLookFromBoard(
+          lookBoardId: $lookBoardId
+          lookId: $lookId
           fadeTimeOverride: $fadeTimeOverride
         )
       }
     `;
 
-    const data = await this.query(mutation, { sceneBoardId, sceneId, fadeTimeOverride });
-    return data.activateSceneFromBoard;
+    const data = await this.query(mutation, { lookBoardId, lookId, fadeTimeOverride });
+    return data.activateLookFromBoard;
   }
 }

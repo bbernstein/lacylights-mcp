@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
-import { FixtureDefinition, FixtureInstance, Scene, FixtureValue, FixtureType } from "../types/lighting";
+import { FixtureDefinition, FixtureInstance, Look, FixtureValue, FixtureType } from "../types/lighting";
 import { logger } from "../utils/logger";
 import { normalizePaginationParams } from "../utils/pagination";
 
@@ -1454,10 +1454,10 @@ export class FixtureTools {
         throw new Error(`Fixture with ID ${fixtureId} not found`);
       }
 
-      // Check if fixture is used in any scenes
+      // Check if fixture is used in any looks
       const project = await this.graphqlClient.getProject(projectId);
-      const scenesUsingFixture = project?.scenes.filter((scene: Scene) => 
-        scene.fixtureValues?.some((fv: FixtureValue) => fv.fixture.id === fixtureId)
+      const looksUsingFixture = project?.looks.filter((look: Look) =>
+        look.fixtureValues?.some((fv: FixtureValue) => fv.fixture.id === fixtureId)
       ) || [];
 
       // Delete the fixture
@@ -1479,14 +1479,14 @@ export class FixtureTools {
           projectId,
           projectName,
         },
-        affectedScenes: scenesUsingFixture.map((scene: Scene) => ({
-          id: scene.id,
-          name: scene.name,
-          description: scene.description,
+        affectedLooks: looksUsingFixture.map((look: Look) => ({
+          id: look.id,
+          name: look.name,
+          description: look.description,
         })),
         message: `Successfully deleted fixture "${fixtureToDelete.name}" from project "${projectName}"`,
-        warnings: scenesUsingFixture.length > 0 
-          ? [`Fixture was removed from ${scenesUsingFixture.length} scene(s)`]
+        warnings: looksUsingFixture.length > 0
+          ? [`Fixture was removed from ${looksUsingFixture.length} look(s)`]
           : [],
       };
     } catch (error) {

@@ -5,20 +5,20 @@ const GetFixtureUsageSchema = z.object({
   fixtureId: z.string().describe('Fixture ID to get usage for')
 });
 
-const GetSceneUsageSchema = z.object({
-  sceneId: z.string().describe('Scene ID to get usage for')
+const GetLookUsageSchema = z.object({
+  lookId: z.string().describe('Look ID to get usage for')
 });
 
-const CompareScenesSchema = z.object({
-  sceneId1: z.string().describe('First scene ID'),
-  sceneId2: z.string().describe('Second scene ID')
+const CompareLooksSchema = z.object({
+  lookId1: z.string().describe('First look ID'),
+  lookId2: z.string().describe('Second look ID')
 });
 
 export class RelationshipTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
 
   /**
-   * Get fixture usage information - shows which scenes and cues use this fixture
+   * Get fixture usage information - shows which looks and cues use this fixture
    */
   async getFixtureUsage(args: z.infer<typeof GetFixtureUsageSchema>) {
     const { fixtureId } = GetFixtureUsageSchema.parse(args);
@@ -31,15 +31,15 @@ export class RelationshipTools {
           id: usage.fixtureId,
           name: usage.fixtureName
         },
-        scenes: {
-          count: usage.scenes.length,
-          list: usage.scenes.map(scene => ({
-            id: scene.id,
-            name: scene.name,
-            description: scene.description,
-            fixtureCount: scene.fixtureCount,
-            createdAt: scene.createdAt,
-            updatedAt: scene.updatedAt
+        looks: {
+          count: usage.looks.length,
+          list: usage.looks.map(look => ({
+            id: look.id,
+            name: look.name,
+            description: look.description,
+            fixtureCount: look.fixtureCount,
+            createdAt: look.createdAt,
+            updatedAt: look.updatedAt
           }))
         },
         cues: {
@@ -53,13 +53,13 @@ export class RelationshipTools {
           }))
         },
         summary: {
-          totalScenes: usage.scenes.length,
+          totalLooks: usage.looks.length,
           totalCues: usage.cues.length,
-          isUsed: usage.scenes.length > 0 || usage.cues.length > 0
+          isUsed: usage.looks.length > 0 || usage.cues.length > 0
         },
-        message: usage.scenes.length > 0 || usage.cues.length > 0
-          ? `Fixture "${usage.fixtureName}" is used in ${usage.scenes.length} scene(s) and ${usage.cues.length} cue(s)`
-          : `Fixture "${usage.fixtureName}" is not currently used in any scenes or cues`
+        message: usage.looks.length > 0 || usage.cues.length > 0
+          ? `Fixture "${usage.fixtureName}" is used in ${usage.looks.length} look(s) and ${usage.cues.length} cue(s)`
+          : `Fixture "${usage.fixtureName}" is not currently used in any looks or cues`
       };
     } catch (error) {
       throw new Error(`Failed to get fixture usage: ${error}`);
@@ -67,18 +67,18 @@ export class RelationshipTools {
   }
 
   /**
-   * Get scene usage information - shows which cues use this scene
+   * Get look usage information - shows which cues use this look
    */
-  async getSceneUsage(args: z.infer<typeof GetSceneUsageSchema>) {
-    const { sceneId } = GetSceneUsageSchema.parse(args);
+  async getLookUsage(args: z.infer<typeof GetLookUsageSchema>) {
+    const { lookId } = GetLookUsageSchema.parse(args);
 
     try {
-      const usage = await this.graphqlClient.getSceneUsage(sceneId);
+      const usage = await this.graphqlClient.getLookUsage(lookId);
 
       return {
-        scene: {
-          id: usage.sceneId,
-          name: usage.sceneName
+        look: {
+          id: usage.lookId,
+          name: usage.lookName
         },
         cues: {
           count: usage.cues.length,
@@ -96,40 +96,40 @@ export class RelationshipTools {
           uniqueCueLists: [...new Set(usage.cues.map(c => c.cueListId))].length
         },
         message: usage.cues.length > 0
-          ? `Scene "${usage.sceneName}" is used in ${usage.cues.length} cue(s) across ${[...new Set(usage.cues.map(c => c.cueListId))].length} cue list(s)`
-          : `Scene "${usage.sceneName}" is not currently used in any cues`
+          ? `Look "${usage.lookName}" is used in ${usage.cues.length} cue(s) across ${[...new Set(usage.cues.map(c => c.cueListId))].length} cue list(s)`
+          : `Look "${usage.lookName}" is not currently used in any cues`
       };
     } catch (error) {
-      throw new Error(`Failed to get scene usage: ${error}`);
+      throw new Error(`Failed to get look usage: ${error}`);
     }
   }
 
   /**
-   * Compare two scenes to identify differences
+   * Compare two looks to identify differences
    */
-  async compareScenes(args: z.infer<typeof CompareScenesSchema>) {
-    const { sceneId1, sceneId2 } = CompareScenesSchema.parse(args);
+  async compareLooks(args: z.infer<typeof CompareLooksSchema>) {
+    const { lookId1, lookId2 } = CompareLooksSchema.parse(args);
 
     try {
-      const comparison = await this.graphqlClient.compareScenes(sceneId1, sceneId2);
+      const comparison = await this.graphqlClient.compareLooks(lookId1, lookId2);
 
       // Categorize differences
       const valuesChanged = comparison.differences.filter(d => d.differenceType === 'VALUES_CHANGED');
-      const onlyInScene1 = comparison.differences.filter(d => d.differenceType === 'ONLY_IN_SCENE1');
-      const onlyInScene2 = comparison.differences.filter(d => d.differenceType === 'ONLY_IN_SCENE2');
+      const onlyInLook1 = comparison.differences.filter(d => d.differenceType === 'ONLY_IN_LOOK1');
+      const onlyInLook2 = comparison.differences.filter(d => d.differenceType === 'ONLY_IN_LOOK2');
 
       return {
-        scene1: {
-          id: comparison.scene1.id,
-          name: comparison.scene1.name,
-          description: comparison.scene1.description,
-          fixtureCount: comparison.scene1.fixtureCount
+        look1: {
+          id: comparison.look1.id,
+          name: comparison.look1.name,
+          description: comparison.look1.description,
+          fixtureCount: comparison.look1.fixtureCount
         },
-        scene2: {
-          id: comparison.scene2.id,
-          name: comparison.scene2.name,
-          description: comparison.scene2.description,
-          fixtureCount: comparison.scene2.fixtureCount
+        look2: {
+          id: comparison.look2.id,
+          name: comparison.look2.name,
+          description: comparison.look2.description,
+          fixtureCount: comparison.look2.fixtureCount
         },
         comparison: {
           identicalFixtures: comparison.identicalFixtureCount,
@@ -142,39 +142,39 @@ export class RelationshipTools {
             fixtures: valuesChanged.map(d => ({
               fixtureId: d.fixtureId,
               fixtureName: d.fixtureName,
-              scene1Values: d.scene1Values,
-              scene2Values: d.scene2Values
+              look1Values: d.look1Values,
+              look2Values: d.look2Values
             }))
           },
-          onlyInScene1: {
-            count: onlyInScene1.length,
-            fixtures: onlyInScene1.map(d => ({
+          onlyInLook1: {
+            count: onlyInLook1.length,
+            fixtures: onlyInLook1.map(d => ({
               fixtureId: d.fixtureId,
               fixtureName: d.fixtureName,
-              values: d.scene1Values
+              values: d.look1Values
             }))
           },
-          onlyInScene2: {
-            count: onlyInScene2.length,
-            fixtures: onlyInScene2.map(d => ({
+          onlyInLook2: {
+            count: onlyInLook2.length,
+            fixtures: onlyInLook2.map(d => ({
               fixtureId: d.fixtureId,
               fixtureName: d.fixtureName,
-              values: d.scene2Values
+              values: d.look2Values
             }))
           }
         },
         summary: {
           areIdentical: comparison.differences.length === 0,
-          similarityPercentage: comparison.scene1.fixtureCount && comparison.scene2.fixtureCount
-            ? Math.round((comparison.identicalFixtureCount / Math.max(comparison.scene1.fixtureCount, comparison.scene2.fixtureCount)) * 100)
+          similarityPercentage: comparison.look1.fixtureCount && comparison.look2.fixtureCount
+            ? Math.round((comparison.identicalFixtureCount / Math.max(comparison.look1.fixtureCount, comparison.look2.fixtureCount)) * 100)
             : 0
         },
         message: comparison.differences.length === 0
-          ? `Scenes "${comparison.scene1.name}" and "${comparison.scene2.name}" are identical`
-          : `Found ${comparison.differences.length} difference(s) between scenes: ${valuesChanged.length} value changes, ${onlyInScene1.length} fixtures only in scene 1, ${onlyInScene2.length} fixtures only in scene 2`
+          ? `Looks "${comparison.look1.name}" and "${comparison.look2.name}" are identical`
+          : `Found ${comparison.differences.length} difference(s) between looks: ${valuesChanged.length} value changes, ${onlyInLook1.length} fixtures only in look 1, ${onlyInLook2.length} fixtures only in look 2`
       };
     } catch (error) {
-      throw new Error(`Failed to compare scenes: ${error}`);
+      throw new Error(`Failed to compare looks: ${error}`);
     }
   }
 }

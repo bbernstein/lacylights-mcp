@@ -34,17 +34,17 @@ describe('CueTools', () => {
         tags: ['wash']
       }
     ],
-    scenes: [
+    looks: [
       {
-        id: 'scene-1',
-        name: 'Opening Scene',
-        description: 'Opening scene description',
+        id: 'look-1',
+        name: 'Opening Look',
+        description: 'Opening look description',
         fixtureValues: []
       },
       {
-        id: 'scene-2',
-        name: 'Dramatic Scene',
-        description: 'Dramatic scene description',
+        id: 'look-2',
+        name: 'Dramatic Look',
+        description: 'Dramatic look description',
         fixtureValues: []
       }
     ],
@@ -58,7 +58,7 @@ describe('CueTools', () => {
             id: 'cue-1',
             name: 'Lights Up',
             cueNumber: 1.0,
-            scene: { id: 'scene-1', name: 'Opening Scene' },
+            look: { id: 'look-1', name: 'Opening Look' },
             fadeInTime: 3,
             fadeOutTime: 3,
             followTime: undefined,
@@ -76,7 +76,7 @@ describe('CueTools', () => {
       {
         name: 'Lights Up',
         cueNumber: 1.0,
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         fadeInTime: 3.0,
         fadeOutTime: 3.0,
         followTime: undefined,
@@ -85,7 +85,7 @@ describe('CueTools', () => {
       {
         name: 'Dramatic Change',
         cueNumber: 2.0,
-        sceneId: 'scene-2',
+        lookId: 'look-2',
         fadeInTime: 5.0,
         fadeOutTime: 2.0,
         followTime: undefined,
@@ -120,7 +120,7 @@ describe('CueTools', () => {
       fadeToBlack: jest.fn(),
       // New backend playback control methods
       getCueListPlaybackStatus: jest.fn(),
-      getCurrentActiveScene: jest.fn(),
+      getCurrentActiveLook: jest.fn(),
       startCueList: jest.fn(),
       nextCue: jest.fn(),
       previousCue: jest.fn(),
@@ -138,8 +138,8 @@ describe('CueTools', () => {
     } as any;
 
     mockAILightingService = {
-      generateScene: jest.fn(),
-      optimizeSceneForFixtures: jest.fn(),
+      generateLook: jest.fn(),
+      optimizeLookForFixtures: jest.fn(),
       suggestFixtureUsage: jest.fn(),
       generateCueSequence: jest.fn()
     } as any;
@@ -176,7 +176,7 @@ describe('CueTools', () => {
           id: 'cue-new-1',
           name: 'Lights Up',
           cueNumber: 1.0,
-          scene: { id: 'scene-1', name: 'Opening Scene' },
+          look: { id: 'look-1', name: 'Opening Look' },
           fadeInTime: 3,
           fadeOutTime: 3
         },
@@ -184,7 +184,7 @@ describe('CueTools', () => {
           id: 'cue-new-2',
           name: 'Dramatic Change',
           cueNumber: 2.0,
-          scene: { id: 'scene-2', name: 'Dramatic Scene' },
+          look: { id: 'look-2', name: 'Dramatic Look' },
           fadeInTime: 5,
           fadeOutTime: 2
         }
@@ -194,7 +194,7 @@ describe('CueTools', () => {
       const result = await cueTools.createCueSequence({
         projectId: 'project-1',
         scriptContext: 'Act 1, opening sequence',
-        sceneIds: ['scene-1', 'scene-2'],
+        lookIds: ['look-1', 'look-2'],
         sequenceName: 'Act 1 Cues',
         transitionPreferences: {
           defaultFadeIn: 3,
@@ -228,7 +228,7 @@ describe('CueTools', () => {
           id: 'cue-new-1',
           name: 'Lights Up',
           cueNumber: 1.0,
-          scene: { id: 'scene-1', name: 'Opening Scene' },
+          look: { id: 'look-1', name: 'Opening Look' },
           fadeInTime: 3,
           fadeOutTime: 3,
           followTime: undefined,
@@ -238,7 +238,7 @@ describe('CueTools', () => {
           id: 'cue-new-2',
           name: 'Dramatic Change',
           cueNumber: 2.0,
-          scene: { id: 'scene-2', name: 'Dramatic Scene' },
+          look: { id: 'look-2', name: 'Dramatic Look' },
           fadeInTime: 5,
           fadeOutTime: 2
         }
@@ -248,7 +248,7 @@ describe('CueTools', () => {
       const result = await cueTools.createCueSequence({
         projectId: 'project-1',
         scriptContext: 'Act 1',
-        sceneIds: ['scene-1'],
+        lookIds: ['look-1'],
         sequenceName: 'Act 1 Cues'
       });
 
@@ -266,24 +266,24 @@ describe('CueTools', () => {
       await expect(cueTools.createCueSequence({
         projectId: 'non-existent',
         scriptContext: 'Test',
-        sceneIds: ['scene-1'],
+        lookIds: ['look-1'],
         sequenceName: 'Test Cues'
       })).rejects.toThrow('Project with ID non-existent not found');
     });
 
-    it('should handle missing scenes', async () => {
-      const projectWithoutScenes = {
+    it('should handle missing looks', async () => {
+      const projectWithoutLooks = {
         ...mockProject,
-        scenes: []
+        looks: []
       };
-      mockGraphQLClient.getProject.mockResolvedValue(projectWithoutScenes as any);
+      mockGraphQLClient.getProject.mockResolvedValue(projectWithoutLooks as any);
 
       await expect(cueTools.createCueSequence({
         projectId: 'project-1',
         scriptContext: 'Test',
-        sceneIds: ['scene-1'],
+        lookIds: ['look-1'],
         sequenceName: 'Test Cues'
-      })).rejects.toThrow('Scene with ID scene-1 not found in the project');
+      })).rejects.toThrow('Look with ID look-1 not found in the project');
     });
 
     it('should handle cue sequence generation errors', async () => {
@@ -293,7 +293,7 @@ describe('CueTools', () => {
       await expect(cueTools.createCueSequence({
         projectId: 'project-1',
         scriptContext: 'Test',
-        sceneIds: ['scene-1'],
+        lookIds: ['look-1'],
         sequenceName: 'Test Cues'
       })).rejects.toThrow('Failed to create cue sequence: Error: AI Error');
     });
@@ -400,10 +400,10 @@ describe('CueTools', () => {
         projectId: 'project-1',
         actNumber: 2,
         scriptText: 'Act 2 script',
-        existingScenes: ['scene-1', 'scene-2']
+        existingLooks: ['look-1', 'look-2']
       });
 
-      expect(result.totalScenes).toBeDefined();
+      expect(result.totalLooks).toBeDefined();
     });
 
     it('should handle project not found', async () => {
@@ -413,7 +413,7 @@ describe('CueTools', () => {
         projectId: 'non-existent',
         actNumber: 1,
         scriptText: 'Test script'
-      })).rejects.toThrow('Failed to generate act cues: TypeError: Cannot read properties of undefined (reading \'scenes\')');
+      })).rejects.toThrow('Failed to generate act cues: TypeError: Cannot read properties of undefined (reading \'looks\')');
     });
 
     it('should handle script analysis errors', async () => {
@@ -632,7 +632,7 @@ describe('CueTools', () => {
       const newCue = {
         name: 'New Cue',
         cueNumber: 1.5,
-        sceneName: 'Opening Scene',
+        lookName: 'Opening Look',
         fadeInTime: 5,
         fadeOutTime: 2,
         followTime: undefined,
@@ -642,7 +642,7 @@ describe('CueTools', () => {
         id: 'cue-new',
         name: 'New Cue',
         cueNumber: 1.5,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
+        look: { id: 'look-1', name: 'Opening Look' },
         fadeInTime: 5,
         fadeOutTime: 2,
         followTime: undefined,
@@ -654,7 +654,7 @@ describe('CueTools', () => {
         cueListId: 'cuelist-1',
         name: 'New Cue',
         cueNumber: 1.5,
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         fadeInTime: 5,
         fadeOutTime: 2,
         notes: 'New dramatic cue'
@@ -664,7 +664,7 @@ describe('CueTools', () => {
         name: 'New Cue',
         cueNumber: 1.5,
         cueListId: 'cuelist-1',
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         fadeInTime: 5,
         fadeOutTime: 2,
         followTime: undefined,
@@ -678,7 +678,7 @@ describe('CueTools', () => {
         id: 'cue-new',
         name: 'Auto Cue',
         cueNumber: 2.0,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
+        look: { id: 'look-1', name: 'Opening Look' },
         fadeInTime: 3,
         fadeOutTime: 3,
         followTime: 5,
@@ -690,7 +690,7 @@ describe('CueTools', () => {
         cueListId: 'cuelist-1',
         name: 'Auto Cue',
         cueNumber: 2.0,
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         fadeInTime: 3,
         fadeOutTime: 3,
         followTime: 5
@@ -711,7 +711,7 @@ describe('CueTools', () => {
         cueListId: 'cuelist-1',
         name: 'New Cue',
         cueNumber: 1.5,
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         fadeInTime: 3,
         fadeOutTime: 3
       })).rejects.toThrow('Failed to add cue to list: Error: Creation error');
@@ -754,7 +754,7 @@ describe('CueTools', () => {
       const updatedCue = {
         name: 'Updated Cue',
         cueNumber: 1,
-        sceneName: 'Opening Scene',
+        lookName: 'Opening Look',
         fadeInTime: 5,
         fadeOutTime: 5,
         followTime: undefined,
@@ -764,7 +764,7 @@ describe('CueTools', () => {
         id: 'cue-1',
         name: 'Updated Cue',
         cueNumber: 1,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
+        look: { id: 'look-1', name: 'Opening Look' },
         fadeInTime: 5,
         fadeOutTime: 5,
         followTime: undefined,
@@ -805,7 +805,7 @@ describe('CueTools', () => {
         id: 'cue-1',
         name: 'Test Cue',
         cueNumber: 1.0,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
+        look: { id: 'look-1', name: 'Opening Look' },
         fadeInTime: 3,
         fadeOutTime: 3,
         followTime: undefined,
@@ -827,7 +827,7 @@ describe('CueTools', () => {
         id: 'cue-1',
         name: 'Test Cue',
         cueNumber: 1.0,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
+        look: { id: 'look-1', name: 'Opening Look' },
         fadeInTime: 3,
         fadeOutTime: 3,
         followTime: undefined,
@@ -902,8 +902,8 @@ describe('CueTools', () => {
             id: 'cue-1',
             name: 'Lights Up',
             cueNumber: 1.0,
-            sceneId: 'scene-1',
-            sceneName: 'Opening Scene',
+            lookId: 'look-1',
+            lookName: 'Opening Look',
             fadeInTime: 3,
             fadeOutTime: 3,
             followTime: undefined,
@@ -913,8 +913,8 @@ describe('CueTools', () => {
             id: 'cue-2',
             name: 'Follow Cue',
             cueNumber: 2.0,
-            sceneId: 'scene-2',
-            sceneName: 'Dramatic Scene',
+            lookId: 'look-2',
+            lookName: 'Dramatic Look',
             fadeInTime: 2,
             fadeOutTime: 4,
             followTime: 5,
@@ -926,7 +926,7 @@ describe('CueTools', () => {
 
       const result = await cueTools.getCueListDetails({
         cueListId: 'cuelist-1',
-        includeSceneDetails: true,
+        includeLookDetails: true,
         sortBy: 'cueNumber',
         filterBy: {
           hasFollowTime: true,
@@ -947,8 +947,8 @@ describe('CueTools', () => {
           id: 'cue-1',
           name: 'Lights Up',
           cueNumber: 1.0,
-          sceneId: 'scene-1',
-          sceneName: 'Opening Scene',
+          lookId: 'look-1',
+          lookName: 'Opening Look',
           fadeInTime: 3,
           fadeOutTime: 3,
           followTime: undefined,
@@ -965,11 +965,11 @@ describe('CueTools', () => {
         }
       });
 
-      // Test scene name filter
+      // Test look name filter
       await cueTools.getCueListDetails({
         cueListId: 'cuelist-1',
         filterBy: {
-          sceneNameContains: 'Opening'
+          lookNameContains: 'Opening'
         }
       });
 
@@ -992,8 +992,8 @@ describe('CueTools', () => {
           id: 'cue-1',
           name: 'Lights Up',
           cueNumber: 1.0,
-          sceneId: 'scene-1',
-          sceneName: 'Opening Scene',
+          lookId: 'look-1',
+          lookName: 'Opening Look',
           fadeInTime: 3,
           fadeOutTime: 3,
           followTime: undefined,
@@ -1002,7 +1002,7 @@ describe('CueTools', () => {
       };
       mockGraphQLClient.getCueListWithPagination.mockResolvedValue(mockCueListWithId as any);
 
-      const sortOptions = ['cueNumber', 'name', 'sceneName'] as const;
+      const sortOptions = ['cueNumber', 'name', 'lookName'] as const;
 
       for (const sortBy of sortOptions) {
         await cueTools.getCueListDetails({
@@ -1071,7 +1071,7 @@ describe('CueTools', () => {
           id: 'cue-1',
           name: 'Cue 1',
           cueNumber: 1.0,
-          scene: { name: 'Scene 1' },
+          look: { name: 'Look 1' },
           fadeInTime: 5,
           fadeOutTime: 5,
           followTime: null,
@@ -1081,7 +1081,7 @@ describe('CueTools', () => {
           id: 'cue-2',
           name: 'Cue 2',
           cueNumber: 2.0,
-          scene: { name: 'Scene 2' },
+          look: { name: 'Look 2' },
           fadeInTime: 5,
           fadeOutTime: 5,
           followTime: 3,
@@ -1116,7 +1116,7 @@ describe('CueTools', () => {
           id: 'cue-1',
           name: 'Cue 1',
           cueNumber: 1.0,
-          scene: { name: 'Scene 1' },
+          look: { name: 'Look 1' },
           fadeInTime: 3,
           fadeOutTime: 2,
           followTime: 5,
@@ -1145,7 +1145,7 @@ describe('CueTools', () => {
           id: 'cue-1',
           name: 'Cue 1',
           cueNumber: 1.0,
-          scene: { name: 'Scene 1' },
+          look: { name: 'Look 1' },
           fadeInTime: 3,
           fadeOutTime: 3,
           followTime: null,
@@ -1201,7 +1201,7 @@ describe('CueTools', () => {
             id: 'cue-1',
             name: 'Cue 1',
             cueNumber: 1.0,
-            scene: { id: 'scene-1', name: 'Scene 1' },
+            look: { id: 'look-1', name: 'Look 1' },
             fadeInTime: 3,
             fadeOutTime: 3,
             followTime: null
@@ -1257,16 +1257,16 @@ describe('CueTools', () => {
     });
 
     it('should return not playing status for getCueListStatus', async () => {
-      // Mock getProjects and getCurrentActiveScene for no active playback
+      // Mock getProjects and getCurrentActiveLook for no active playback
       mockGraphQLClient.getProjects.mockResolvedValue([]);
-      mockGraphQLClient.getCurrentActiveScene.mockResolvedValue(null);
+      mockGraphQLClient.getCurrentActiveLook.mockResolvedValue(null);
 
       const freshCueTools = new CueTools(mockGraphQLClient, mockRAGService, mockAILightingService);
       const result = await freshCueTools.getCueListStatus({});
 
       expect(result.isPlaying).toBe(false);
       expect(result.message).toContain('No cue list is currently playing');
-      expect(result.message).toContain('no active scene');
+      expect(result.message).toContain('no active look');
     });
   });
 
@@ -1284,10 +1284,10 @@ describe('CueTools', () => {
         fadeOutTime: 3,
         followTime: null,
         notes: 'Opening cue',
-        scene: {
-          id: 'scene-1',
-          name: 'Opening Scene',
-          description: 'Opening scene description',
+        look: {
+          id: 'look-1',
+          name: 'Opening Look',
+          description: 'Opening look description',
           fixtureValues: []
         },
         cueList: {
@@ -1304,8 +1304,8 @@ describe('CueTools', () => {
       expect(result.cueId).toBe('cue-1');
       expect(result.cue.name).toBe('Lights Up');
       expect(result.cue.cueNumber).toBe(1.0);
-      expect(result.scene.id).toBe('scene-1');
-      expect(result.scene.name).toBe('Opening Scene');
+      expect(result.look.id).toBe('look-1');
+      expect(result.look.name).toBe('Opening Look');
       expect(result.cueList?.id).toBe('cuelist-1');
       expect(result.cueList?.name).toBe('Act 1 Cues');
     });
@@ -1333,10 +1333,10 @@ describe('CueTools', () => {
         fadeOutTime: 3,
         followTime: null,
         notes: null,
-        scene: {
-          id: 'scene-1',
-          name: 'Scene',
-          description: 'Scene description',
+        look: {
+          id: 'look-1',
+          name: 'Look',
+          description: 'Look description',
           fixtureValues: []
         },
         cueList: null
@@ -1422,7 +1422,7 @@ describe('CueTools', () => {
         id: 'cue-new',
         name: 'New Cue',
         cueNumber: 0.5,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
+        look: { id: 'look-1', name: 'Opening Look' },
         fadeInTime: 3,
         fadeOutTime: 3,
         followTime: undefined,
@@ -1436,7 +1436,7 @@ describe('CueTools', () => {
         cueListId: 'cuelist-1',
         name: 'New Cue',
         cueNumber: 0.5,
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         position: 'before',
         referenceCueNumber: 1.0
       });
@@ -1459,7 +1459,7 @@ describe('CueTools', () => {
         id: 'cue-new',
         name: 'New Cue',
         cueNumber: 1.5,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
+        look: { id: 'look-1', name: 'Opening Look' },
         fadeInTime: 3,
         fadeOutTime: 3,
         followTime: undefined,
@@ -1473,7 +1473,7 @@ describe('CueTools', () => {
         cueListId: 'cuelist-1',
         name: 'New Cue',
         cueNumber: 1.5,
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         position: 'after',
         referenceCueNumber: 1.0
       });
@@ -1496,7 +1496,7 @@ describe('CueTools', () => {
         id: 'cue-new',
         name: 'New Cue',
         cueNumber: 2.5,
-        scene: { id: 'scene-1', name: 'Opening Scene' },
+        look: { id: 'look-1', name: 'Opening Look' },
         fadeInTime: 3,
         fadeOutTime: 3,
         followTime: undefined,
@@ -1510,7 +1510,7 @@ describe('CueTools', () => {
         cueListId: 'cuelist-1',
         name: 'New Cue',
         cueNumber: 2.5,
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         position: 'after',
         referenceCueNumber: 2.0
       });
@@ -1558,7 +1558,7 @@ describe('CueTools', () => {
             id: 'cue-1',
             name: 'Cue 1',
             cueNumber: 1.0,
-            scene: { name: 'Scene 1' },
+            look: { name: 'Look 1' },
             fadeInTime: 3,
             fadeOutTime: 3,
             followTime: null,
@@ -1568,7 +1568,7 @@ describe('CueTools', () => {
             id: 'cue-2',
             name: 'Cue 2',
             cueNumber: 2.0,
-            scene: { name: 'Scene 2' },
+            look: { name: 'Look 2' },
             fadeInTime: 5,
             fadeOutTime: 5,
             followTime: null,
@@ -1580,8 +1580,8 @@ describe('CueTools', () => {
 
         const result = await cueTools.bulkCreateCues({
           cues: [
-            { cueListId: 'cuelist-1', name: 'Cue 1', cueNumber: 1.0, sceneId: 'scene-1', fadeInTime: 3, fadeOutTime: 3 },
-            { cueListId: 'cuelist-1', name: 'Cue 2', cueNumber: 2.0, sceneId: 'scene-2', fadeInTime: 5, fadeOutTime: 5 }
+            { cueListId: 'cuelist-1', name: 'Cue 1', cueNumber: 1.0, lookId: 'look-1', fadeInTime: 3, fadeOutTime: 3 },
+            { cueListId: 'cuelist-1', name: 'Cue 2', cueNumber: 2.0, lookId: 'look-2', fadeInTime: 5, fadeOutTime: 5 }
           ]
         });
 
@@ -1603,7 +1603,7 @@ describe('CueTools', () => {
         mockGraphQLClient.bulkCreateCues = jest.fn().mockRejectedValue(new Error('GraphQL error'));
 
         await expect(cueTools.bulkCreateCues({
-          cues: [{ cueListId: 'cuelist-1', name: 'Cue 1', cueNumber: 1.0, sceneId: 'scene-1', fadeInTime: 3, fadeOutTime: 3 }]
+          cues: [{ cueListId: 'cuelist-1', name: 'Cue 1', cueNumber: 1.0, lookId: 'look-1', fadeInTime: 3, fadeOutTime: 3 }]
         })).rejects.toThrow('Failed to bulk create cues');
       });
     });
