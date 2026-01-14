@@ -3,7 +3,7 @@ import {
   ChannelType,
   Project,
   FixtureInstance,
-  Scene,
+  Look,
   CueList,
   Cue,
 } from '../../src/types/lighting';
@@ -85,21 +85,21 @@ describe('Lighting Types', () => {
       expect(fixture.type).toBe(FixtureType.LED_PAR);
     });
 
-    it('should allow creation of Scene with fixture values', () => {
-      const scene: Scene = {
-        id: 'scene-id',
-        name: 'Test Scene',
+    it('should allow creation of Look with fixture values', () => {
+      const look: Look = {
+        id: 'look-id',
+        name: 'Test Look',
         fixtureValues: [],
       };
 
-      expect(scene.id).toBe('scene-id');
-      expect(scene.fixtureValues).toEqual([]);
+      expect(look.id).toBe('look-id');
+      expect(look.fixtureValues).toEqual([]);
     });
 
     it('should allow creation of Cue with required fields', () => {
-      const mockScene: Scene = {
-        id: 'scene-id',
-        name: 'Test Scene',
+      const mockLook: Look = {
+        id: 'look-id',
+        name: 'Test Look',
         fixtureValues: [],
       };
 
@@ -107,14 +107,14 @@ describe('Lighting Types', () => {
         id: 'cue-id',
         name: 'Test Cue',
         cueNumber: 1.0,
-        scene: mockScene,
+        look: mockLook,
         fadeInTime: 3,
         fadeOutTime: 3,
         skip: false,
       };
 
       expect(cue.cueNumber).toBe(1.0);
-      expect(cue.scene.id).toBe('scene-id');
+      expect(cue.look.id).toBe('look-id');
     });
   });
 });

@@ -158,7 +158,7 @@ describe('CueTools', () => {
   });
 
   describe('createCueSequence', () => {
-    it('should create cue sequence from scenes', async () => {
+    it('should create cue sequence from looks', async () => {
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       mockAILightingService.generateCueSequence.mockResolvedValue(mockCueSequence);
 
@@ -356,7 +356,7 @@ describe('CueTools', () => {
       expect(result.actAnalysis).toBeDefined();
     });
 
-    it('should use existing scenes when provided', async () => {
+    it('should use existing looks when provided', async () => {
       mockGraphQLClient.getProject.mockResolvedValue(mockProject as any);
       
       const mockScriptAnalysis = {
@@ -403,7 +403,7 @@ describe('CueTools', () => {
         existingLooks: ['look-1', 'look-2']
       });
 
-      expect(result.totalLooks).toBeDefined();
+      expect(result.totalScenes).toBeDefined();
     });
 
     it('should handle project not found', async () => {

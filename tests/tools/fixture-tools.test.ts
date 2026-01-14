@@ -35,7 +35,7 @@ describe('FixtureTools', () => {
         description: 'Test fixture'
       }
     ],
-    scenes: [],
+    looks: [],
     cueLists: []
   };
 
@@ -1618,7 +1618,7 @@ describe('FixtureTools', () => {
     });
 
     it('should delete fixture instance successfully', async () => {
-      const mockProjectWithScenes = {
+      const mockProjectWithLooks = {
         ...mockProject,
         fixtures: [{
           id: 'fixture-1',
@@ -1629,15 +1629,15 @@ describe('FixtureTools', () => {
           startChannel: 1,
           tags: ['wash']
         }],
-        scenes: [{
-          id: 'scene-1',
-          name: 'Test Scene',
+        looks: [{
+          id: 'look-1',
+          name: 'Test Look',
           fixtureValues: []
         }]
       };
 
-      mockGraphQLClient.getProjects.mockResolvedValue([mockProjectWithScenes] as any);
-      mockGraphQLClient.getProject.mockResolvedValue(mockProjectWithScenes as any);
+      mockGraphQLClient.getProjects.mockResolvedValue([mockProjectWithLooks] as any);
+      mockGraphQLClient.getProject.mockResolvedValue(mockProjectWithLooks as any);
       mockGraphQLClient.deleteFixtureInstance.mockResolvedValue(true);
 
       const result = await fixtureTools.deleteFixtureInstance({
@@ -1669,7 +1669,7 @@ describe('FixtureTools', () => {
     });
 
     it('should report affected scenes when fixture is in use', async () => {
-      const fixtureInScene = {
+      const fixtureInLook = {
         id: 'fixture-1',
         name: 'LED Par 1',
         manufacturer: 'Test Manufacturer',
@@ -1679,13 +1679,13 @@ describe('FixtureTools', () => {
         tags: []
       };
 
-      const mockProjectWithFixtureInScene = {
+      const mockProjectWithFixtureInLook = {
         ...mockProject,
-        fixtures: [fixtureInScene],
-        scenes: [{
-          id: 'scene-1',
-          name: 'Test Scene',
-          description: 'Scene using fixture',
+        fixtures: [fixtureInLook],
+        looks: [{
+          id: 'look-1',
+          name: 'Test Look',
+          description: 'Look using fixture',
           fixtureValues: [{
             fixture: { id: 'fixture-1' },
             channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }]
@@ -1693,8 +1693,8 @@ describe('FixtureTools', () => {
         }]
       };
 
-      mockGraphQLClient.getProjects.mockResolvedValue([mockProjectWithFixtureInScene] as any);
-      mockGraphQLClient.getProject.mockResolvedValue(mockProjectWithFixtureInScene as any);
+      mockGraphQLClient.getProjects.mockResolvedValue([mockProjectWithFixtureInLook] as any);
+      mockGraphQLClient.getProject.mockResolvedValue(mockProjectWithFixtureInLook as any);
       mockGraphQLClient.deleteFixtureInstance.mockResolvedValue(true);
 
       const result = await fixtureTools.deleteFixtureInstance({
@@ -1703,10 +1703,10 @@ describe('FixtureTools', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.affectedScenes).toHaveLength(1);
-      expect(result.affectedScenes[0].name).toBe('Test Scene');
+      expect(result.affectedLooks).toHaveLength(1);
+      expect(result.affectedLooks[0].name).toBe('Test Look');
       expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toContain('removed from 1 scene');
+      expect(result.warnings[0]).toContain('removed from 1 look');
     });
 
     it('should handle deletion failure', async () => {
