@@ -71,7 +71,7 @@ describe('LacyLightsGraphQLClient', () => {
         id: 'test-id',
         name: 'Test Project',
         fixtures: [],
-        scenes: [],
+        looks: [],
         cueLists: []
       };
 
@@ -157,24 +157,24 @@ describe('LacyLightsGraphQLClient', () => {
     });
   });
 
-  describe('createScene', () => {
+  describe('createLook', () => {
     it('should create scene with fixture values', async () => {
-      const mockScene = {
-        id: 'scene-id',
-        name: 'Test Scene',
+      const mockLook = {
+        id: 'look-id',
+        name: 'Test Look',
         description: 'Test description',
         fixtureValues: []
       };
 
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { createScene: mockScene }
+          data: { createLook: mockLook }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
-      const result = await client.createScene({
-        name: 'Test Scene',
+      const result = await client.createLook({
+        name: 'Test Look',
         description: 'Test description',
         projectId: 'project-id',
         fixtureValues: [
@@ -182,30 +182,30 @@ describe('LacyLightsGraphQLClient', () => {
         ]
       });
 
-      expect(result).toEqual(mockScene);
+      expect(result).toEqual(mockLook);
     });
   });
 
-  describe('updateScene', () => {
+  describe('updateLook', () => {
     it('should update scene with new values', async () => {
-      const mockScene = {
-        id: 'scene-id',
-        name: 'Updated Scene',
+      const mockLook = {
+        id: 'look-id',
+        name: 'Updated Look',
         fixtureValues: []
       };
 
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { updateScene: mockScene }
+          data: { updateLook: mockLook }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
-      const result = await client.updateScene('scene-id', {
-        name: 'Updated Scene'
+      const result = await client.updateLook('look-id', {
+        name: 'Updated Look'
       });
 
-      expect(result).toEqual(mockScene);
+      expect(result).toEqual(mockLook);
     });
   });
 
@@ -403,7 +403,7 @@ describe('LacyLightsGraphQLClient', () => {
         id: 'cue-new',
         name: 'New Cue',
         cueNumber: 1.0,
-        scene: { id: 'scene-1', name: 'Test Scene' }
+        look: { id: 'look-1', name: 'Test Look' }
       };
 
       const mockResponse = {
@@ -417,7 +417,7 @@ describe('LacyLightsGraphQLClient', () => {
         name: 'New Cue',
         cueNumber: 1.0,
         cueListId: 'cuelist-1',
-        sceneId: 'scene-1',
+        lookId: 'look-1',
         fadeInTime: 3,
         fadeOutTime: 3
       });
@@ -434,7 +434,7 @@ describe('LacyLightsGraphQLClient', () => {
         name: 'Old Name',
         cueNumber: 1.0,
         cueList: { id: 'cuelist-1' },
-        scene: { id: 'scene-1' },
+        look: { id: 'look-1' },
         fadeInTime: 3,
         fadeOutTime: 3
       };
@@ -443,7 +443,7 @@ describe('LacyLightsGraphQLClient', () => {
         id: 'cue-1',
         name: 'Updated Cue',
         cueNumber: 1.0,
-        scene: { id: 'scene-1', name: 'Test Scene' }
+        look: { id: 'look-1', name: 'Test Look' }
       };
 
       mockFetch
@@ -477,7 +477,7 @@ describe('LacyLightsGraphQLClient', () => {
         followTime: null,
         notes: '',
         skip: true,
-        scene: { id: 'scene-1', name: 'Test Scene' }
+        look: { id: 'look-1', name: 'Test Look' }
       };
 
       const mockResponse = {
@@ -556,33 +556,33 @@ describe('LacyLightsGraphQLClient', () => {
   });
 
   // ✨ SAFE SCENE MANAGEMENT GRAPHQL TESTS
-  describe('Safe Scene Management GraphQL Methods', () => {
-    const mockScene = {
-      id: 'scene-1',
-      name: 'Test Scene',
+  describe('Safe Look Management GraphQL Methods', () => {
+    const mockLook = {
+      id: 'look-1',
+      name: 'Test Look',
       description: 'Test scene description',
       updatedAt: '2023-01-01T00:00:00Z',
       fixtureValues: [
         {
           fixture: { id: 'fixture-1', name: 'LED Par 1' },
           channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }],
-          sceneOrder: 1
+          lookOrder: 1
         }
       ]
     };
 
-    describe('addFixturesToScene', () => {
+    describe('addFixturesToLook', () => {
       it('should add fixtures to scene', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { addFixturesToScene: mockScene }
+            data: { addFixturesToLook: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.addFixturesToScene(
-          'scene-1',
-          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], sceneOrder: 1 }],
+        const result = await client.addFixturesToLook(
+          'look-1',
+          [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], lookOrder: 1 }],
           false
         );
 
@@ -591,22 +591,22 @@ describe('LacyLightsGraphQLClient', () => {
           expect.objectContaining({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: expect.stringContaining('AddFixturesToScene')
+            body: expect.stringContaining('AddFixturesToLook')
           })
         );
-        expect(result).toEqual(mockScene);
+        expect(result).toEqual(mockLook);
       });
 
       it('should handle overwrite parameter', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { addFixturesToScene: mockScene }
+            data: { addFixturesToLook: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.addFixturesToScene(
-          'scene-1',
+        await client.addFixturesToLook(
+          'look-1',
           [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           true
         );
@@ -619,66 +619,66 @@ describe('LacyLightsGraphQLClient', () => {
         );
       });
 
-      it('should include sceneOrder in GraphQL query response', async () => {
+      it('should include lookOrder in GraphQL query response', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { addFixturesToScene: mockScene }
+            data: { addFixturesToLook: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.addFixturesToScene('scene-1', [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }], false);
+        await client.addFixturesToLook('look-1', [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }], false);
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://localhost:4000/graphql',
           expect.objectContaining({
-            body: expect.stringContaining('sceneOrder')
+            body: expect.stringContaining('lookOrder')
           })
         );
       });
 
-      it('should handle addFixturesToScene errors', async () => {
+      it('should handle addFixturesToLook errors', async () => {
         mockFetch.mockRejectedValue(new Error('Network error'));
 
-        await expect(client.addFixturesToScene(
-          'scene-1',
+        await expect(client.addFixturesToLook(
+          'look-1',
           [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         )).rejects.toThrow('Network error');
       });
     });
 
-    describe('removeFixturesFromScene', () => {
+    describe('removeFixturesFromLook', () => {
       it('should remove fixtures from scene', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { removeFixturesFromScene: mockScene }
+            data: { removeFixturesFromLook: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.removeFixturesFromScene('scene-1', ['fixture-2']);
+        const result = await client.removeFixturesFromLook('look-1', ['fixture-2']);
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://localhost:4000/graphql',
           expect.objectContaining({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: expect.stringContaining('RemoveFixturesFromScene')
+            body: expect.stringContaining('RemoveFixturesFromLook')
           })
         );
-        expect(result).toEqual(mockScene);
+        expect(result).toEqual(mockLook);
       });
 
       it('should remove multiple fixtures', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { removeFixturesFromScene: mockScene }
+            data: { removeFixturesFromLook: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.removeFixturesFromScene('scene-1', ['fixture-1', 'fixture-2']);
+        await client.removeFixturesFromLook('look-1', ['fixture-1', 'fixture-2']);
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://localhost:4000/graphql',
@@ -688,43 +688,43 @@ describe('LacyLightsGraphQLClient', () => {
         );
       });
 
-      it('should include sceneOrder in response', async () => {
+      it('should include lookOrder in response', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { removeFixturesFromScene: mockScene }
+            data: { removeFixturesFromLook: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.removeFixturesFromScene('scene-1', ['fixture-1']);
+        await client.removeFixturesFromLook('look-1', ['fixture-1']);
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://localhost:4000/graphql',
           expect.objectContaining({
-            body: expect.stringContaining('sceneOrder')
+            body: expect.stringContaining('lookOrder')
           })
         );
       });
 
-      it('should handle removeFixturesFromScene errors', async () => {
+      it('should handle removeFixturesFromLook errors', async () => {
         mockFetch.mockRejectedValue(new Error('Network error'));
 
-        await expect(client.removeFixturesFromScene('scene-1', ['fixture-1']))
+        await expect(client.removeFixturesFromLook('look-1', ['fixture-1']))
           .rejects.toThrow('Network error');
       });
     });
 
-    describe('updateScenePartial', () => {
+    describe('updateLookPartial', () => {
       it('should update scene with metadata only', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { updateScenePartial: mockScene }
+            data: { updateLookPartial: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.updateScenePartial('scene-1', {
-          name: 'Updated Scene',
+        const result = await client.updateLookPartial('look-1', {
+          name: 'Updated Look',
           description: 'Updated description'
         });
 
@@ -733,22 +733,22 @@ describe('LacyLightsGraphQLClient', () => {
           expect.objectContaining({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: expect.stringContaining('UpdateScenePartial')
+            body: expect.stringContaining('UpdateLookPartial')
           })
         );
-        expect(result).toEqual(mockScene);
+        expect(result).toEqual(mockLook);
       });
 
       it('should update scene with fixture values', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { updateScenePartial: mockScene }
+            data: { updateLookPartial: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.updateScenePartial('scene-1', {
-          name: 'Updated Scene',
+        await client.updateLookPartial('look-1', {
+          name: 'Updated Look',
           fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           mergeFixtures: true
         });
@@ -764,12 +764,12 @@ describe('LacyLightsGraphQLClient', () => {
       it('should handle merge mode correctly', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { updateScenePartial: mockScene }
+            data: { updateLookPartial: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.updateScenePartial('scene-1', {
+        await client.updateLookPartial('look-1', {
           fixtureValues: [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           mergeFixtures: false
         });
@@ -782,48 +782,48 @@ describe('LacyLightsGraphQLClient', () => {
         );
       });
 
-      it('should include sceneOrder in fixture values', async () => {
+      it('should include lookOrder in fixture values', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { updateScenePartial: mockScene }
+            data: { updateLookPartial: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.updateScenePartial('scene-1', {
+        await client.updateLookPartial('look-1', {
           fixtureValues: [{ 
             fixtureId: 'fixture-1', 
             channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }], 
-            sceneOrder: 5 
+            lookOrder: 5 
           }]
         });
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://localhost:4000/graphql',
           expect.objectContaining({
-            body: expect.stringContaining('sceneOrder')
+            body: expect.stringContaining('lookOrder')
           })
         );
       });
 
-      it('should handle updateScenePartial errors', async () => {
+      it('should handle updateLookPartial errors', async () => {
         mockFetch.mockRejectedValue(new Error('Network error'));
 
-        await expect(client.updateScenePartial('scene-1', { name: 'Updated' }))
+        await expect(client.updateLookPartial('look-1', { name: 'Updated' }))
           .rejects.toThrow('Network error');
       });
     });
 
     describe('GraphQL Query Structure', () => {
-      it('should include all required fields in scene queries', async () => {
+      it('should include all required fields in look queries', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { addFixturesToScene: mockScene }
+            data: { addFixturesToLook: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.addFixturesToScene('scene-1', [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }], false);
+        await client.addFixturesToLook('look-1', [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }], false);
 
         const callBody = mockFetch.mock.calls[0][1]?.body as string;
         const parsedBody = JSON.parse(callBody);
@@ -837,21 +837,21 @@ describe('LacyLightsGraphQLClient', () => {
         expect(query).toContain('fixtureValues');
         expect(query).toContain('fixture');
         expect(query).toContain('channels');
-        expect(query).toContain('sceneOrder');
+        expect(query).toContain('lookOrder');
       });
 
       it('should structure mutation variables correctly', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { addFixturesToScene: mockScene }
+            data: { addFixturesToLook: mockLook }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await client.addFixturesToScene(
+        await client.addFixturesToLook(
           'test-scene',
           [
-            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], sceneOrder: 1 },
+            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], lookOrder: 1 },
             { fixtureId: 'fixture-2', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] }
           ],
           true
@@ -861,9 +861,9 @@ describe('LacyLightsGraphQLClient', () => {
         const parsedBody = JSON.parse(callBody);
 
         expect(parsedBody.variables).toEqual({
-          sceneId: 'test-scene',
+          lookId: 'test-scene',
           fixtureValues: [
-            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], sceneOrder: 1 },
+            { fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }], lookOrder: 1 },
             { fixtureId: 'fixture-2', channels: [{ offset: 0, value: 200 }, { offset: 1, value: 100 }, { offset: 2, value: 50 }] }
           ],
           overwriteExisting: true
@@ -872,40 +872,40 @@ describe('LacyLightsGraphQLClient', () => {
     });
 
     describe('API Consistency Tests', () => {
-      it('should use consistent response structure across all safe scene methods', async () => {
+      it('should use consistent response structure across all safe look methods', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
             data: { 
-              addFixturesToScene: mockScene,
-              removeFixturesFromScene: mockScene,
-              updateScenePartial: mockScene
+              addFixturesToLook: mockLook,
+              removeFixturesFromLook: mockLook,
+              updateLookPartial: mockLook
             }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        // Test addFixturesToScene
-        const addResult = await client.addFixturesToScene(
-          'scene-1',
+        // Test addFixturesToLook
+        const addResult = await client.addFixturesToLook(
+          'look-1',
           [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         );
 
-        // Test removeFixturesFromScene  
-        const removeResult = await client.removeFixturesFromScene('scene-1', ['fixture-1']);
+        // Test removeFixturesFromLook  
+        const removeResult = await client.removeFixturesFromLook('look-1', ['fixture-1']);
 
-        // Test updateScenePartial
-        const updateResult = await client.updateScenePartial('scene-1', { name: 'Updated' });
+        // Test updateLookPartial
+        const updateResult = await client.updateLookPartial('look-1', { name: 'Updated' });
 
         // Verify all return the same structure
-        expect(addResult).toEqual(mockScene);
-        expect(removeResult).toEqual(mockScene);
-        expect(updateResult).toEqual(mockScene);
+        expect(addResult).toEqual(mockLook);
+        expect(removeResult).toEqual(mockLook);
+        expect(updateResult).toEqual(mockLook);
 
-        // Verify all include sceneOrder
-        expect(addResult.fixtureValues[0]).toHaveProperty('sceneOrder');
-        expect(removeResult.fixtureValues[0]).toHaveProperty('sceneOrder');
-        expect(updateResult.fixtureValues[0]).toHaveProperty('sceneOrder');
+        // Verify all include lookOrder
+        expect(addResult.fixtureValues[0]).toHaveProperty('lookOrder');
+        expect(removeResult.fixtureValues[0]).toHaveProperty('lookOrder');
+        expect(updateResult.fixtureValues[0]).toHaveProperty('lookOrder');
       });
     });
 
@@ -913,29 +913,29 @@ describe('LacyLightsGraphQLClient', () => {
       it('should handle GraphQL errors consistently', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            errors: [{ message: 'Scene not found' }]
+            errors: [{ message: 'Look not found' }]
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await expect(client.addFixturesToScene(
+        await expect(client.addFixturesToLook(
           'non-existent',
           [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
-        )).rejects.toThrow('Scene not found');
+        )).rejects.toThrow('Look not found');
 
-        await expect(client.removeFixturesFromScene('non-existent', ['fixture-1']))
-          .rejects.toThrow('Scene not found');
+        await expect(client.removeFixturesFromLook('non-existent', ['fixture-1']))
+          .rejects.toThrow('Look not found');
 
-        await expect(client.updateScenePartial('non-existent', { name: 'Updated' }))
-          .rejects.toThrow('Scene not found');
+        await expect(client.updateLookPartial('non-existent', { name: 'Updated' }))
+          .rejects.toThrow('Look not found');
       });
 
       it('should handle network errors', async () => {
         mockFetch.mockRejectedValue(new Error('Network timeout'));
 
-        await expect(client.addFixturesToScene(
-          'scene-1',
+        await expect(client.addFixturesToLook(
+          'look-1',
           [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         )).rejects.toThrow('Network timeout');
@@ -947,8 +947,8 @@ describe('LacyLightsGraphQLClient', () => {
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        await expect(client.addFixturesToScene(
-          'scene-1',
+        await expect(client.addFixturesToLook(
+          'look-1',
           [{ fixtureId: 'fixture-1', channels: [{ offset: 0, value: 255 }, { offset: 1, value: 0 }, { offset: 2, value: 0 }] }],
           false
         )).rejects.toThrow();
@@ -959,8 +959,8 @@ describe('LacyLightsGraphQLClient', () => {
   describe('bulkUpdateCues', () => {
     it('should bulk update cues', async () => {
       const mockCues = [
-        { id: '1', name: 'Cue 1', cueNumber: 1, fadeInTime: 2, fadeOutTime: 2, followTime: null, notes: '', scene: { id: 'scene-1', name: 'Scene 1' } },
-        { id: '2', name: 'Cue 2', cueNumber: 2, fadeInTime: 3, fadeOutTime: 3, followTime: null, notes: '', scene: { id: 'scene-1', name: 'Scene 1' } }
+        { id: '1', name: 'Cue 1', cueNumber: 1, fadeInTime: 2, fadeOutTime: 2, followTime: null, notes: '', look: { id: 'look-1', name: 'Scene 1' } },
+        { id: '2', name: 'Cue 2', cueNumber: 2, fadeInTime: 3, fadeOutTime: 3, followTime: null, notes: '', look: { id: 'look-1', name: 'Scene 1' } }
       ];
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
@@ -1012,23 +1012,23 @@ describe('LacyLightsGraphQLClient', () => {
     });
   });
 
-  describe('setSceneLive', () => {
+  describe('setLookLive', () => {
     it('should set scene live', async () => {
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { setSceneLive: true }
+          data: { setLookLive: true }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
-      const result = await client.setSceneLive('scene-1');
+      const result = await client.setLookLive('look-1');
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:4000/graphql',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: expect.stringContaining('ActivateScene')
+          body: expect.stringContaining('ActivateLook')
         })
       );
       expect(result).toBe(true);
@@ -1058,45 +1058,45 @@ describe('LacyLightsGraphQLClient', () => {
     });
   });
 
-  describe('getScene', () => {
-    it('should get scene by id', async () => {
-      const mockScene = {
-        id: 'scene-1',
-        name: 'Test Scene',
-        description: 'A test scene',
+  describe('getLook', () => {
+    it('should get look by id', async () => {
+      const mockLook = {
+        id: 'look-1',
+        name: 'Test Look',
+        description: 'A test look',
         createdAt: '2023-01-01',
         updatedAt: '2023-01-01',
         fixtureValues: []
       };
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { scene: mockScene }
+          data: { look: mockLook }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
-      const result = await client.getScene('scene-1');
+      const result = await client.getLook('look-1');
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:4000/graphql',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: expect.stringContaining('GetScene')
+          body: expect.stringContaining('GetLook')
         })
       );
-      expect(result).toEqual(mockScene);
+      expect(result).toEqual(mockLook);
     });
 
-    it('should return null for non-existent scene', async () => {
+    it('should return null for non-existent look', async () => {
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { scene: null }
+          data: { look: null }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
-      const result = await client.getScene('non-existent');
+      const result = await client.getLook('non-existent');
       expect(result).toBeNull();
     });
   });
@@ -1160,12 +1160,12 @@ describe('LacyLightsGraphQLClient', () => {
     });
   });
 
-  describe('getCurrentActiveScene', () => {
-    it('should get current active scene', async () => {
-      const mockScene = {
-        id: 'scene-1',
-        name: 'Active Scene',
-        description: 'Currently active scene',
+  describe('getCurrentActiveLook', () => {
+    it('should get current active look', async () => {
+      const mockLook = {
+        id: 'look-1',
+        name: 'Active Look',
+        description: 'Currently active look',
         createdAt: '2023-01-01',
         updatedAt: '2023-01-01',
         project: { id: 'project-1', name: 'Test Project' },
@@ -1173,33 +1173,33 @@ describe('LacyLightsGraphQLClient', () => {
       };
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { currentActiveScene: mockScene }
+          data: { currentActiveLook: mockLook }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
-      const result = await client.getCurrentActiveScene();
+      const result = await client.getCurrentActiveLook();
 
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:4000/graphql',
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: expect.stringContaining('GetCurrentActiveScene')
+          body: expect.stringContaining('GetCurrentActiveLook')
         })
       );
-      expect(result).toEqual(mockScene);
+      expect(result).toEqual(mockLook);
     });
 
-    it('should return null when no scene is active', async () => {
+    it('should return null when no look is active', async () => {
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { currentActiveScene: null }
+          data: { currentActiveLook: null }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
 
-      const result = await client.getCurrentActiveScene();
+      const result = await client.getCurrentActiveLook();
       expect(result).toBeNull();
     });
   });
@@ -1214,7 +1214,7 @@ describe('LacyLightsGraphQLClient', () => {
         fadeOutTime: 2,
         followTime: null,
         notes: 'Test notes',
-        scene: { id: 'scene-1', name: 'Scene 1' }
+        look: { id: 'look-1', name: 'Scene 1' }
       };
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
@@ -1458,12 +1458,12 @@ describe('LacyLightsGraphQLClient', () => {
   });
 
   // ========================================================================
-  // Scene Board Tests
+  // Look Board Tests
   // ========================================================================
 
-  describe('Scene Board Operations', () => {
-    describe('listSceneBoards', () => {
-      it('should list scene boards for a project', async () => {
+  describe('Look Board Operations', () => {
+    describe('listLookBoards', () => {
+      it('should list look boards for a project', async () => {
         const mockBoards = [
           {
             id: 'board-1',
@@ -1482,26 +1482,26 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { sceneBoards: mockBoards }
+            data: { lookBoards: mockBoards }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.listSceneBoards('project-1');
+        const result = await client.listLookBoards('project-1');
 
         expect(mockFetch).toHaveBeenCalledWith(
           'http://localhost:4000/graphql',
           expect.objectContaining({
             method: 'POST',
-            body: expect.stringContaining('sceneBoards')
+            body: expect.stringContaining('lookBoards')
           })
         );
         expect(result).toEqual(mockBoards);
       });
     });
 
-    describe('getSceneBoard', () => {
-      it('should get a specific scene board', async () => {
+    describe('getLookBoard', () => {
+      it('should get a specific look board', async () => {
         const mockBoard = {
           id: 'board-1',
           name: 'Test Board',
@@ -1510,19 +1510,19 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { sceneBoard: mockBoard }
+            data: { lookBoard: mockBoard }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.getSceneBoard('board-1');
+        const result = await client.getLookBoard('board-1');
 
         expect(result).toEqual(mockBoard);
       });
     });
 
-    describe('createSceneBoard', () => {
-      it('should create a scene board', async () => {
+    describe('createLookBoard', () => {
+      it('should create a look board', async () => {
         const input = {
           name: 'New Board',
           projectId: 'project-1',
@@ -1543,19 +1543,19 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { createSceneBoard: mockBoard }
+            data: { createLookBoard: mockBoard }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.createSceneBoard(input);
+        const result = await client.createLookBoard(input);
 
         expect(result).toEqual(mockBoard);
       });
     });
 
-    describe('updateSceneBoard', () => {
-      it('should update a scene board', async () => {
+    describe('updateLookBoard', () => {
+      it('should update a look board', async () => {
         const updates = {
           name: 'Updated Board',
           defaultFadeTime: 5.0
@@ -1571,34 +1571,34 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { updateSceneBoard: mockBoard }
+            data: { updateLookBoard: mockBoard }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.updateSceneBoard('board-1', updates);
+        const result = await client.updateLookBoard('board-1', updates);
 
         expect(result).toEqual(mockBoard);
       });
     });
 
-    describe('deleteSceneBoard', () => {
-      it('should delete a scene board', async () => {
+    describe('deleteLookBoard', () => {
+      it('should delete a look board', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { deleteSceneBoard: true }
+            data: { deleteLookBoard: true }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.deleteSceneBoard('board-1');
+        const result = await client.deleteLookBoard('board-1');
 
         expect(result).toBe(true);
       });
     });
 
-    describe('bulkCreateSceneBoards', () => {
-      it('should create multiple scene boards', async () => {
+    describe('bulkCreateLookBoards', () => {
+      it('should create multiple look boards', async () => {
         const input = [
           { name: 'Board 1', projectId: 'project-1' },
           { name: 'Board 2', projectId: 'project-1' }
@@ -1618,20 +1618,20 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { bulkCreateSceneBoards: mockBoards }
+            data: { bulkCreateLookBoards: mockBoards }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.bulkCreateSceneBoards(input);
+        const result = await client.bulkCreateLookBoards(input);
 
         expect(result).toEqual(mockBoards);
         expect(result).toHaveLength(2);
       });
     });
 
-    describe('bulkDeleteSceneBoards', () => {
-      it('should delete multiple scene boards', async () => {
+    describe('bulkDeleteLookBoards', () => {
+      it('should delete multiple look boards', async () => {
         const mockResult = {
           successCount: 2,
           failedIds: []
@@ -1639,24 +1639,24 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { bulkDeleteSceneBoards: mockResult }
+            data: { bulkDeleteLookBoards: mockResult }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.bulkDeleteSceneBoards(['board-1', 'board-2']);
+        const result = await client.bulkDeleteLookBoards(['board-1', 'board-2']);
 
         expect(result).toEqual(mockResult);
       });
     });
   });
 
-  describe('Scene Board Button Operations', () => {
-    describe('addSceneToBoard', () => {
+  describe('Look Board Button Operations', () => {
+    describe('addLookToBoard', () => {
       it('should add a scene to board as button', async () => {
         const input = {
-          sceneBoardId: 'board-1',
-          sceneId: 'scene-1',
+          lookBoardId: 'board-1',
+          lookId: 'look-1',
           layoutX: 100,
           layoutY: 200,
           width: 200,
@@ -1666,26 +1666,26 @@ describe('LacyLightsGraphQLClient', () => {
         const mockButton = {
           id: 'button-1',
           ...input,
-          sceneBoard: { id: 'board-1', name: 'Test Board' },
-          scene: { id: 'scene-1', name: 'Test Scene' },
+          lookBoard: { id: 'board-1', name: 'Test Board' },
+          look: { id: 'look-1', name: 'Test Look' },
           createdAt: '2024-01-01',
           updatedAt: '2024-01-01'
         };
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { addSceneToBoard: mockButton }
+            data: { addLookToBoard: mockButton }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.addSceneToBoard(input);
+        const result = await client.addLookToBoard(input);
 
         expect(result).toEqual(mockButton);
       });
     });
 
-    describe('updateSceneBoardButton', () => {
+    describe('updateLookBoardButton', () => {
       it('should update a button', async () => {
         const updates = {
           layoutX: 150,
@@ -1695,8 +1695,8 @@ describe('LacyLightsGraphQLClient', () => {
         const mockButton = {
           id: 'button-1',
           ...updates,
-          sceneBoard: { id: 'board-1', name: 'Test Board' },
-          scene: { id: 'scene-1', name: 'Test Scene' },
+          lookBoard: { id: 'board-1', name: 'Test Board' },
+          look: { id: 'look-1', name: 'Test Look' },
           layoutY: 200,
           width: 200,
           height: 120,
@@ -1705,33 +1705,33 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { updateSceneBoardButton: mockButton }
+            data: { updateLookBoardButton: mockButton }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.updateSceneBoardButton('button-1', updates);
+        const result = await client.updateLookBoardButton('button-1', updates);
 
         expect(result).toEqual(mockButton);
       });
     });
 
-    describe('removeSceneFromBoard', () => {
+    describe('removeLookFromBoard', () => {
       it('should remove a button from board', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { removeSceneFromBoard: true }
+            data: { removeLookFromBoard: true }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.removeSceneFromBoard('button-1');
+        const result = await client.removeLookFromBoard('button-1');
 
         expect(result).toBe(true);
       });
     });
 
-    describe('updateSceneBoardButtonPositions', () => {
+    describe('updateLookBoardButtonPositions', () => {
       it('should update multiple button positions', async () => {
         const positions = [
           { buttonId: 'button-1', layoutX: 100, layoutY: 100 },
@@ -1740,29 +1740,29 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { updateSceneBoardButtonPositions: true }
+            data: { updateLookBoardButtonPositions: true }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.updateSceneBoardButtonPositions(positions);
+        const result = await client.updateLookBoardButtonPositions(positions);
 
         expect(result).toBe(true);
       });
     });
 
-    describe('bulkCreateSceneBoardButtons', () => {
+    describe('bulkCreateLookBoardButtons', () => {
       it('should create multiple buttons', async () => {
         const input = [
-          { sceneBoardId: 'board-1', sceneId: 'scene-1', layoutX: 100, layoutY: 100 },
-          { sceneBoardId: 'board-1', sceneId: 'scene-2', layoutX: 300, layoutY: 100 }
+          { lookBoardId: 'board-1', lookId: 'look-1', layoutX: 100, layoutY: 100 },
+          { lookBoardId: 'board-1', lookId: 'look-2', layoutX: 300, layoutY: 100 }
         ];
 
         const mockButtons = input.map((b, i) => ({
           id: `button-${i + 1}`,
           ...b,
-          sceneBoard: { id: 'board-1', name: 'Test Board' },
-          scene: { id: b.sceneId, name: `Scene ${i + 1}` },
+          lookBoard: { id: 'board-1', name: 'Test Board' },
+          look: { id: b.lookId, name: `Look ${i + 1}` },
           width: 200,
           height: 120,
           createdAt: '2024-01-01',
@@ -1771,19 +1771,19 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { bulkCreateSceneBoardButtons: mockButtons }
+            data: { bulkCreateLookBoardButtons: mockButtons }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.bulkCreateSceneBoardButtons(input);
+        const result = await client.bulkCreateLookBoardButtons(input);
 
         expect(result).toEqual(mockButtons);
         expect(result).toHaveLength(2);
       });
     });
 
-    describe('bulkDeleteSceneBoardButtons', () => {
+    describe('bulkDeleteLookBoardButtons', () => {
       it('should delete multiple buttons', async () => {
         const mockResult = {
           successCount: 2,
@@ -1792,27 +1792,27 @@ describe('LacyLightsGraphQLClient', () => {
 
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { bulkDeleteSceneBoardButtons: mockResult }
+            data: { bulkDeleteLookBoardButtons: mockResult }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.bulkDeleteSceneBoardButtons(['button-1', 'button-2']);
+        const result = await client.bulkDeleteLookBoardButtons(['button-1', 'button-2']);
 
         expect(result).toEqual(mockResult);
       });
     });
 
-    describe('activateSceneFromBoard', () => {
+    describe('activateLookFromBoard', () => {
       it('should activate scene with board default fade time', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { activateSceneFromBoard: true }
+            data: { activateLookFromBoard: true }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.activateSceneFromBoard('board-1', 'scene-1');
+        const result = await client.activateLookFromBoard('board-1', 'look-1');
 
         expect(result).toBe(true);
       });
@@ -1820,12 +1820,12 @@ describe('LacyLightsGraphQLClient', () => {
       it('should activate scene with custom fade time', async () => {
         const mockResponse = {
           json: jest.fn().mockResolvedValue({
-            data: { activateSceneFromBoard: true }
+            data: { activateLookFromBoard: true }
           })
         };
         mockFetch.mockResolvedValue(mockResponse as any);
 
-        const result = await client.activateSceneFromBoard('board-1', 'scene-1', 5.0);
+        const result = await client.activateLookFromBoard('board-1', 'look-1', 5.0);
 
         expect(result).toBe(true);
       });

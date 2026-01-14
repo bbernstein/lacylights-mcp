@@ -3,7 +3,7 @@ import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
 // Project type not currently used in this file
 
 const ListProjectsSchema = z.object({
-  includeDetails: z.boolean().default(false).describe('Include fixture and scene counts')
+  includeDetails: z.boolean().default(false).describe('Include fixture and look counts')
 });
 
 const CreateProjectSchema = z.object({
@@ -57,7 +57,7 @@ export class ProjectTools {
             createdAt: project.createdAt,
             updatedAt: project.updatedAt,
             fixtureCount: project.fixtureCount,
-            sceneCount: project.sceneCount,
+            lookCount: project.lookCount,
             cueListCount: project.cueListCount
           })),
           totalProjects: projects.length
@@ -97,7 +97,7 @@ export class ProjectTools {
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
           fixtureCount: project.fixtureCount,
-          sceneCount: project.sceneCount,
+          lookCount: project.lookCount,
           cueListCount: project.cueListCount
         }
       };
@@ -179,13 +179,13 @@ export class ProjectTools {
             }))
           }))
         },
-        scenes: {
-          total: project.scenes.length,
-          list: project.scenes.map(s => ({
-            id: s.id,
-            name: s.name,
-            description: s.description,
-            fixtureCount: s.fixtureValues?.length || 0
+        looks: {
+          total: project.looks.length,
+          list: project.looks.map(l => ({
+            id: l.id,
+            name: l.name,
+            description: l.description,
+            fixtureCount: l.fixtureValues?.length || 0
           }))
         },
         cueLists: {

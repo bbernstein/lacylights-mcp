@@ -10,7 +10,7 @@ An MCP (Model Context Protocol) server that provides AI-powered theatrical light
 
 LacyLights MCP is an intelligent lighting control interface that bridges the gap between creative vision and technical execution. It allows lighting designers, directors, and technicians to:
 
-- **Design lighting scenes** using natural language descriptions
+- **Design lighting looks** using natural language descriptions
 - **Analyze theatrical scripts** to automatically generate lighting cues
 - **Manage DMX fixtures** from various manufacturers
 - **Create and run cue sequences** for theatrical performances
@@ -22,7 +22,7 @@ The system uses AI to understand artistic intent and translate it into precise D
 
 ### Project Management
 
-- **`list_projects`** - List all available lighting projects with optional fixture/scene counts
+- **`list_projects`** - List all available lighting projects with optional fixture/look counts
 - **`create_project`** - Create a new lighting project for a production
 - **`get_project_details`** - Get comprehensive details about a specific project
 - **`delete_project`** - Delete a project and all associated data (requires confirmation)
@@ -38,28 +38,28 @@ The system uses AI to understand artistic intent and translate it into precise D
 - **`update_fixture_instance`** - Modify existing fixture properties
 - **`delete_fixture_instance`** - Remove a fixture from a project (requires confirmation)
 
-### Scene Creation & Management
+### Look Creation & Management
 
-- **`generate_scene`** - AI-powered scene generation based on descriptions and context
+- **`generate_look`** - AI-powered look generation based on descriptions and context
 - **`analyze_script`** - Extract lighting cues and suggestions from theatrical scripts
-- **`optimize_scene`** - Optimize scenes for various goals (energy, impact, simplicity)
-- **`update_scene`** - Update scene properties and fixture values
-- **`activate_scene`** - Activate a scene by name or ID
+- **`optimize_look`** - Optimize looks for various goals (energy, impact, simplicity)
+- **`update_look`** - Update look properties and fixture values
+- **`activate_look`** - Activate a look by name or ID
 - **`fade_to_black`** - Fade all lights to black with customizable timing
-- **`get_current_active_scene`** - Get information about the currently active scene
+- **`get_current_active_look`** - Get information about the currently active look
 
-### Advanced Scene Operations
+### Advanced Look Operations
 
-- **`add_fixtures_to_scene`** - Add fixtures to existing scenes
-- **`remove_fixtures_from_scene`** - Remove specific fixtures from scenes
-- **`get_scene_fixture_values`** - Read current fixture values in a scene
-- **`ensure_fixtures_in_scene`** - Ensure fixtures exist with specific values
-- **`update_scene_partial`** - Partial scene updates with fixture merging
-- **`bulk_update_scenes_partial`** - Batch partial updates across multiple scenes with fixture merging
+- **`add_fixtures_to_look`** - Add fixtures to existing looks
+- **`remove_fixtures_from_look`** - Remove specific fixtures from looks
+- **`get_look_fixture_values`** - Read current fixture values in a look
+- **`ensure_fixtures_in_look`** - Ensure fixtures exist with specific values
+- **`update_look_partial`** - Partial look updates with fixture merging
+- **`bulk_update_looks_partial`** - Batch partial updates across multiple looks with fixture merging
 
 ### Cue Sequence Management
 
-- **`create_cue_sequence`** - Build cue sequences from existing scenes
+- **`create_cue_sequence`** - Build cue sequences from existing looks
 - **`generate_act_cues`** - Generate complete cue lists for theatrical acts
 - **`optimize_cue_timing`** - Optimize cue timing for various strategies
 - **`analyze_cue_structure`** - Analyze cue lists with recommendations
@@ -84,32 +84,32 @@ The system uses AI to understand artistic intent and translate it into precise D
 - **`stop_cue_list`** - Stop the currently playing cue list
 - **`get_cue_list_status`** - Get playback status and navigation options
 
-### Scene Board Management
+### Look Board Management
 
-Scene Boards provide a visual layout system for organizing and triggering scenes with customizable button positions on a 2D canvas (default 2000x2000 pixels).
+Look Boards provide a visual layout system for organizing and triggering looks with customizable button positions on a 2D canvas (default 2000x2000 pixels).
 
-#### Scene Board CRUD
-- **`list_scene_boards`** - List all scene boards in a project with button counts
-- **`get_scene_board`** - Get a specific scene board with all buttons and layout
-- **`create_scene_board`** - Create a new scene board with custom canvas and grid settings
-- **`update_scene_board`** - Update scene board metadata and settings
-- **`delete_scene_board`** - Delete a scene board and all its buttons (requires confirmation)
-- **`bulk_create_scene_boards`** - Create multiple scene boards in a single operation
-- **`bulk_update_scene_boards`** - Update multiple scene boards in a single operation
-- **`bulk_delete_scene_boards`** - Delete multiple scene boards in a single operation
+#### Look Board CRUD
+- **`list_look_boards`** - List all look boards in a project with button counts
+- **`get_look_board`** - Get a specific look board with all buttons and layout
+- **`create_look_board`** - Create a new look board with custom canvas and grid settings
+- **`update_look_board`** - Update look board metadata and settings
+- **`delete_look_board`** - Delete a look board and all its buttons (requires confirmation)
+- **`bulk_create_look_boards`** - Create multiple look boards in a single operation
+- **`bulk_update_look_boards`** - Update multiple look boards in a single operation
+- **`bulk_delete_look_boards`** - Delete multiple look boards in a single operation
 
-#### Scene Board Button Management
-- **`add_scene_to_board`** - Add a scene as a button at a specific canvas position
-- **`update_scene_board_button`** - Update button properties (position, size, color, label)
-- **`remove_scene_from_board`** - Remove a button from a scene board
-- **`update_scene_board_button_positions`** - Batch update button positions (drag-and-drop)
-- **`bulk_create_scene_board_buttons`** - Create multiple buttons in a single operation
-- **`bulk_update_scene_board_buttons`** - Update multiple buttons in a single operation
-- **`bulk_delete_scene_board_buttons`** - Delete multiple buttons in a single operation
+#### Look Board Button Management
+- **`add_look_to_board`** - Add a look as a button at a specific canvas position
+- **`update_look_board_button`** - Update button properties (position, size, color, label)
+- **`remove_look_from_board`** - Remove a button from a look board
+- **`update_look_board_button_positions`** - Batch update button positions (drag-and-drop)
+- **`bulk_create_look_board_buttons`** - Create multiple buttons in a single operation
+- **`bulk_update_look_board_buttons`** - Update multiple buttons in a single operation
+- **`bulk_delete_look_board_buttons`** - Delete multiple buttons in a single operation
 
-#### Scene Board Playback
-- **`activate_scene_from_board`** - Activate a scene from a board (uses board's default fade time)
-- **`create_scene_board_with_buttons`** - Create a complete scene board with buttons in one command
+#### Look Board Playback
+- **`activate_look_from_board`** - Activate a look from a board (uses board's default fade time)
+- **`create_look_board_with_buttons`** - Create a complete look board with buttons in one command
 
 ## Installation
 
@@ -336,10 +336,10 @@ Use analyze_script with the full text of Act 1 to extract:
 - Mood and atmosphere requirements for each scene
 ```
 
-### Step 4: Generate Key Scenes
+### Step 4: Generate Key Looks
 
 ```
-Use generate_scene to create these essential scenes:
+Use generate_look to create these essential looks:
 
 1. "Opening - Thunder and Lightning"
    - Script context: "Thunder and lightning. Enter three witches."
@@ -397,7 +397,7 @@ Use generate_scene to create these essential scenes:
 ```
 Use create_cue_sequence to build the Act 1 cue list:
 - Name: "Act 1 - Complete"
-- Include all Act 1 scenes in order
+- Include all Act 1 looks in order
 - Set default fade times: 3 seconds in, 3 seconds out
 - Add follow cues for quick transitions during soliloquies
 ```
@@ -446,7 +446,7 @@ fade_to_black 5  # Emergency blackout with 5-second fade
 ### Step 10: Make Live Adjustments
 
 ```
-Use update_scene to adjust the "Banquo's Ghost" scene:
+Use update_look to adjust the "Banquo's Ghost" look:
 - Increase moving head intensity for better visibility
 - Adjust color temperature based on costume reflectance
 - Fine-tune positioning for actor's blocking changes
@@ -460,16 +460,16 @@ Use update_scene to adjust the "Banquo's Ghost" scene:
 1. Analyze the entire script:
    analyze_script with full play text
 
-2. Review extracted cues and scenes
+2. Review extracted cues and looks
 
-3. Generate all suggested scenes in batch:
-   generate_scene for each suggestion
+3. Generate all suggested looks in batch:
+   generate_look for each suggestion
 
 4. Create master cue list:
-   create_cue_sequence with all scenes
+   create_cue_sequence with all looks
 
 5. Optimize for your venue:
-   optimize_scene for each scene with "technical_simplicity"
+   optimize_look for each look with "technical_simplicity"
 ```
 
 ### Multi-Universe Setup
@@ -495,13 +495,13 @@ For large productions spanning multiple DMX universes:
 Director requests:
 "I want the witches' scenes to feel otherworldly but not cartoonish"
 
-Use generate_scene:
+Use generate_look:
 - Description: "Witches on the heath"
 - Mood: "otherworldly, mysterious"
 - Color palette: ["deep violet", "fog grey", "pale green"]
 - Intensity: "subtle"
 
-Then iterate with optimize_scene using "dramatic_impact" until satisfied
+Then iterate with optimize_look using "dramatic_impact" until satisfied
 ```
 
 ## AI-Powered Features
@@ -512,7 +512,7 @@ Then iterate with optimize_scene using "dramatic_impact" until satisfied
 - Suggests atmospheric lighting based on dramatic context
 - Recognizes standard theatrical conventions (sunrise, sunset, storms)
 
-### Context-Aware Scene Generation
+### Context-Aware Look Generation
 - Understands theatrical lighting principles
 - Applies color theory for emotional impact
 - Considers fixture capabilities and positions
@@ -583,13 +583,13 @@ CHROMA_PORT=8000
 
 This MCP server is part of the complete LacyLights system:
 
-- **lacylights-go** - Backend GraphQL API for fixture and scene management
+- **lacylights-go** - Backend GraphQL API for fixture and look management
 - **lacylights-fe** - Web frontend for manual control and visualization
 - **lacylights-mcp** - AI interface for intelligent automation
 
 The MCP server enhances the existing system with:
 - Natural language control
-- Intelligent scene generation
+- Intelligent look generation
 - Script analysis capabilities
 - Automated cue creation
 - Performance optimization
@@ -602,13 +602,13 @@ The MCP server enhances the existing system with:
 src/
 ├── tools/           # MCP tool implementations
 │   ├── fixture-tools.ts    # Fixture management operations
-│   ├── scene-tools.ts      # Scene creation and control
+│   ├── look-tools.ts       # Look creation and control
 │   ├── cue-tools.ts        # Cue list management
 │   └── project-tools.ts    # Project operations
 ├── services/        # Core services
 │   ├── graphql-client.ts   # GraphQL API client
 │   ├── rag-service.ts      # RAG pattern matching
-│   └── ai-lighting.ts      # AI scene generation
+│   └── ai-lighting.ts      # AI look generation
 ├── types/          # TypeScript type definitions
 │   └── lighting.ts         # Core lighting types
 └── index.ts        # MCP server entry point

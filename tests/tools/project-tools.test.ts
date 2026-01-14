@@ -46,11 +46,11 @@ describe('ProjectTools', () => {
         tags: ['wash']
       }
     ],
-    scenes: [
+    looks: [
       {
-        id: 'scene-1',
-        name: 'Test Scene',
-        description: 'Test scene description',
+        id: 'look-1',
+        name: 'Test Look',
+        description: 'Test look description',
         fixtureValues: []
       }
     ],
@@ -108,7 +108,7 @@ describe('ProjectTools', () => {
         createdAt: '2024-01-01',
         updatedAt: '2024-01-01',
         fixtureCount: 2,
-        sceneCount: 1,
+        lookCount: 1,
         cueListCount: 1
       };
 
@@ -126,7 +126,7 @@ describe('ProjectTools', () => {
             createdAt: '2024-01-01',
             updatedAt: '2024-01-01',
             fixtureCount: 2,
-            sceneCount: 1,
+            lookCount: 1,
             cueListCount: 1
           }
         ],
@@ -234,7 +234,7 @@ describe('ProjectTools', () => {
         createdAt: '2024-01-01',
         updatedAt: '2024-01-01',
         fixtureCount: 2,
-        sceneCount: 1,
+        lookCount: 1,
         cueListCount: 1
       };
 
@@ -251,7 +251,7 @@ describe('ProjectTools', () => {
           createdAt: '2024-01-01',
           updatedAt: '2024-01-01',
           fixtureCount: 2,
-          sceneCount: 1,
+          lookCount: 1,
           cueListCount: 1
         }
       });
@@ -279,7 +279,7 @@ describe('ProjectTools', () => {
         createdAt: '2024-01-01',
         updatedAt: '2024-01-01',
         fixtureCount: 0,
-        sceneCount: 0,
+        lookCount: 0,
         cueListCount: 0
       };
 
@@ -288,7 +288,7 @@ describe('ProjectTools', () => {
       const result = await projectTools.getProject({ projectId: 'project-1' });
 
       expect(result.project.fixtureCount).toBe(0);
-      expect(result.project.sceneCount).toBe(0);
+      expect(result.project.lookCount).toBe(0);
       expect(result.project.cueListCount).toBe(0);
     });
   });
@@ -318,7 +318,7 @@ describe('ProjectTools', () => {
       expect(result.fixtures.byUniverse[0].fixtures[0].channels).toBe('1-3');
       expect(result.fixtures.byUniverse[0].fixtures[1].channels).toBe('4-6');
 
-      expect(result.scenes.total).toBe(1);
+      expect(result.looks.total).toBe(1);
       expect(result.cueLists.total).toBe(1);
     });
 
@@ -333,7 +333,7 @@ describe('ProjectTools', () => {
       const emptyProject = {
         ...mockProject,
         fixtures: [],
-        scenes: [],
+        looks: [],
         cueLists: []
       };
 
@@ -343,7 +343,7 @@ describe('ProjectTools', () => {
 
       expect(result.fixtures.total).toBe(0);
       expect(result.fixtures.byUniverse).toHaveLength(0);
-      expect(result.scenes.total).toBe(0);
+      expect(result.looks.total).toBe(0);
       expect(result.cueLists.total).toBe(0);
     });
 

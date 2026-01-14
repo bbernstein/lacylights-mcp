@@ -16,12 +16,12 @@ const SearchFixturesSchema = z.object({
   perPage: z.number().int().min(1).max(100).default(20).describe('Results per page (max 100)')
 });
 
-const SearchScenesSchema = z.object({
+const SearchLooksSchema = z.object({
   projectId: z.string().describe('Project ID to search within'),
-  query: z.string().describe('Search query for scene name or description'),
+  query: z.string().describe('Search query for look name or description'),
   filter: z.object({
-    nameContains: z.string().optional().describe('Filter scenes where name contains this text'),
-    usesFixture: z.string().optional().describe('Filter scenes that use this fixture ID')
+    nameContains: z.string().optional().describe('Filter looks where name contains this text'),
+    usesFixture: z.string().optional().describe('Filter looks that use this fixture ID')
   }).optional().describe('Additional filters to apply'),
   page: z.number().int().min(1).default(1).describe('Page number for pagination'),
   perPage: z.number().int().min(1).max(100).default(20).describe('Results per page (max 100)')
@@ -100,13 +100,13 @@ export class SearchTools {
   }
 
   /**
-   * Search for scenes by name or description with optional filters
+   * Search for looks by name or description with optional filters
    */
-  async searchScenes(args: z.input<typeof SearchScenesSchema>) {
-    const { projectId, query, filter, page, perPage} = SearchScenesSchema.parse(args);
+  async searchLooks(args: z.input<typeof SearchLooksSchema>) {
+    const { projectId, query, filter, page, perPage} = SearchLooksSchema.parse(args);
 
     try {
-      const result = await this.graphqlClient.searchScenes(
+      const result = await this.graphqlClient.searchLooks(
         projectId,
         query,
         filter,
@@ -114,20 +114,20 @@ export class SearchTools {
         perPage
       );
 
-      const { scenes, pagination } = result;
+      const { looks, pagination } = result;
 
-      // Format scenes for better readability
-      const formattedScenes = scenes.map(scene => ({
-        id: scene.id,
-        name: scene.name,
-        description: scene.description,
-        fixtureCount: scene.fixtureCount,
-        created: scene.createdAt,
-        updated: scene.updatedAt
+      // Format looks for better readability
+      const formattedLooks = looks.map(look => ({
+        id: look.id,
+        name: look.name,
+        description: look.description,
+        fixtureCount: look.fixtureCount,
+        created: look.createdAt,
+        updated: look.updatedAt
       }));
 
       return {
-        results: formattedScenes,
+        results: formattedLooks,
         pagination: {
           currentPage: pagination.page,
           totalPages: pagination.totalPages,
@@ -138,13 +138,13 @@ export class SearchTools {
         summary: {
           query,
           filters: filter ? Object.keys(filter).filter(k => filter[k as keyof typeof filter] !== undefined) : [],
-          resultsCount: scenes.length,
+          resultsCount: looks.length,
           totalMatches: pagination.total
         },
-        message: `Found ${pagination.total} scene(s) matching "${query}"${filter ? ' with filters applied' : ''}`
+        message: `Found ${pagination.total} look(s) matching "${query}"${filter ? ' with filters applied' : ''}`
       };
     } catch (error) {
-      throw new Error(`Failed to search scenes: ${error}`);
+      throw new Error(`Failed to search looks: ${error}`);
     }
   }
 
@@ -172,9 +172,9 @@ export class SearchTools {
           cueNumber: cue.cueNumber,
           name: cue.name,
           notes: cue.notes,
-          scene: {
-            id: cue.scene.id,
-            name: cue.scene.name
+          look: {
+            id: cue.look.id,
+            name: cue.look.name
           },
           timing: {
             fadeInTime: cue.fadeInTime,

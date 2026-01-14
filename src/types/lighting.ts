@@ -6,7 +6,7 @@ export interface Project {
   createdAt?: string;
   updatedAt?: string;
   fixtures: FixtureInstance[];
-  scenes: Scene[];
+  looks: Look[];
   cueLists: CueList[];
 }
 
@@ -80,7 +80,7 @@ export interface FixtureMode {
   }>;
 }
 
-export interface Scene {
+export interface Look {
   id: string;
   name: string;
   description?: string;
@@ -92,7 +92,7 @@ export interface Scene {
 export interface FixtureValue {
   fixture: FixtureInstance;
   channels: { offset: number; value: number; }[]; // Sparse array of channel values
-  sceneOrder?: number; // Optional ordering within the scene
+  lookOrder?: number; // Optional ordering within the look
 }
 
 export interface CueList {
@@ -109,7 +109,7 @@ export interface Cue {
   id: string;
   name: string;
   cueNumber: number;
-  scene: Scene;
+  look: Look;
   cueList?: { id: string; name: string }; // Added for Task 2.5 (Cue List Query Tools)
   fadeInTime: number;
   fadeOutTime: number;
@@ -178,10 +178,10 @@ export interface ScriptScene {
 
 export interface LightingDesignRequest {
   scriptContext: string;
-  sceneDescription: string;
+  lookDescription: string;
   availableFixtures: FixtureInstance[];
-  sceneType?: 'full' | 'additive';
-  allFixtures?: FixtureInstance[]; // For additive scenes, context of all fixtures
+  lookType?: 'full' | 'additive';
+  allFixtures?: FixtureInstance[]; // For additive looks, context of all fixtures
   designPreferences?: {
     colorPalette?: string[];
     mood?: string;
@@ -190,7 +190,7 @@ export interface LightingDesignRequest {
   };
 }
 
-export interface GeneratedScene {
+export interface GeneratedLook {
   name: string;
   description: string;
   fixtureValues: Array<{
@@ -206,7 +206,7 @@ export interface CueSequence {
   cues: Array<{
     name: string;
     cueNumber: number;
-    sceneId: string;
+    lookId: string;
     fadeInTime: number;
     fadeOutTime: number;
     followTime?: number;
@@ -228,39 +228,39 @@ export interface CueUsageSummary {
 export interface FixtureUsage {
   fixtureId: string;
   fixtureName: string;
-  scenes: SceneSummary[];
+  looks: LookSummary[];
   cues: CueUsageSummary[];
 }
 
-export interface SceneUsage {
-  sceneId: string;
-  sceneName: string;
+export interface LookUsage {
+  lookId: string;
+  lookName: string;
   cues: CueUsageSummary[];
 }
 
 export enum DifferenceType {
   VALUES_CHANGED = 'VALUES_CHANGED',
-  ONLY_IN_SCENE1 = 'ONLY_IN_SCENE1',
-  ONLY_IN_SCENE2 = 'ONLY_IN_SCENE2'
+  ONLY_IN_LOOK1 = 'ONLY_IN_LOOK1',
+  ONLY_IN_LOOK2 = 'ONLY_IN_LOOK2'
 }
 
-export interface SceneDifference {
+export interface LookDifference {
   fixtureId: string;
   fixtureName: string;
   differenceType: DifferenceType;
-  scene1Values?: { offset: number; value: number; }[];
-  scene2Values?: { offset: number; value: number; }[];
+  look1Values?: { offset: number; value: number; }[];
+  look2Values?: { offset: number; value: number; }[];
 }
 
-export interface SceneComparison {
-  scene1: SceneSummary;
-  scene2: SceneSummary;
-  differences: SceneDifference[];
+export interface LookComparison {
+  look1: LookSummary;
+  look2: LookSummary;
+  differences: LookDifference[];
   identicalFixtureCount: number;
   differentFixtureCount: number;
 }
 
-export interface SceneSummary {
+export interface LookSummary {
   id: string;
   name: string;
   description?: string;
@@ -269,23 +269,23 @@ export interface SceneSummary {
   fixtureCount?: number;
 }
 
-// MCP API Refactor - Task 2.4: Scene Query Types
+// MCP API Refactor - Task 2.4: Look Query Types
 
-export interface SceneFixtureSummary {
+export interface LookFixtureSummary {
   fixtureId: string;
   fixtureName: string;
   fixtureType: FixtureType;
 }
 
-export enum SceneSortField {
+export enum LookSortField {
   NAME = 'NAME',
   CREATED_AT = 'CREATED_AT',
   UPDATED_AT = 'UPDATED_AT'
 }
 
-// Scene Board Types
+// Look Board Types
 
-export interface SceneBoard {
+export interface LookBoard {
   id: string;
   name: string;
   description?: string;
@@ -294,15 +294,15 @@ export interface SceneBoard {
   gridSize?: number;
   canvasWidth: number;
   canvasHeight: number;
-  buttons: SceneBoardButton[];
+  buttons: LookBoardButton[];
   createdAt: string;
   updatedAt: string;
 }
 
-export interface SceneBoardButton {
+export interface LookBoardButton {
   id: string;
-  sceneBoard: { id: string; name: string };
-  scene: { id: string; name: string };
+  lookBoard: { id: string; name: string };
+  look: { id: string; name: string };
   layoutX: number;
   layoutY: number;
   width?: number;
@@ -313,7 +313,7 @@ export interface SceneBoardButton {
   updatedAt: string;
 }
 
-export interface SceneBoardSummary {
+export interface LookBoardSummary {
   id: string;
   name: string;
   description?: string;

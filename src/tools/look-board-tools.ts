@@ -1,81 +1,81 @@
 import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
-import { SceneBoardButton } from '../types/lighting';
+import { LookBoardButton } from '../types/lighting';
 
 // ============================================================================
-// Scene Board Schemas
+// Look Board Schemas
 // ============================================================================
 
-const ListSceneBoardsSchema = z.object({
-  projectId: z.string().describe('Project ID to list scene boards from')
+const ListLookBoardsSchema = z.object({
+  projectId: z.string().describe('Project ID to list look boards from')
 });
 
-const GetSceneBoardSchema = z.object({
-  sceneBoardId: z.string().describe('Scene board ID to retrieve')
+const GetLookBoardSchema = z.object({
+  lookBoardId: z.string().describe('Look board ID to retrieve')
 });
 
-const CreateSceneBoardSchema = z.object({
-  name: z.string().describe('Scene board name'),
-  description: z.string().optional().describe('Scene board description'),
-  projectId: z.string().describe('Project ID to create scene board in'),
+const CreateLookBoardSchema = z.object({
+  name: z.string().describe('Look board name'),
+  description: z.string().optional().describe('Look board description'),
+  projectId: z.string().describe('Project ID to create look board in'),
   defaultFadeTime: z.number().optional().default(3.0).describe('Default fade time in seconds (default: 3.0)'),
   gridSize: z.number().optional().default(50).describe('Grid size for layout alignment (default: 50 pixels)'),
   canvasWidth: z.number().optional().default(2000).describe('Canvas width in pixels (default: 2000)'),
   canvasHeight: z.number().optional().default(2000).describe('Canvas height in pixels (default: 2000)')
 });
 
-const UpdateSceneBoardSchema = z.object({
-  sceneBoardId: z.string().describe('Scene board ID to update'),
-  name: z.string().optional().describe('New scene board name'),
-  description: z.string().optional().describe('New scene board description'),
+const UpdateLookBoardSchema = z.object({
+  lookBoardId: z.string().describe('Look board ID to update'),
+  name: z.string().optional().describe('New look board name'),
+  description: z.string().optional().describe('New look board description'),
   defaultFadeTime: z.number().optional().describe('New default fade time in seconds'),
   gridSize: z.number().optional().describe('New grid size for layout alignment'),
   canvasWidth: z.number().optional().describe('New canvas width in pixels'),
   canvasHeight: z.number().optional().describe('New canvas height in pixels')
 });
 
-const DeleteSceneBoardSchema = z.object({
-  sceneBoardId: z.string().describe('Scene board ID to delete'),
-  confirmDelete: z.boolean().describe('Confirm deletion of scene board and all its buttons (required to be true for safety)')
+const DeleteLookBoardSchema = z.object({
+  lookBoardId: z.string().describe('Look board ID to delete'),
+  confirmDelete: z.boolean().describe('Confirm deletion of look board and all its buttons (required to be true for safety)')
 });
 
-// Bulk Scene Board Schemas
-const BulkCreateSceneBoardsSchema = z.object({
-  sceneBoards: z.array(z.object({
-    name: z.string().describe('Scene board name'),
-    description: z.string().optional().describe('Scene board description'),
-    projectId: z.string().describe('Project ID to create scene board in'),
+// Bulk Look Board Schemas
+const BulkCreateLookBoardsSchema = z.object({
+  lookBoards: z.array(z.object({
+    name: z.string().describe('Look board name'),
+    description: z.string().optional().describe('Look board description'),
+    projectId: z.string().describe('Project ID to create look board in'),
     defaultFadeTime: z.number().optional().default(3.0).describe('Default fade time in seconds'),
     gridSize: z.number().optional().default(50).describe('Grid size for layout alignment'),
     canvasWidth: z.number().optional().default(2000).describe('Canvas width in pixels'),
     canvasHeight: z.number().optional().default(2000).describe('Canvas height in pixels')
-  })).describe('Array of scene boards to create')
+  })).describe('Array of look boards to create')
 });
 
-const BulkUpdateSceneBoardsSchema = z.object({
-  sceneBoards: z.array(z.object({
-    sceneBoardId: z.string().describe('Scene board ID to update'),
-    name: z.string().optional().describe('New scene board name'),
-    description: z.string().optional().describe('New scene board description'),
+const BulkUpdateLookBoardsSchema = z.object({
+  lookBoards: z.array(z.object({
+    lookBoardId: z.string().describe('Look board ID to update'),
+    name: z.string().optional().describe('New look board name'),
+    description: z.string().optional().describe('New look board description'),
     defaultFadeTime: z.number().optional().describe('New default fade time in seconds'),
     gridSize: z.number().optional().describe('New grid size for layout alignment'),
     canvasWidth: z.number().optional().describe('New canvas width in pixels'),
     canvasHeight: z.number().optional().describe('New canvas height in pixels')
-  })).describe('Array of scene board updates to apply')
+  })).describe('Array of look board updates to apply')
 });
 
-const BulkDeleteSceneBoardsSchema = z.object({
-  sceneBoardIds: z.array(z.string()).describe('Array of scene board IDs to delete'),
+const BulkDeleteLookBoardsSchema = z.object({
+  lookBoardIds: z.array(z.string()).describe('Array of look board IDs to delete'),
   confirmDelete: z.boolean().describe('Confirm deletion (required to be true for safety)')
 });
 
 // ============================================================================
-// Scene Board Button Schemas
+// Look Board Button Schemas
 // ============================================================================
 
-const AddSceneToBoardSchema = z.object({
-  sceneBoardId: z.string().describe('Scene board ID to add button to'),
-  sceneId: z.string().describe('Scene ID for this button'),
+const AddLookToBoardSchema = z.object({
+  lookBoardId: z.string().describe('Look board ID to add button to'),
+  lookId: z.string().describe('Look ID for this button'),
   layoutX: z.number().min(0).describe('X position in pixels (0-canvasWidth)'),
   layoutY: z.number().min(0).describe('Y position in pixels (0-canvasHeight)'),
   width: z.number().positive().optional().default(200).describe('Button width in pixels (default: 200)'),
@@ -84,7 +84,7 @@ const AddSceneToBoardSchema = z.object({
   label: z.string().optional().describe('Button label/text override')
 });
 
-const UpdateSceneBoardButtonSchema = z.object({
+const UpdateLookBoardButtonSchema = z.object({
   buttonId: z.string().describe('Button ID to update'),
   layoutX: z.number().min(0).optional().describe('New X position in pixels'),
   layoutY: z.number().min(0).optional().describe('New Y position in pixels'),
@@ -94,11 +94,11 @@ const UpdateSceneBoardButtonSchema = z.object({
   label: z.string().optional().describe('New button label/text')
 });
 
-const RemoveSceneFromBoardSchema = z.object({
+const RemoveLookFromBoardSchema = z.object({
   buttonId: z.string().describe('Button ID to remove')
 });
 
-const UpdateSceneBoardButtonPositionsSchema = z.object({
+const UpdateLookBoardButtonPositionsSchema = z.object({
   positions: z.array(z.object({
     buttonId: z.string().describe('Button ID to update'),
     layoutX: z.number().min(0).describe('New X position in pixels'),
@@ -107,10 +107,10 @@ const UpdateSceneBoardButtonPositionsSchema = z.object({
 });
 
 // Bulk Button Schemas
-const BulkCreateSceneBoardButtonsSchema = z.object({
+const BulkCreateLookBoardButtonsSchema = z.object({
   buttons: z.array(z.object({
-    sceneBoardId: z.string().describe('Scene board ID to add button to'),
-    sceneId: z.string().describe('Scene ID for this button'),
+    lookBoardId: z.string().describe('Look board ID to add button to'),
+    lookId: z.string().describe('Look ID for this button'),
     layoutX: z.number().min(0).describe('X position in pixels'),
     layoutY: z.number().min(0).describe('Y position in pixels'),
     width: z.number().positive().optional().default(200).describe('Button width in pixels'),
@@ -120,7 +120,7 @@ const BulkCreateSceneBoardButtonsSchema = z.object({
   })).describe('Array of buttons to create')
 });
 
-const BulkUpdateSceneBoardButtonsSchema = z.object({
+const BulkUpdateLookBoardButtonsSchema = z.object({
   buttons: z.array(z.object({
     buttonId: z.string().describe('Button ID to update'),
     layoutX: z.number().min(0).optional().describe('New X position in pixels'),
@@ -132,35 +132,35 @@ const BulkUpdateSceneBoardButtonsSchema = z.object({
   })).describe('Array of button updates to apply')
 });
 
-const BulkDeleteSceneBoardButtonsSchema = z.object({
+const BulkDeleteLookBoardButtonsSchema = z.object({
   buttonIds: z.array(z.string()).describe('Array of button IDs to delete'),
   confirmDelete: z.boolean().describe('Confirm deletion (required to be true for safety)')
 });
 
 // ============================================================================
-// Scene Board Playback Schema
+// Look Board Playback Schema
 // ============================================================================
 
-const ActivateSceneFromBoardSchema = z.object({
-  sceneBoardId: z.string().describe('Scene board ID'),
-  sceneId: z.string().describe('Scene ID to activate'),
+const ActivateLookFromBoardSchema = z.object({
+  lookBoardId: z.string().describe('Look board ID'),
+  lookId: z.string().describe('Look ID to activate'),
   fadeTimeOverride: z.number().optional().describe('Optional fade time override in seconds (uses board default if not provided)')
 });
 
 // ============================================================================
-// Scene Board with Buttons Schema (Define entire board in one command)
+// Look Board with Buttons Schema (Define entire board in one command)
 // ============================================================================
 
-const CreateSceneBoardWithButtonsSchema = z.object({
-  name: z.string().describe('Scene board name'),
-  description: z.string().optional().describe('Scene board description'),
-  projectId: z.string().describe('Project ID to create scene board in'),
+const CreateLookBoardWithButtonsSchema = z.object({
+  name: z.string().describe('Look board name'),
+  description: z.string().optional().describe('Look board description'),
+  projectId: z.string().describe('Project ID to create look board in'),
   defaultFadeTime: z.number().optional().default(3.0).describe('Default fade time in seconds'),
   gridSize: z.number().optional().default(50).describe('Grid size for layout alignment'),
   canvasWidth: z.number().optional().default(2000).describe('Canvas width in pixels'),
   canvasHeight: z.number().optional().default(2000).describe('Canvas height in pixels'),
   buttons: z.array(z.object({
-    sceneId: z.string().describe('Scene ID for this button'),
+    lookId: z.string().describe('Look ID for this button'),
     layoutX: z.number().min(0).describe('X position in pixels'),
     layoutY: z.number().min(0).describe('Y position in pixels'),
     width: z.number().positive().optional().default(200).describe('Button width in pixels'),
@@ -171,25 +171,25 @@ const CreateSceneBoardWithButtonsSchema = z.object({
 });
 
 // ============================================================================
-// Scene Board Tools Class
+// Look Board Tools Class
 // ============================================================================
 
-export class SceneBoardTools {
+export class LookBoardTools {
   constructor(private graphqlClient: LacyLightsGraphQLClient) {}
 
   // ------------------------------------------------------------------------
-  // Scene Board CRUD Operations
+  // Look Board CRUD Operations
   // ------------------------------------------------------------------------
 
-  async listSceneBoards(args: z.infer<typeof ListSceneBoardsSchema>) {
-    const { projectId } = ListSceneBoardsSchema.parse(args);
+  async listLookBoards(args: z.infer<typeof ListLookBoardsSchema>) {
+    const { projectId } = ListLookBoardsSchema.parse(args);
 
     try {
-      const sceneBoards = await this.graphqlClient.listSceneBoards(projectId);
+      const lookBoards = await this.graphqlClient.listLookBoards(projectId);
 
       return {
         success: true,
-        sceneBoards: sceneBoards.map(board => ({
+        lookBoards: lookBoards.map(board => ({
           id: board.id,
           name: board.name,
           description: board.description,
@@ -202,30 +202,30 @@ export class SceneBoardTools {
           updatedAt: board.updatedAt
         })),
         summary: {
-          totalBoards: sceneBoards.length,
+          totalBoards: lookBoards.length,
           projectId
         },
-        message: `Found ${sceneBoards.length} scene boards in project`
+        message: `Found ${lookBoards.length} look boards in project`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to list scene boards: ${message}`);
+      throw new Error(`Failed to list look boards: ${message}`);
     }
   }
 
-  async getSceneBoard(args: z.infer<typeof GetSceneBoardSchema>) {
-    const { sceneBoardId } = GetSceneBoardSchema.parse(args);
+  async getLookBoard(args: z.infer<typeof GetLookBoardSchema>) {
+    const { lookBoardId } = GetLookBoardSchema.parse(args);
 
     try {
-      const board = await this.graphqlClient.getSceneBoard(sceneBoardId);
+      const board = await this.graphqlClient.getLookBoard(lookBoardId);
 
       if (!board) {
-        throw new Error(`Scene board with ID ${sceneBoardId} not found`);
+        throw new Error(`Look board with ID ${lookBoardId} not found`);
       }
 
       return {
         success: true,
-        sceneBoard: {
+        lookBoard: {
           id: board.id,
           name: board.name,
           description: board.description,
@@ -237,8 +237,8 @@ export class SceneBoardTools {
           updatedAt: board.updatedAt,
           buttons: board.buttons.map(button => ({
             id: button.id,
-            sceneId: button.scene.id,
-            sceneName: button.scene.name,
+            lookId: button.look.id,
+            lookName: button.look.name,
             layoutX: button.layoutX,
             layoutY: button.layoutY,
             width: button.width,
@@ -249,20 +249,20 @@ export class SceneBoardTools {
             updatedAt: button.updatedAt
           }))
         },
-        message: `Retrieved scene board "${board.name}" with ${board.buttons.length} buttons`
+        message: `Retrieved look board "${board.name}" with ${board.buttons.length} buttons`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to get scene board: ${message}`);
+      throw new Error(`Failed to get look board: ${message}`);
     }
   }
 
-  async createSceneBoard(args: z.input<typeof CreateSceneBoardSchema>) {
+  async createLookBoard(args: z.input<typeof CreateLookBoardSchema>) {
     const { name, description, projectId, defaultFadeTime, gridSize, canvasWidth, canvasHeight } =
-      CreateSceneBoardSchema.parse(args);
+      CreateLookBoardSchema.parse(args);
 
     try {
-      const board = await this.graphqlClient.createSceneBoard({
+      const board = await this.graphqlClient.createLookBoard({
         name,
         description,
         projectId,
@@ -274,7 +274,7 @@ export class SceneBoardTools {
 
       return {
         success: true,
-        sceneBoard: {
+        lookBoard: {
           id: board.id,
           name: board.name,
           description: board.description,
@@ -284,23 +284,23 @@ export class SceneBoardTools {
           canvasHeight: board.canvasHeight,
           createdAt: board.createdAt
         },
-        message: `Successfully created scene board "${name}"`
+        message: `Successfully created look board "${name}"`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to create scene board: ${message}`);
+      throw new Error(`Failed to create look board: ${message}`);
     }
   }
 
-  async updateSceneBoard(args: z.infer<typeof UpdateSceneBoardSchema>) {
-    const { sceneBoardId, ...updates } = UpdateSceneBoardSchema.parse(args);
+  async updateLookBoard(args: z.infer<typeof UpdateLookBoardSchema>) {
+    const { lookBoardId, ...updates } = UpdateLookBoardSchema.parse(args);
 
     try {
-      const board = await this.graphqlClient.updateSceneBoard(sceneBoardId, updates);
+      const board = await this.graphqlClient.updateLookBoard(lookBoardId, updates);
 
       return {
         success: true,
-        sceneBoard: {
+        lookBoard: {
           id: board.id,
           name: board.name,
           description: board.description,
@@ -310,52 +310,52 @@ export class SceneBoardTools {
           canvasHeight: board.canvasHeight,
           updatedAt: board.updatedAt
         },
-        message: `Successfully updated scene board "${board.name}"`
+        message: `Successfully updated look board "${board.name}"`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to update scene board: ${message}`);
+      throw new Error(`Failed to update look board: ${message}`);
     }
   }
 
-  async deleteSceneBoard(args: z.infer<typeof DeleteSceneBoardSchema>) {
-    const { sceneBoardId, confirmDelete } = DeleteSceneBoardSchema.parse(args);
+  async deleteLookBoard(args: z.infer<typeof DeleteLookBoardSchema>) {
+    const { lookBoardId, confirmDelete } = DeleteLookBoardSchema.parse(args);
 
     if (!confirmDelete) {
-      throw new Error('confirmDelete must be true to delete a scene board');
+      throw new Error('confirmDelete must be true to delete a look board');
     }
 
     try {
-      await this.graphqlClient.deleteSceneBoard(sceneBoardId);
+      await this.graphqlClient.deleteLookBoard(lookBoardId);
 
       return {
         success: true,
-        deletedSceneBoardId: sceneBoardId,
-        message: 'Successfully deleted scene board and all its buttons'
+        deletedLookBoardId: lookBoardId,
+        message: 'Successfully deleted look board and all its buttons'
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to delete scene board: ${message}`);
+      throw new Error(`Failed to delete look board: ${message}`);
     }
   }
 
   // ------------------------------------------------------------------------
-  // Bulk Scene Board Operations
+  // Bulk Look Board Operations
   // ------------------------------------------------------------------------
 
-  async bulkCreateSceneBoards(args: z.input<typeof BulkCreateSceneBoardsSchema>) {
-    const { sceneBoards } = BulkCreateSceneBoardsSchema.parse(args);
+  async bulkCreateLookBoards(args: z.input<typeof BulkCreateLookBoardsSchema>) {
+    const { lookBoards } = BulkCreateLookBoardsSchema.parse(args);
 
-    if (sceneBoards.length === 0) {
-      throw new Error('No scene boards provided for bulk creation');
+    if (lookBoards.length === 0) {
+      throw new Error('No look boards provided for bulk creation');
     }
 
     try {
-      const createdBoards = await this.graphqlClient.bulkCreateSceneBoards(sceneBoards);
+      const createdBoards = await this.graphqlClient.bulkCreateLookBoards(lookBoards);
 
       return {
         success: true,
-        sceneBoards: createdBoards.map(board => ({
+        lookBoards: createdBoards.map(board => ({
           id: board.id,
           name: board.name,
           description: board.description,
@@ -369,27 +369,27 @@ export class SceneBoardTools {
           totalCreated: createdBoards.length,
           projectIds: [...new Set(createdBoards.map(b => b.project.id))]
         },
-        message: `Successfully created ${createdBoards.length} scene boards`
+        message: `Successfully created ${createdBoards.length} look boards`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to bulk create scene boards: ${message}`);
+      throw new Error(`Failed to bulk create look boards: ${message}`);
     }
   }
 
-  async bulkUpdateSceneBoards(args: z.infer<typeof BulkUpdateSceneBoardsSchema>) {
-    const { sceneBoards } = BulkUpdateSceneBoardsSchema.parse(args);
+  async bulkUpdateLookBoards(args: z.infer<typeof BulkUpdateLookBoardsSchema>) {
+    const { lookBoards } = BulkUpdateLookBoardsSchema.parse(args);
 
-    if (sceneBoards.length === 0) {
-      throw new Error('No scene boards provided for bulk update');
+    if (lookBoards.length === 0) {
+      throw new Error('No look boards provided for bulk update');
     }
 
     try {
-      const updatedBoards = await this.graphqlClient.bulkUpdateSceneBoards(sceneBoards);
+      const updatedBoards = await this.graphqlClient.bulkUpdateLookBoards(lookBoards);
 
       return {
         success: true,
-        sceneBoards: updatedBoards.map(board => ({
+        lookBoards: updatedBoards.map(board => ({
           id: board.id,
           name: board.name,
           description: board.description,
@@ -401,27 +401,27 @@ export class SceneBoardTools {
         summary: {
           totalUpdated: updatedBoards.length
         },
-        message: `Successfully updated ${updatedBoards.length} scene boards`
+        message: `Successfully updated ${updatedBoards.length} look boards`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to bulk update scene boards: ${message}`);
+      throw new Error(`Failed to bulk update look boards: ${message}`);
     }
   }
 
-  async bulkDeleteSceneBoards(args: z.infer<typeof BulkDeleteSceneBoardsSchema>) {
-    const { sceneBoardIds, confirmDelete } = BulkDeleteSceneBoardsSchema.parse(args);
+  async bulkDeleteLookBoards(args: z.infer<typeof BulkDeleteLookBoardsSchema>) {
+    const { lookBoardIds, confirmDelete } = BulkDeleteLookBoardsSchema.parse(args);
 
-    if (sceneBoardIds.length === 0) {
-      throw new Error('No scene board IDs provided for bulk deletion');
+    if (lookBoardIds.length === 0) {
+      throw new Error('No look board IDs provided for bulk deletion');
     }
 
     if (!confirmDelete) {
-      throw new Error('confirmDelete must be true to delete scene boards');
+      throw new Error('confirmDelete must be true to delete look boards');
     }
 
     try {
-      const result = await this.graphqlClient.bulkDeleteSceneBoards(sceneBoardIds);
+      const result = await this.graphqlClient.bulkDeleteLookBoards(lookBoardIds);
 
       // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
       // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
@@ -430,30 +430,30 @@ export class SceneBoardTools {
         deletedCount: result.successCount,
         failedIds: result.failedIds,
         summary: {
-          totalRequested: sceneBoardIds.length,
+          totalRequested: lookBoardIds.length,
           successCount: result.successCount,
           failureCount: result.failedIds.length
         },
-        message: `Successfully deleted ${result.successCount} scene boards${result.failedIds.length > 0 ? `, ${result.failedIds.length} failed` : ''}`
+        message: `Successfully deleted ${result.successCount} look boards${result.failedIds.length > 0 ? `, ${result.failedIds.length} failed` : ''}`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to bulk delete scene boards: ${message}`);
+      throw new Error(`Failed to bulk delete look boards: ${message}`);
     }
   }
 
   // ------------------------------------------------------------------------
-  // Scene Board Button Operations
+  // Look Board Button Operations
   // ------------------------------------------------------------------------
 
-  async addSceneToBoard(args: z.input<typeof AddSceneToBoardSchema>) {
-    const { sceneBoardId, sceneId, layoutX, layoutY, width, height, color, label } =
-      AddSceneToBoardSchema.parse(args);
+  async addLookToBoard(args: z.input<typeof AddLookToBoardSchema>) {
+    const { lookBoardId, lookId, layoutX, layoutY, width, height, color, label } =
+      AddLookToBoardSchema.parse(args);
 
     try {
-      const button = await this.graphqlClient.addSceneToBoard({
-        sceneBoardId,
-        sceneId,
+      const button = await this.graphqlClient.addLookToBoard({
+        lookBoardId,
+        lookId,
         layoutX,
         layoutY,
         width,
@@ -466,8 +466,8 @@ export class SceneBoardTools {
         success: true,
         button: {
           id: button.id,
-          sceneId: button.scene.id,
-          sceneName: button.scene.name,
+          lookId: button.look.id,
+          lookName: button.look.name,
           layoutX: button.layoutX,
           layoutY: button.layoutY,
           width: button.width,
@@ -476,26 +476,26 @@ export class SceneBoardTools {
           label: button.label,
           createdAt: button.createdAt
         },
-        message: `Successfully added scene "${button.scene.name}" to board at position (${layoutX}, ${layoutY})`
+        message: `Successfully added look "${button.look.name}" to board at position (${layoutX}, ${layoutY})`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to add scene to board: ${message}`);
+      throw new Error(`Failed to add look to board: ${message}`);
     }
   }
 
-  async updateSceneBoardButton(args: z.infer<typeof UpdateSceneBoardButtonSchema>) {
-    const { buttonId, ...updates } = UpdateSceneBoardButtonSchema.parse(args);
+  async updateLookBoardButton(args: z.infer<typeof UpdateLookBoardButtonSchema>) {
+    const { buttonId, ...updates } = UpdateLookBoardButtonSchema.parse(args);
 
     try {
-      const button = await this.graphqlClient.updateSceneBoardButton(buttonId, updates);
+      const button = await this.graphqlClient.updateLookBoardButton(buttonId, updates);
 
       return {
         success: true,
         button: {
           id: button.id,
-          sceneId: button.scene.id,
-          sceneName: button.scene.name,
+          lookId: button.look.id,
+          lookName: button.look.name,
           layoutX: button.layoutX,
           layoutY: button.layoutY,
           width: button.width,
@@ -504,19 +504,19 @@ export class SceneBoardTools {
           label: button.label,
           updatedAt: button.updatedAt
         },
-        message: `Successfully updated button for scene "${button.scene.name}"`
+        message: `Successfully updated button for look "${button.look.name}"`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to update scene board button: ${message}`);
+      throw new Error(`Failed to update look board button: ${message}`);
     }
   }
 
-  async removeSceneFromBoard(args: z.infer<typeof RemoveSceneFromBoardSchema>) {
-    const { buttonId } = RemoveSceneFromBoardSchema.parse(args);
+  async removeLookFromBoard(args: z.infer<typeof RemoveLookFromBoardSchema>) {
+    const { buttonId } = RemoveLookFromBoardSchema.parse(args);
 
     try {
-      await this.graphqlClient.removeSceneFromBoard(buttonId);
+      await this.graphqlClient.removeLookFromBoard(buttonId);
 
       return {
         success: true,
@@ -525,19 +525,19 @@ export class SceneBoardTools {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to remove scene from board: ${message}`);
+      throw new Error(`Failed to remove look from board: ${message}`);
     }
   }
 
-  async updateSceneBoardButtonPositions(args: z.infer<typeof UpdateSceneBoardButtonPositionsSchema>) {
-    const { positions } = UpdateSceneBoardButtonPositionsSchema.parse(args);
+  async updateLookBoardButtonPositions(args: z.infer<typeof UpdateLookBoardButtonPositionsSchema>) {
+    const { positions } = UpdateLookBoardButtonPositionsSchema.parse(args);
 
     if (positions.length === 0) {
       throw new Error('No button positions provided for update');
     }
 
     try {
-      await this.graphqlClient.updateSceneBoardButtonPositions(positions);
+      await this.graphqlClient.updateLookBoardButtonPositions(positions);
 
       return {
         success: true,
@@ -554,23 +554,23 @@ export class SceneBoardTools {
   // Bulk Button Operations
   // ------------------------------------------------------------------------
 
-  async bulkCreateSceneBoardButtons(args: z.input<typeof BulkCreateSceneBoardButtonsSchema>) {
-    const { buttons } = BulkCreateSceneBoardButtonsSchema.parse(args);
+  async bulkCreateLookBoardButtons(args: z.input<typeof BulkCreateLookBoardButtonsSchema>) {
+    const { buttons } = BulkCreateLookBoardButtonsSchema.parse(args);
 
     if (buttons.length === 0) {
       throw new Error('No buttons provided for bulk creation');
     }
 
     try {
-      const createdButtons = await this.graphqlClient.bulkCreateSceneBoardButtons(buttons);
+      const createdButtons = await this.graphqlClient.bulkCreateLookBoardButtons(buttons);
 
       return {
         success: true,
         buttons: createdButtons.map(button => ({
           id: button.id,
-          sceneBoardId: button.sceneBoard.id,
-          sceneId: button.scene.id,
-          sceneName: button.scene.name,
+          lookBoardId: button.lookBoard.id,
+          lookId: button.look.id,
+          lookName: button.look.name,
           layoutX: button.layoutX,
           layoutY: button.layoutY,
           width: button.width,
@@ -581,7 +581,7 @@ export class SceneBoardTools {
         })),
         summary: {
           totalCreated: createdButtons.length,
-          boardIds: [...new Set(createdButtons.map(b => b.sceneBoard.id))]
+          boardIds: [...new Set(createdButtons.map(b => b.lookBoard.id))]
         },
         message: `Successfully created ${createdButtons.length} buttons`
       };
@@ -591,22 +591,22 @@ export class SceneBoardTools {
     }
   }
 
-  async bulkUpdateSceneBoardButtons(args: z.infer<typeof BulkUpdateSceneBoardButtonsSchema>) {
-    const { buttons } = BulkUpdateSceneBoardButtonsSchema.parse(args);
+  async bulkUpdateLookBoardButtons(args: z.infer<typeof BulkUpdateLookBoardButtonsSchema>) {
+    const { buttons } = BulkUpdateLookBoardButtonsSchema.parse(args);
 
     if (buttons.length === 0) {
       throw new Error('No buttons provided for bulk update');
     }
 
     try {
-      const updatedButtons = await this.graphqlClient.bulkUpdateSceneBoardButtons(buttons);
+      const updatedButtons = await this.graphqlClient.bulkUpdateLookBoardButtons(buttons);
 
       return {
         success: true,
         buttons: updatedButtons.map(button => ({
           id: button.id,
-          sceneId: button.scene.id,
-          sceneName: button.scene.name,
+          lookId: button.look.id,
+          lookName: button.look.name,
           layoutX: button.layoutX,
           layoutY: button.layoutY,
           width: button.width,
@@ -626,8 +626,8 @@ export class SceneBoardTools {
     }
   }
 
-  async bulkDeleteSceneBoardButtons(args: z.infer<typeof BulkDeleteSceneBoardButtonsSchema>) {
-    const { buttonIds, confirmDelete } = BulkDeleteSceneBoardButtonsSchema.parse(args);
+  async bulkDeleteLookBoardButtons(args: z.infer<typeof BulkDeleteLookBoardButtonsSchema>) {
+    const { buttonIds, confirmDelete } = BulkDeleteLookBoardButtonsSchema.parse(args);
 
     if (buttonIds.length === 0) {
       throw new Error('No button IDs provided for bulk deletion');
@@ -638,7 +638,7 @@ export class SceneBoardTools {
     }
 
     try {
-      const result = await this.graphqlClient.bulkDeleteSceneBoardButtons(buttonIds);
+      const result = await this.graphqlClient.bulkDeleteLookBoardButtons(buttonIds);
 
       // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
       // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
@@ -660,22 +660,22 @@ export class SceneBoardTools {
   }
 
   // ------------------------------------------------------------------------
-  // Scene Board Playback
+  // Look Board Playback
   // ------------------------------------------------------------------------
 
-  async activateSceneFromBoard(args: z.infer<typeof ActivateSceneFromBoardSchema>) {
-    const { sceneBoardId, sceneId, fadeTimeOverride } = ActivateSceneFromBoardSchema.parse(args);
+  async activateLookFromBoard(args: z.infer<typeof ActivateLookFromBoardSchema>) {
+    const { lookBoardId, lookId, fadeTimeOverride } = ActivateLookFromBoardSchema.parse(args);
 
     try {
-      await this.graphqlClient.activateSceneFromBoard(sceneBoardId, sceneId, fadeTimeOverride);
+      await this.graphqlClient.activateLookFromBoard(lookBoardId, lookId, fadeTimeOverride);
 
       return {
         success: true,
-        message: `Successfully activated scene from board${fadeTimeOverride ? ` with ${fadeTimeOverride}s fade` : ' with board default fade time'}`
+        message: `Successfully activated look from board${fadeTimeOverride ? ` with ${fadeTimeOverride}s fade` : ' with board default fade time'}`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to activate scene from board: ${message}`);
+      throw new Error(`Failed to activate look from board: ${message}`);
     }
   }
 
@@ -683,13 +683,13 @@ export class SceneBoardTools {
   // Composite Operation: Create Board with Buttons
   // ------------------------------------------------------------------------
 
-  async createSceneBoardWithButtons(args: z.input<typeof CreateSceneBoardWithButtonsSchema>) {
+  async createLookBoardWithButtons(args: z.input<typeof CreateLookBoardWithButtonsSchema>) {
     const { name, description, projectId, defaultFadeTime, gridSize, canvasWidth, canvasHeight, buttons } =
-      CreateSceneBoardWithButtonsSchema.parse(args);
+      CreateLookBoardWithButtonsSchema.parse(args);
 
     try {
       // First create the board
-      const board = await this.graphqlClient.createSceneBoard({
+      const board = await this.graphqlClient.createLookBoard({
         name,
         description,
         projectId,
@@ -699,13 +699,13 @@ export class SceneBoardTools {
         canvasHeight
       });
 
-      let createdButtons: SceneBoardButton[] = [];
+      let createdButtons: LookBoardButton[] = [];
 
       // Then create buttons if provided
       if (buttons && buttons.length > 0) {
         const buttonInputs = buttons.map(btn => ({
-          sceneBoardId: board.id,
-          sceneId: btn.sceneId,
+          lookBoardId: board.id,
+          lookId: btn.lookId,
           layoutX: btn.layoutX,
           layoutY: btn.layoutY,
           width: btn.width,
@@ -714,12 +714,12 @@ export class SceneBoardTools {
           label: btn.label
         }));
 
-        createdButtons = await this.graphqlClient.bulkCreateSceneBoardButtons(buttonInputs);
+        createdButtons = await this.graphqlClient.bulkCreateLookBoardButtons(buttonInputs);
       }
 
       return {
         success: true,
-        sceneBoard: {
+        lookBoard: {
           id: board.id,
           name: board.name,
           description: board.description,
@@ -732,8 +732,8 @@ export class SceneBoardTools {
         },
         buttons: createdButtons.map(button => ({
           id: button.id,
-          sceneId: button.scene.id,
-          sceneName: button.scene.name,
+          lookId: button.look.id,
+          lookName: button.look.name,
           layoutX: button.layoutX,
           layoutY: button.layoutY,
           width: button.width,
@@ -745,11 +745,11 @@ export class SceneBoardTools {
           boardCreated: true,
           buttonsCreated: createdButtons.length
         },
-        message: `Successfully created scene board "${name}" with ${createdButtons.length} buttons`
+        message: `Successfully created look board "${name}" with ${createdButtons.length} buttons`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to create scene board with buttons: ${message}`);
+      throw new Error(`Failed to create look board with buttons: ${message}`);
     }
   }
 }
