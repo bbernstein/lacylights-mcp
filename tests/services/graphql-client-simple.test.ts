@@ -403,7 +403,7 @@ describe('LacyLightsGraphQLClient', () => {
         id: 'cue-new',
         name: 'New Cue',
         cueNumber: 1.0,
-        scene: { id: 'look-1', name: 'Test Look' }
+        look: { id: 'look-1', name: 'Test Look' }
       };
 
       const mockResponse = {
@@ -434,7 +434,7 @@ describe('LacyLightsGraphQLClient', () => {
         name: 'Old Name',
         cueNumber: 1.0,
         cueList: { id: 'cuelist-1' },
-        scene: { id: 'look-1' },
+        look: { id: 'look-1' },
         fadeInTime: 3,
         fadeOutTime: 3
       };
@@ -443,7 +443,7 @@ describe('LacyLightsGraphQLClient', () => {
         id: 'cue-1',
         name: 'Updated Cue',
         cueNumber: 1.0,
-        scene: { id: 'look-1', name: 'Test Look' }
+        look: { id: 'look-1', name: 'Test Look' }
       };
 
       mockFetch
@@ -477,7 +477,7 @@ describe('LacyLightsGraphQLClient', () => {
         followTime: null,
         notes: '',
         skip: true,
-        scene: { id: 'look-1', name: 'Test Look' }
+        look: { id: 'look-1', name: 'Test Look' }
       };
 
       const mockResponse = {
@@ -959,8 +959,8 @@ describe('LacyLightsGraphQLClient', () => {
   describe('bulkUpdateCues', () => {
     it('should bulk update cues', async () => {
       const mockCues = [
-        { id: '1', name: 'Cue 1', cueNumber: 1, fadeInTime: 2, fadeOutTime: 2, followTime: null, notes: '', scene: { id: 'look-1', name: 'Scene 1' } },
-        { id: '2', name: 'Cue 2', cueNumber: 2, fadeInTime: 3, fadeOutTime: 3, followTime: null, notes: '', scene: { id: 'look-1', name: 'Scene 1' } }
+        { id: '1', name: 'Cue 1', cueNumber: 1, fadeInTime: 2, fadeOutTime: 2, followTime: null, notes: '', look: { id: 'look-1', name: 'Scene 1' } },
+        { id: '2', name: 'Cue 2', cueNumber: 2, fadeInTime: 3, fadeOutTime: 3, followTime: null, notes: '', look: { id: 'look-1', name: 'Scene 1' } }
       ];
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
@@ -1059,18 +1059,18 @@ describe('LacyLightsGraphQLClient', () => {
   });
 
   describe('getLook', () => {
-    it('should get scene by id', async () => {
+    it('should get look by id', async () => {
       const mockLook = {
         id: 'look-1',
         name: 'Test Look',
-        description: 'A test scene',
+        description: 'A test look',
         createdAt: '2023-01-01',
         updatedAt: '2023-01-01',
         fixtureValues: []
       };
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { scene: mockLook }
+          data: { look: mockLook }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
@@ -1088,10 +1088,10 @@ describe('LacyLightsGraphQLClient', () => {
       expect(result).toEqual(mockLook);
     });
 
-    it('should return null for non-existent scene', async () => {
+    it('should return null for non-existent look', async () => {
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { scene: null }
+          data: { look: null }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
@@ -1161,11 +1161,11 @@ describe('LacyLightsGraphQLClient', () => {
   });
 
   describe('getCurrentActiveLook', () => {
-    it('should get current active scene', async () => {
+    it('should get current active look', async () => {
       const mockLook = {
         id: 'look-1',
         name: 'Active Look',
-        description: 'Currently active scene',
+        description: 'Currently active look',
         createdAt: '2023-01-01',
         updatedAt: '2023-01-01',
         project: { id: 'project-1', name: 'Test Project' },
@@ -1173,7 +1173,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { currentActiveScene: mockLook }
+          data: { currentActiveLook: mockLook }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
@@ -1191,10 +1191,10 @@ describe('LacyLightsGraphQLClient', () => {
       expect(result).toEqual(mockLook);
     });
 
-    it('should return null when no scene is active', async () => {
+    it('should return null when no look is active', async () => {
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
-          data: { currentActiveScene: null }
+          data: { currentActiveLook: null }
         })
       };
       mockFetch.mockResolvedValue(mockResponse as any);
@@ -1214,7 +1214,7 @@ describe('LacyLightsGraphQLClient', () => {
         fadeOutTime: 2,
         followTime: null,
         notes: 'Test notes',
-        scene: { id: 'look-1', name: 'Scene 1' }
+        look: { id: 'look-1', name: 'Scene 1' }
       };
       const mockResponse = {
         json: jest.fn().mockResolvedValue({
@@ -1667,7 +1667,7 @@ describe('LacyLightsGraphQLClient', () => {
           id: 'button-1',
           ...input,
           lookBoard: { id: 'board-1', name: 'Test Board' },
-          scene: { id: 'look-1', name: 'Test Look' },
+          look: { id: 'look-1', name: 'Test Look' },
           createdAt: '2024-01-01',
           updatedAt: '2024-01-01'
         };
@@ -1696,7 +1696,7 @@ describe('LacyLightsGraphQLClient', () => {
           id: 'button-1',
           ...updates,
           lookBoard: { id: 'board-1', name: 'Test Board' },
-          scene: { id: 'look-1', name: 'Test Look' },
+          look: { id: 'look-1', name: 'Test Look' },
           layoutY: 200,
           width: 200,
           height: 120,
@@ -1762,7 +1762,7 @@ describe('LacyLightsGraphQLClient', () => {
           id: `button-${i + 1}`,
           ...b,
           lookBoard: { id: 'board-1', name: 'Test Board' },
-          scene: { id: b.lookId, name: `Scene ${i + 1}` },
+          look: { id: b.lookId, name: `Look ${i + 1}` },
           width: 200,
           height: 120,
           createdAt: '2024-01-01',

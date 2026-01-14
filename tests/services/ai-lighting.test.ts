@@ -72,7 +72,7 @@ describe('AILightingService', () => {
     });
   });
 
-  describe('generateScene', () => {
+  describe('generateLook', () => {
     it('should generate scene with valid fixture values', async () => {
       const mockRecommendations = {
         colorSuggestions: ['red', 'blue'],
@@ -113,7 +113,7 @@ describe('AILightingService', () => {
         }
       };
 
-      const result = await aiService.generateScene(request);
+      const result = await aiService.generateLook(request);
 
       expect(mockRAGService.generateLightingRecommendations).toHaveBeenCalledWith(
         'Romantic scene',
@@ -151,7 +151,7 @@ describe('AILightingService', () => {
         availableFixtures: [mockFixture]
       };
 
-      const result = await aiService.generateScene(request);
+      const result = await aiService.generateLook(request);
 
       expect(result.name).toBe('Scene for Test scene');
       expect(result.fixtureValues).toEqual([]);
@@ -193,7 +193,7 @@ describe('AILightingService', () => {
         availableFixtures: [mockFixture]
       };
 
-      const result = await aiService.generateScene(request);
+      const result = await aiService.generateLook(request);
 
       // Should only include valid fixture with sparse channel format
       expect(result.fixtureValues).toHaveLength(1);
@@ -269,7 +269,7 @@ describe('AILightingService', () => {
     });
   });
 
-  describe('optimizeSceneForFixtures', () => {
+  describe('optimizeLookForFixtures', () => {
     it('should optimize scene fixture values', async () => {
       const scene = {
         name: 'Test Scene',
@@ -283,7 +283,7 @@ describe('AILightingService', () => {
         reasoning: 'Test'
       };
 
-      const result = await aiService.optimizeSceneForFixtures(scene, [mockFixture]);
+      const result = await aiService.optimizeLookForFixtures(scene, [mockFixture]);
 
       // Values should be clamped to 0-255 range (sparse format)
       expect(result.fixtureValues[0].channels).toEqual([
@@ -306,7 +306,7 @@ describe('AILightingService', () => {
         reasoning: 'Test'
       };
 
-      const result = await aiService.optimizeSceneForFixtures(scene, [mockFixture]);
+      const result = await aiService.optimizeLookForFixtures(scene, [mockFixture]);
 
       // Sparse format: no padding needed, just preserve provided values
       expect(result.fixtureValues[0].channels).toEqual([
@@ -328,7 +328,7 @@ describe('AILightingService', () => {
         reasoning: 'Test'
       };
 
-      const result = await aiService.optimizeSceneForFixtures(scene, [mockFixture]);
+      const result = await aiService.optimizeLookForFixtures(scene, [mockFixture]);
 
       // Sparse format: offsets 3 and 4 should be filtered out (fixture only has 3 channels, offsets 0-2)
       expect(result.fixtureValues[0].channels).toEqual([
@@ -400,7 +400,7 @@ describe('AILightingService', () => {
     });
   });
 
-  describe('generateScene - additive scenes', () => {
+  describe('generateLook - additive scenes', () => {
     it('should generate additive scene with only specified fixtures', async () => {
       const allFixtures: FixtureInstance[] = [
         mockFixture,
@@ -446,7 +446,7 @@ describe('AILightingService', () => {
         sceneType: 'additive' as const
       };
 
-      const result = await aiService.generateScene(request);
+      const result = await aiService.generateLook(request);
 
       expect(result.name).toBe('Additive Scene');
       expect(result.fixtureValues).toHaveLength(1);
@@ -489,14 +489,14 @@ describe('AILightingService', () => {
         sceneType: 'additive' as const
       };
 
-      await aiService.generateScene(request);
+      await aiService.generateLook(request);
 
       // Should call OpenAI with truncated fixture list
       expect(mockOpenAI.chat.completions.create).toHaveBeenCalled();
     });
   });
 
-  describe('generateScene - JSON extraction edge cases', () => {
+  describe('generateLook - JSON extraction edge cases', () => {
     it('should extract JSON from text with nested braces', async () => {
       mockRAGService.generateLightingRecommendations.mockResolvedValue({
         colorSuggestions: [],
@@ -515,7 +515,7 @@ describe('AILightingService', () => {
 
       (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
 
-      const result = await aiService.generateScene({
+      const result = await aiService.generateLook({
         scriptContext: 'Test',
         sceneDescription: 'Test',
         availableFixtures: [mockFixture]
@@ -542,7 +542,7 @@ describe('AILightingService', () => {
 
       (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
 
-      const result = await aiService.generateScene({
+      const result = await aiService.generateLook({
         scriptContext: 'Test',
         sceneDescription: 'Test scene',
         availableFixtures: [mockFixture]
