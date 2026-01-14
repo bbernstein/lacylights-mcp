@@ -153,7 +153,7 @@ describe('AILightingService', () => {
 
       const result = await aiService.generateLook(request);
 
-      expect(result.name).toBe('Scene for Test scene');
+      expect(result.name).toBe('Look for Test scene');
       expect(result.fixtureValues).toEqual([]);
     });
 
@@ -548,7 +548,7 @@ describe('AILightingService', () => {
         availableFixtures: [mockFixture]
       });
 
-      expect(result.name).toBe('Scene for Test scene');
+      expect(result.name).toBe('Look for Test scene');
       expect(result.reasoning).toContain('Test reasoning');
     });
   });
