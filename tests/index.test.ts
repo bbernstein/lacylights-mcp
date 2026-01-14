@@ -3,7 +3,7 @@ jest.mock('../src/services/graphql-client-simple');
 jest.mock('../src/services/rag-service-simple');
 jest.mock('../src/services/ai-lighting');
 jest.mock('../src/tools/fixture-tools');
-jest.mock('../src/tools/scene-tools');
+jest.mock('../src/tools/look-tools');
 jest.mock('../src/tools/cue-tools');
 jest.mock('../src/tools/project-tools');
 jest.mock('../src/mcp-imports', () => ({
