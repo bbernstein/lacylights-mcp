@@ -105,7 +105,7 @@ describe('AILightingService', () => {
 
       const request = {
         scriptContext: 'Act 1, Scene 1',
-        sceneDescription: 'Romantic scene',
+        lookDescription: 'Romantic scene',
         availableFixtures: [mockFixture],
         designPreferences: {
           mood: 'romantic',
@@ -147,7 +147,7 @@ describe('AILightingService', () => {
 
       const request = {
         scriptContext: 'Test',
-        sceneDescription: 'Test scene',
+        lookDescription: 'Test scene',
         availableFixtures: [mockFixture]
       };
 
@@ -189,7 +189,7 @@ describe('AILightingService', () => {
 
       const request = {
         scriptContext: 'Test',
-        sceneDescription: 'Test scene',
+        lookDescription: 'Test scene',
         availableFixtures: [mockFixture]
       };
 
@@ -440,10 +440,10 @@ describe('AILightingService', () => {
 
       const request = {
         scriptContext: 'Test',
-        sceneDescription: 'Additive test',
+        lookDescription: 'Additive test',
         availableFixtures: [mockFixture],
         allFixtures: allFixtures,
-        sceneType: 'additive' as const
+        lookType: 'additive' as const
       };
 
       const result = await aiService.generateLook(request);
@@ -483,10 +483,10 @@ describe('AILightingService', () => {
 
       const request = {
         scriptContext: 'Test',
-        sceneDescription: 'Test',
+        lookDescription: 'Test',
         availableFixtures: manyFixtures.slice(0, 10),
         allFixtures: manyFixtures,
-        sceneType: 'additive' as const
+        lookType: 'additive' as const
       };
 
       await aiService.generateLook(request);
@@ -517,7 +517,7 @@ describe('AILightingService', () => {
 
       const result = await aiService.generateLook({
         scriptContext: 'Test',
-        sceneDescription: 'Test',
+        lookDescription: 'Test',
         availableFixtures: [mockFixture]
       });
 
@@ -544,7 +544,7 @@ describe('AILightingService', () => {
 
       const result = await aiService.generateLook({
         scriptContext: 'Test',
-        sceneDescription: 'Test scene',
+        lookDescription: 'Test scene',
         availableFixtures: [mockFixture]
       });
 

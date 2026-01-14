@@ -413,7 +413,7 @@ describe('CueTools', () => {
         projectId: 'non-existent',
         actNumber: 1,
         scriptText: 'Test script'
-      })).rejects.toThrow('Failed to generate act cues: TypeError: Cannot read properties of undefined (reading \'looks\')');
+      })).rejects.toThrow('Failed to generate act cues: TypeError: Cannot read properties of undefined (reading \'scenes\')');
     });
 
     it('should handle script analysis errors', async () => {
