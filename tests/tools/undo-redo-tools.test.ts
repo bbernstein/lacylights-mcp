@@ -77,15 +77,10 @@ describe('UndoRedoTools', () => {
     });
 
     it('should require projectId', async () => {
-      await expect(undoRedoTools.undo({} as any))
-        .rejects.toThrow();
-      // Verify the error is a ZodError for missing projectId
-      try {
-        await undoRedoTools.undo({} as any);
-      } catch (e) {
-        expect((e as Error).name).toBe('ZodError');
-        expect((e as Error).message).toContain('projectId');
-      }
+      await expect(undoRedoTools.undo({} as any)).rejects.toMatchObject({
+        name: 'ZodError',
+        message: expect.stringContaining('projectId'),
+      });
     });
   });
 
@@ -128,15 +123,10 @@ describe('UndoRedoTools', () => {
     });
 
     it('should require projectId', async () => {
-      await expect(undoRedoTools.redo({} as any))
-        .rejects.toThrow();
-      // Verify the error is a ZodError for missing projectId
-      try {
-        await undoRedoTools.redo({} as any);
-      } catch (e) {
-        expect((e as Error).name).toBe('ZodError');
-        expect((e as Error).message).toContain('projectId');
-      }
+      await expect(undoRedoTools.redo({} as any)).rejects.toMatchObject({
+        name: 'ZodError',
+        message: expect.stringContaining('projectId'),
+      });
     });
   });
 
@@ -313,24 +303,20 @@ describe('UndoRedoTools', () => {
 
     it('should require both projectId and operationId', async () => {
       // Test missing operationId
-      await expect(undoRedoTools.jumpToOperation({ projectId: 'project-1' } as any))
-        .rejects.toThrow();
-      try {
-        await undoRedoTools.jumpToOperation({ projectId: 'project-1' } as any);
-      } catch (e) {
-        expect((e as Error).name).toBe('ZodError');
-        expect((e as Error).message).toContain('operationId');
-      }
+      await expect(
+        undoRedoTools.jumpToOperation({ projectId: 'project-1' } as any),
+      ).rejects.toMatchObject({
+        name: 'ZodError',
+        message: expect.stringContaining('operationId'),
+      });
 
       // Test missing projectId
-      await expect(undoRedoTools.jumpToOperation({ operationId: 'op-123' } as any))
-        .rejects.toThrow();
-      try {
-        await undoRedoTools.jumpToOperation({ operationId: 'op-123' } as any);
-      } catch (e) {
-        expect((e as Error).name).toBe('ZodError');
-        expect((e as Error).message).toContain('projectId');
-      }
+      await expect(
+        undoRedoTools.jumpToOperation({ operationId: 'op-123' } as any),
+      ).rejects.toMatchObject({
+        name: 'ZodError',
+        message: expect.stringContaining('projectId'),
+      });
     });
   });
 
