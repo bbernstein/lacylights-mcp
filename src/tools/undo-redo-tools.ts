@@ -195,11 +195,7 @@ export class UndoRedoTools {
     const { projectId, confirmClear } = ClearOperationHistorySchema.parse(args);
 
     if (!confirmClear) {
-      return {
-        success: false,
-        message: 'Confirmation required',
-        hint: 'Set confirmClear to true to confirm clearing the operation history.',
-      };
+      throw new Error('Confirmation required to clear operation history. Set confirmClear to true to proceed.');
     }
 
     try {

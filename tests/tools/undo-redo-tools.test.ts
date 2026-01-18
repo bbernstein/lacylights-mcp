@@ -78,7 +78,7 @@ describe('UndoRedoTools', () => {
 
     it('should require projectId', async () => {
       await expect(undoRedoTools.undo({} as any))
-        .rejects.toThrow();
+        .rejects.toThrow(/required|invalid/i);
     });
   });
 
@@ -122,7 +122,7 @@ describe('UndoRedoTools', () => {
 
     it('should require projectId', async () => {
       await expect(undoRedoTools.redo({} as any))
-        .rejects.toThrow();
+        .rejects.toThrow(/required|invalid/i);
     });
   });
 
@@ -299,7 +299,7 @@ describe('UndoRedoTools', () => {
 
     it('should require both projectId and operationId', async () => {
       await expect(undoRedoTools.jumpToOperation({ projectId: 'project-1' } as any))
-        .rejects.toThrow();
+        .rejects.toThrow(/required|invalid/i);
     });
   });
 
@@ -317,15 +317,13 @@ describe('UndoRedoTools', () => {
       expect(result.message).toBe('Operation history cleared successfully');
     });
 
-    it('should not clear history when not confirmed', async () => {
-      const result = await undoRedoTools.clearOperationHistory({
+    it('should throw error when not confirmed', async () => {
+      await expect(undoRedoTools.clearOperationHistory({
         projectId: 'project-1',
         confirmClear: false,
-      });
+      })).rejects.toThrow('Confirmation required to clear operation history. Set confirmClear to true to proceed.');
 
       expect(mockGraphQLClient.clearOperationHistory).not.toHaveBeenCalled();
-      expect(result.success).toBe(false);
-      expect(result.message).toBe('Confirmation required');
     });
 
     it('should handle clear failure', async () => {
