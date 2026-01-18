@@ -16,6 +16,7 @@ import { CueTools } from "./tools/cue-tools";
 import { ProjectTools } from "./tools/project-tools";
 import { SettingsTools } from "./tools/settings-tools";
 import { LookBoardTools } from "./tools/look-board-tools";
+import { UndoRedoTools } from "./tools/undo-redo-tools";
 import { logger } from "./utils/logger";
 
 class LacyLightsMCPServer {
@@ -29,6 +30,7 @@ class LacyLightsMCPServer {
   private projectTools: ProjectTools;
   private settingsTools: SettingsTools;
   private lookBoardTools: LookBoardTools;
+  private undoRedoTools: UndoRedoTools;
 
   constructor() {
     this.server = new Server(
@@ -66,6 +68,7 @@ class LacyLightsMCPServer {
     this.projectTools = new ProjectTools(this.graphqlClient);
     this.settingsTools = new SettingsTools(this.graphqlClient);
     this.lookBoardTools = new LookBoardTools(this.graphqlClient);
+    this.undoRedoTools = new UndoRedoTools(this.graphqlClient);
 
     this.setupHandlers();
   }
@@ -2897,6 +2900,181 @@ Returns lightweight look board summaries with button counts.`,
               required: ["name", "projectId"],
             },
           },
+          // Undo/Redo Tools
+          {
+            name: "undo",
+            description: `Undo the last operation in a project.
+
+Reverts the most recent change made to the project. Operations that can be undone include:
+- Creating, updating, or deleting looks
+- Creating, updating, or deleting fixture instances
+- Creating, updating, or deleting cues
+- Creating, updating, or deleting cue lists
+
+Returns:
+- success: Whether the undo was successful
+- message: Description of what was undone
+- operation: Details of the undone operation
+- restoredEntityId: ID of the restored entity (if applicable)
+
+Use get_undo_redo_status to check if undo is available.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to undo operation in",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "redo",
+            description: `Redo a previously undone operation in a project.
+
+Re-applies an operation that was previously undone. Only available after an undo operation.
+If a new operation is performed after undo, the redo history is cleared.
+
+Returns:
+- success: Whether the redo was successful
+- message: Description of what was redone
+- operation: Details of the redone operation
+- restoredEntityId: ID of the restored entity (if applicable)
+
+Use get_undo_redo_status to check if redo is available.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to redo operation in",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "get_undo_redo_status",
+            description: `Get the current undo/redo status for a project.
+
+Returns information about available undo/redo operations:
+- canUndo: Whether undo is available
+- canRedo: Whether redo is available
+- currentSequence: Current position in the operation history
+- totalOperations: Total number of operations in history
+- undoDescription: Description of the operation that would be undone
+- redoDescription: Description of the operation that would be redone
+
+Use this to determine if undo/redo buttons should be enabled and to show tooltips.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to get undo/redo status for",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "get_operation_history",
+            description: `Get the operation history for a project with pagination.
+
+Returns a list of all recorded operations that can be navigated via undo/redo.
+Each operation includes:
+- id: Unique operation ID
+- description: Human-readable description
+- operationType: CREATE, UPDATE, DELETE, or BULK
+- entityType: Type of entity affected (Look, FixtureInstance, etc.)
+- sequence: Position in the history
+- createdAt: When the operation occurred
+- isCurrent: Whether this is the current state
+
+Use this to display an operation history timeline and allow jumping to specific points.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to get operation history for",
+                },
+                page: {
+                  type: "number",
+                  default: 1,
+                  description: "Page number (1-based)",
+                },
+                perPage: {
+                  type: "number",
+                  default: 50,
+                  description: "Number of operations per page (max 100)",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          {
+            name: "jump_to_operation",
+            description: `Jump to a specific operation in the history.
+
+This allows navigating directly to any point in the operation history,
+effectively performing multiple undos or redos to reach the target state.
+
+Parameters:
+- projectId: The project containing the operation
+- operationId: The ID of the operation to jump to
+
+Returns:
+- success: Whether the jump was successful
+- message: Description of what happened
+- operation: Details of the target operation
+
+Use get_operation_history to get available operation IDs.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID",
+                },
+                operationId: {
+                  type: "string",
+                  description: "Operation ID to jump to",
+                },
+              },
+              required: ["projectId", "operationId"],
+            },
+          },
+          {
+            name: "clear_operation_history",
+            description: `Clear all operation history for a project.
+
+WARNING: This is a destructive operation that cannot be undone.
+All undo/redo history will be permanently deleted.
+
+Parameters:
+- projectId: The project to clear history for
+- confirmClear: Must be true to confirm the deletion
+
+Returns:
+- success: Whether the history was cleared
+- message: Confirmation message`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to clear operation history for",
+                },
+                confirmClear: {
+                  type: "boolean",
+                  description: "Must be true to confirm clearing history",
+                },
+              },
+              required: ["projectId", "confirmClear"],
+            },
+          },
         ],
       };
     });
@@ -4130,6 +4308,91 @@ Returns lightweight look board summaries with button counts.`,
                   type: "text",
                   text: JSON.stringify(
                     await this.lookBoardTools.createLookBoardWithButtons(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Undo/Redo Tools
+          case "undo":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.undoRedoTools.undo(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "redo":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.undoRedoTools.redo(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_undo_redo_status":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.undoRedoTools.getUndoRedoStatus(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_operation_history":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.undoRedoTools.getOperationHistory(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "jump_to_operation":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.undoRedoTools.jumpToOperation(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "clear_operation_history":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.undoRedoTools.clearOperationHistory(args as any),
                     null,
                     2,
                   ),

@@ -385,6 +385,8 @@ export type Cue = {
   cueList: CueList;
   cueNumber: Scalars['Float']['output'];
   easingType?: Maybe<EasingType>;
+  /** Effects associated with this cue */
+  effects: Array<CueEffect>;
   fadeInTime: Scalars['Float']['output'];
   fadeOutTime: Scalars['Float']['output'];
   followTime?: Maybe<Scalars['Float']['output']>;
@@ -552,7 +554,7 @@ export type Effect = {
 /** Per-channel overrides within an EffectFixture. */
 export type EffectChannel = {
   __typename?: 'EffectChannel';
-  /** Per-channel amplitude multiplier */
+  /** Per-channel amplitude multiplier (used when minValue/maxValue not set) */
   amplitudeScale?: Maybe<Scalars['Float']['output']>;
   /** Channel offset from fixture start address */
   channelOffset?: Maybe<Scalars['Int']['output']>;
@@ -562,6 +564,10 @@ export type EffectChannel = {
   /** Per-channel frequency multiplier */
   frequencyScale?: Maybe<Scalars['Float']['output']>;
   id: Scalars['ID']['output'];
+  /** Maximum value for oscillation (0-100%). When set with minValue, defines oscillation range. */
+  maxValue?: Maybe<Scalars['Float']['output']>;
+  /** Minimum value for oscillation (0-100%). When set with maxValue, defines oscillation range. */
+  minValue?: Maybe<Scalars['Float']['output']>;
 };
 
 /**
@@ -569,7 +575,7 @@ export type EffectChannel = {
  * Target by offset OR type (not both).
  */
 export type EffectChannelInput = {
-  /** Amplitude scale for this channel (0-200%). Null uses effect's amplitude. */
+  /** Amplitude scale for this channel (0-200%). Ignored if minValue/maxValue are set. */
   amplitudeScale?: InputMaybe<Scalars['Float']['input']>;
   /** Target by DMX offset (0-based). Null if targeting by type. */
   channelOffset?: InputMaybe<Scalars['Int']['input']>;
@@ -577,6 +583,10 @@ export type EffectChannelInput = {
   channelType?: InputMaybe<ChannelType>;
   /** Frequency scale for this channel. Null uses effect's frequency. */
   frequencyScale?: InputMaybe<Scalars['Float']['input']>;
+  /** Maximum value for oscillation (0-100%). Use with minValue to define range. */
+  maxValue?: InputMaybe<Scalars['Float']['input']>;
+  /** Minimum value for oscillation (0-100%). Use with maxValue to define range. */
+  minValue?: InputMaybe<Scalars['Float']['input']>;
 };
 
 /** Links an effect to a fixture with per-fixture settings. */
@@ -1106,6 +1116,8 @@ export type Mutation = {
   /** Cancel an ongoing OFL import */
   cancelOFLImport: Scalars['Boolean']['output'];
   cancelPreviewSession: Scalars['Boolean']['output'];
+  /** Clear all operation history for a project */
+  clearOperationHistory: Scalars['Boolean']['output'];
   cloneLook: Look;
   commitPreviewSession: Scalars['Boolean']['output'];
   connectWiFi: WiFiConnectionResult;
@@ -1138,9 +1150,13 @@ export type Mutation = {
   importProject: ImportResult;
   importProjectFromQLC: QlcImportResult;
   initializePreviewWithLook: Scalars['Boolean']['output'];
+  /** Jump to a specific operation in history */
+  jumpToOperation: UndoRedoResult;
   nextCue: Scalars['Boolean']['output'];
   playCue: Scalars['Boolean']['output'];
   previousCue: Scalars['Boolean']['output'];
+  /** Redo the last undone operation for a project */
+  redo: UndoRedoResult;
   /** Release the system blackout with optional fade time */
   releaseBlackout: Scalars['Boolean']['output'];
   /** Remove a channel from an effect fixture */
@@ -1174,6 +1190,8 @@ export type Mutation = {
   toggleCueSkip: Cue;
   /** Trigger an OFL import/update operation */
   triggerOFLImport: OflImportResult;
+  /** Undo the last operation for a project */
+  undo: UndoRedoResult;
   updateAllRepositories: Array<UpdateResult>;
   updateCue: Cue;
   updateCueList: CueList;
@@ -1381,6 +1399,12 @@ export type MutationCancelPreviewSessionArgs = {
 };
 
 
+export type MutationClearOperationHistoryArgs = {
+  confirmClear: Scalars['Boolean']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
+
 export type MutationCloneLookArgs = {
   lookId: Scalars['ID']['input'];
   newName: Scalars['String']['input'];
@@ -1535,6 +1559,12 @@ export type MutationInitializePreviewWithLookArgs = {
 };
 
 
+export type MutationJumpToOperationArgs = {
+  operationId: Scalars['ID']['input'];
+  projectId: Scalars['ID']['input'];
+};
+
+
 export type MutationNextCueArgs = {
   cueListId: Scalars['ID']['input'];
   fadeInTime?: InputMaybe<Scalars['Float']['input']>;
@@ -1550,6 +1580,11 @@ export type MutationPlayCueArgs = {
 export type MutationPreviousCueArgs = {
   cueListId: Scalars['ID']['input'];
   fadeInTime?: InputMaybe<Scalars['Float']['input']>;
+};
+
+
+export type MutationRedoArgs = {
+  projectId: Scalars['ID']['input'];
 };
 
 
@@ -1672,6 +1707,11 @@ export type MutationToggleCueSkipArgs = {
 
 export type MutationTriggerOflImportArgs = {
   options?: InputMaybe<OflImportOptionsInput>;
+};
+
+
+export type MutationUndoArgs = {
+  projectId: Scalars['ID']['input'];
 };
 
 
@@ -1924,6 +1964,49 @@ export type OflUpdateCheckResult = {
   oflVersion: Scalars['String']['output'];
 };
 
+/** Represents a recorded operation in the undo/redo history. */
+export type Operation = {
+  __typename?: 'Operation';
+  createdAt: Scalars['String']['output'];
+  description: Scalars['String']['output'];
+  entityId: Scalars['ID']['output'];
+  entityType: UndoEntityType;
+  id: Scalars['ID']['output'];
+  operationType: OperationType;
+  projectId: Scalars['ID']['output'];
+  /** JSON array of related entity IDs for bulk operations */
+  relatedIds?: Maybe<Array<Scalars['ID']['output']>>;
+  sequence: Scalars['Int']['output'];
+};
+
+/** Paginated operation history for a project. */
+export type OperationHistoryPage = {
+  __typename?: 'OperationHistoryPage';
+  currentSequence: Scalars['Int']['output'];
+  operations: Array<OperationSummary>;
+  pagination: PaginationInfo;
+};
+
+/** Summary view of an operation for history display. */
+export type OperationSummary = {
+  __typename?: 'OperationSummary';
+  createdAt: Scalars['String']['output'];
+  description: Scalars['String']['output'];
+  entityType: UndoEntityType;
+  id: Scalars['ID']['output'];
+  /** True if this operation is at the current position in history */
+  isCurrent: Scalars['Boolean']['output'];
+  operationType: OperationType;
+  sequence: Scalars['Int']['output'];
+};
+
+/** Type of operation recorded for undo/redo. */
+export type OperationType =
+  | 'BULK'
+  | 'CREATE'
+  | 'DELETE'
+  | 'UPDATE';
+
 export type PaginationInfo = {
   __typename?: 'PaginationInfo';
   hasMore: Scalars['Boolean']['output'];
@@ -2084,6 +2167,10 @@ export type Query = {
   networkInterfaceOptions: Array<NetworkInterfaceOption>;
   /** Get the current status of any ongoing OFL import */
   oflImportStatus: OflImportStatus;
+  /** Get a specific operation by ID */
+  operation?: Maybe<Operation>;
+  /** Get paginated operation history for a project */
+  operationHistory: OperationHistoryPage;
   previewSession?: Maybe<PreviewSession>;
   project?: Maybe<Project>;
   projects: Array<Project>;
@@ -2097,6 +2184,8 @@ export type Query = {
   suggestChannelAssignment: ChannelAssignmentSuggestion;
   systemInfo: SystemInfo;
   systemVersions: SystemVersionInfo;
+  /** Get current undo/redo status for a project */
+  undoRedoStatus: UndoRedoStatus;
   wifiMode: WiFiMode;
   wifiNetworks: Array<WiFiNetwork>;
   wifiStatus: WiFiStatus;
@@ -2261,6 +2350,18 @@ export type QueryLooksByIdsArgs = {
 };
 
 
+export type QueryOperationArgs = {
+  operationId: Scalars['ID']['input'];
+};
+
+
+export type QueryOperationHistoryArgs = {
+  page?: InputMaybe<Scalars['Int']['input']>;
+  perPage?: InputMaybe<Scalars['Int']['input']>;
+  projectId: Scalars['ID']['input'];
+};
+
+
 export type QueryPreviewSessionArgs = {
   sessionId: Scalars['ID']['input'];
 };
@@ -2312,6 +2413,11 @@ export type QuerySuggestChannelAssignmentArgs = {
 };
 
 
+export type QueryUndoRedoStatusArgs = {
+  projectId: Scalars['ID']['input'];
+};
+
+
 export type QueryWifiNetworksArgs = {
   deduplicate?: InputMaybe<Scalars['Boolean']['input']>;
   rescan?: InputMaybe<Scalars['Boolean']['input']>;
@@ -2344,6 +2450,8 @@ export type Subscription = {
   globalPlaybackStatusUpdated: GlobalPlaybackStatus;
   /** Real-time updates during OFL import */
   oflImportProgress: OflImportStatus;
+  /** Real-time updates when operation history changes (after undo/redo or new operations) */
+  operationHistoryChanged: UndoRedoStatus;
   previewSessionUpdated: PreviewSession;
   projectUpdated: Project;
   systemInfoUpdated: SystemInfo;
@@ -2364,6 +2472,11 @@ export type SubscriptionCueListPlaybackUpdatedArgs = {
 
 export type SubscriptionDmxOutputChangedArgs = {
   universe?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type SubscriptionOperationHistoryChangedArgs = {
+  projectId: Scalars['ID']['input'];
 };
 
 
@@ -2402,6 +2515,41 @@ export type TransitionBehavior =
   | 'FADE_OUT'
   | 'PERSIST'
   | 'SNAP_OFF';
+
+/** Type of entity being operated on. */
+export type UndoEntityType =
+  | 'Cue'
+  | 'CueList'
+  | 'Effect'
+  | 'FixtureInstance'
+  | 'Look'
+  | 'LookBoard'
+  | 'LookBoardButton'
+  | 'Project';
+
+/** Result of an undo or redo operation. */
+export type UndoRedoResult = {
+  __typename?: 'UndoRedoResult';
+  message?: Maybe<Scalars['String']['output']>;
+  operation?: Maybe<Operation>;
+  /** ID of the entity that was restored */
+  restoredEntityId?: Maybe<Scalars['ID']['output']>;
+  success: Scalars['Boolean']['output'];
+};
+
+/** Current status of undo/redo for a project. */
+export type UndoRedoStatus = {
+  __typename?: 'UndoRedoStatus';
+  canRedo: Scalars['Boolean']['output'];
+  canUndo: Scalars['Boolean']['output'];
+  currentSequence: Scalars['Int']['output'];
+  projectId: Scalars['ID']['output'];
+  /** Description of what would be redone */
+  redoDescription?: Maybe<Scalars['String']['output']>;
+  totalOperations: Scalars['Int']['output'];
+  /** Description of what would be undone */
+  undoDescription?: Maybe<Scalars['String']['output']>;
+};
 
 export type UniverseChannelMap = {
   __typename?: 'UniverseChannelMap';
