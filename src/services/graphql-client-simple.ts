@@ -2982,10 +2982,12 @@ export class LacyLightsGraphQLClient {
 
   /**
    * Clear the operation history for a project.
+   * @param projectId The project ID
+   * @param confirmClear Must explicitly be true to confirm the destructive operation
    */
   async clearOperationHistory(
     projectId: string,
-    confirmClear: boolean = true
+    confirmClear: boolean
   ): Promise<boolean> {
     const mutation = `
       mutation ClearOperationHistory($projectId: ID!, $confirmClear: Boolean!) {

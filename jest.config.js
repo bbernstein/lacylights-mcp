@@ -1,10 +1,8 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testEnvironmentOptions: {
-    // Disable localStorage to avoid Node.js 25+ SecurityError
-    experimentalVmModules: false,
-  },
+  // Note: Node.js 25+ requires --localstorage-file flag when running Jest 30+
+  // This is handled in package.json test scripts
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts', '!**/*.contract.test.ts'],
   testPathIgnorePatterns: ['/node_modules/'],
