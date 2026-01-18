@@ -2780,4 +2780,222 @@ export class LacyLightsGraphQLClient {
     const data = await this.query(mutation, { lookBoardId, lookId, fadeTimeOverride });
     return data.activateLookFromBoard;
   }
+
+  // ============================================================
+  // Undo/Redo Operations
+  // ============================================================
+
+  /**
+   * Get the undo/redo status for a project.
+   */
+  async getUndoRedoStatus(projectId: string): Promise<{
+    projectId: string;
+    canUndo: boolean;
+    canRedo: boolean;
+    currentSequence: number;
+    totalOperations: number;
+    undoDescription: string | null;
+    redoDescription: string | null;
+  }> {
+    const query = `
+      query GetUndoRedoStatus($projectId: ID!) {
+        undoRedoStatus(projectId: $projectId) {
+          projectId
+          canUndo
+          canRedo
+          currentSequence
+          totalOperations
+          undoDescription
+          redoDescription
+        }
+      }
+    `;
+
+    const data = await this.query(query, { projectId });
+    return data.undoRedoStatus;
+  }
+
+  /**
+   * Undo the last operation for a project.
+   */
+  async undo(projectId: string): Promise<{
+    success: boolean;
+    message: string | null;
+    restoredEntityId: string | null;
+    operation: {
+      id: string;
+      description: string;
+      operationType: string;
+      entityType: string;
+      sequence: number;
+    } | null;
+  }> {
+    const mutation = `
+      mutation Undo($projectId: ID!) {
+        undo(projectId: $projectId) {
+          success
+          message
+          restoredEntityId
+          operation {
+            id
+            description
+            operationType
+            entityType
+            sequence
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { projectId });
+    return data.undo;
+  }
+
+  /**
+   * Redo the last undone operation for a project.
+   */
+  async redo(projectId: string): Promise<{
+    success: boolean;
+    message: string | null;
+    restoredEntityId: string | null;
+    operation: {
+      id: string;
+      description: string;
+      operationType: string;
+      entityType: string;
+      sequence: number;
+    } | null;
+  }> {
+    const mutation = `
+      mutation Redo($projectId: ID!) {
+        redo(projectId: $projectId) {
+          success
+          message
+          restoredEntityId
+          operation {
+            id
+            description
+            operationType
+            entityType
+            sequence
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { projectId });
+    return data.redo;
+  }
+
+  /**
+   * Get the operation history for a project with pagination.
+   */
+  async getOperationHistory(
+    projectId: string,
+    page: number = 1,
+    perPage: number = 50
+  ): Promise<{
+    operations: Array<{
+      id: string;
+      description: string;
+      operationType: string;
+      entityType: string;
+      sequence: number;
+      createdAt: string;
+      isCurrent: boolean;
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      perPage: number;
+      totalPages: number;
+      hasMore: boolean;
+    };
+    currentSequence: number;
+  }> {
+    const query = `
+      query GetOperationHistory($projectId: ID!, $page: Int, $perPage: Int) {
+        operationHistory(projectId: $projectId, page: $page, perPage: $perPage) {
+          operations {
+            id
+            description
+            operationType
+            entityType
+            sequence
+            createdAt
+            isCurrent
+          }
+          pagination {
+            total
+            page
+            perPage
+            totalPages
+            hasMore
+          }
+          currentSequence
+        }
+      }
+    `;
+
+    const data = await this.query(query, { projectId, page, perPage });
+    return data.operationHistory;
+  }
+
+  /**
+   * Jump to a specific operation in the history.
+   */
+  async jumpToOperation(
+    projectId: string,
+    operationId: string
+  ): Promise<{
+    success: boolean;
+    message: string | null;
+    restoredEntityId: string | null;
+    operation: {
+      id: string;
+      description: string;
+      operationType: string;
+      entityType: string;
+      sequence: number;
+    } | null;
+  }> {
+    const mutation = `
+      mutation JumpToOperation($projectId: ID!, $operationId: ID!) {
+        jumpToOperation(projectId: $projectId, operationId: $operationId) {
+          success
+          message
+          restoredEntityId
+          operation {
+            id
+            description
+            operationType
+            entityType
+            sequence
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { projectId, operationId });
+    return data.jumpToOperation;
+  }
+
+  /**
+   * Clear the operation history for a project.
+   * @param projectId The project ID
+   * @param confirmClear Must explicitly be true to confirm the destructive operation
+   */
+  async clearOperationHistory(
+    projectId: string,
+    confirmClear: boolean
+  ): Promise<boolean> {
+    const mutation = `
+      mutation ClearOperationHistory($projectId: ID!, $confirmClear: Boolean!) {
+        clearOperationHistory(projectId: $projectId, confirmClear: $confirmClear)
+      }
+    `;
+
+    const data = await this.query(mutation, { projectId, confirmClear });
+    return data.clearOperationHistory;
+  }
 }

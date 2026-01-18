@@ -205,3 +205,10 @@ mockFetch.mockResolvedValue({
 - `create_cue_sequence`, `generate_act_cues`
 - `start_cue_list`, `next_cue`, `previous_cue`, `go_to_cue`
 - `optimize_cue_timing`, `analyze_cue_structure`
+
+### Undo/Redo Tools
+- `undo`, `redo` - Undo/redo the last operation in a project
+- `get_undo_redo_status` - Get current undo/redo status (canUndo, canRedo, descriptions)
+- `get_operation_history` - Get paginated operation history for a project
+- `jump_to_operation` - Jump to a specific point in history
+- `clear_operation_history` - Clear all operation history (destructive)
