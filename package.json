@@ -29,6 +29,7 @@
     "@modelcontextprotocol/sdk": "^1.25.1",
     "cross-fetch": "^4.1.0",
     "graphql": "^16.12.0",
+    "node-machine-id": "^1.1.12",
     "openai": "^6.16.0",
     "zod": "^4.3.5"
   },

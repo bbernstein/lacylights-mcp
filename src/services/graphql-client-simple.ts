@@ -24,19 +24,100 @@ import { normalizePaginationParams } from '../utils/pagination';
  */
 const DEFAULT_MANUAL_ADVANCE_TIME = 5;
 
+/**
+ * Error thrown when a device is not approved to access the backend.
+ */
+export class DeviceNotApprovedError extends Error {
+  public readonly fingerprint: string;
+
+  constructor(message: string, fingerprint: string) {
+    super(message);
+    this.name = 'DeviceNotApprovedError';
+    this.fingerprint = fingerprint;
+  }
+}
+
+/**
+ * Device status as returned by checkDevice query.
+ */
+export type DeviceStatus = 'PENDING' | 'APPROVED' | 'REVOKED' | 'UNKNOWN';
+
+/**
+ * Result of checking device status.
+ */
+export interface DeviceCheckResult {
+  status: DeviceStatus;
+  device?: {
+    id: string;
+    name: string;
+    fingerprint: string;
+    status: DeviceStatus;
+    permissions: string;
+    lastSeen?: string;
+    createdAt: string;
+    approvedAt?: string;
+  };
+  message?: string;
+}
+
+/**
+ * Result of registering a new device.
+ */
+export interface DeviceRegistrationResult {
+  success: boolean;
+  device?: {
+    id: string;
+    name: string;
+    fingerprint: string;
+    status: DeviceStatus;
+  };
+  message: string;
+}
+
+/**
+ * Authentication settings from the backend.
+ */
+export interface AuthSettings {
+  authEnabled: boolean;
+  deviceAuthEnabled: boolean;
+}
+
 export class LacyLightsGraphQLClient {
   private endpoint: string;
+  private deviceFingerprint: string | null;
 
-  constructor(endpoint: string = 'http://localhost:4000/graphql') {
+  constructor(endpoint: string = 'http://localhost:4000/graphql', deviceFingerprint?: string) {
     this.endpoint = endpoint;
+    this.deviceFingerprint = deviceFingerprint || null;
+  }
+
+  /**
+   * Set the device fingerprint to include in all requests.
+   */
+  setDeviceFingerprint(fingerprint: string): void {
+    this.deviceFingerprint = fingerprint;
+  }
+
+  /**
+   * Get the current device fingerprint.
+   */
+  getDeviceFingerprint(): string | null {
+    return this.deviceFingerprint;
   }
 
   private async query(query: string, variables?: any): Promise<any> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add device fingerprint header if available
+    if (this.deviceFingerprint) {
+      headers['X-Device-Fingerprint'] = this.deviceFingerprint;
+    }
+
     const response = await fetch(this.endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         query,
         variables,
@@ -46,10 +127,94 @@ export class LacyLightsGraphQLClient {
     const result = await response.json();
 
     if (result.errors) {
-      throw new Error(result.errors[0].message);
+      const error = result.errors[0];
+      // Check for device-related errors
+      if (error.extensions?.code === 'DEVICE_NOT_APPROVED' ||
+          error.message?.includes('device not approved') ||
+          error.message?.includes('Device not approved')) {
+        throw new DeviceNotApprovedError(
+          error.message,
+          this.deviceFingerprint || 'unknown'
+        );
+      }
+      throw new Error(error.message);
     }
 
     return result.data;
+  }
+
+  // ============================================================
+  // Device Authentication Methods
+  // ============================================================
+
+  /**
+   * Get authentication settings from the backend.
+   * This is typically the first call to determine if auth is enabled.
+   */
+  async getAuthSettings(): Promise<AuthSettings> {
+    const gqlQuery = `
+      query GetAuthSettings {
+        authSettings {
+          authEnabled
+          deviceAuthEnabled
+        }
+      }
+    `;
+
+    const data = await this.query(gqlQuery);
+    return data.authSettings;
+  }
+
+  /**
+   * Check the status of a device by fingerprint.
+   * This can be called without authentication to check if a device is known.
+   */
+  async checkDevice(fingerprint: string): Promise<DeviceCheckResult> {
+    const gqlQuery = `
+      query CheckDevice($fingerprint: String!) {
+        checkDevice(fingerprint: $fingerprint) {
+          status
+          device {
+            id
+            name
+            fingerprint
+            status
+            permissions
+            lastSeen
+            createdAt
+            approvedAt
+          }
+          message
+        }
+      }
+    `;
+
+    const data = await this.query(gqlQuery, { fingerprint });
+    return data.checkDevice;
+  }
+
+  /**
+   * Register a new device with the backend.
+   * The device will be in PENDING status until approved by an admin.
+   */
+  async registerDevice(fingerprint: string, name: string): Promise<DeviceRegistrationResult> {
+    const mutation = `
+      mutation RegisterDevice($fingerprint: String!, $name: String!) {
+        registerDevice(fingerprint: $fingerprint, name: $name) {
+          success
+          device {
+            id
+            name
+            fingerprint
+            status
+          }
+          message
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { fingerprint, name });
+    return data.registerDevice;
   }
 
   async getProjects(): Promise<Project[]> {
@@ -2997,5 +3162,60 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(mutation, { projectId, confirmClear });
     return data.clearOperationHistory;
+  }
+
+  // ============================================================
+  // Copy Fixtures to Looks Operation
+  // ============================================================
+
+  /**
+   * Copy fixture channel values from a source look to multiple target looks.
+   * This is an atomic operation that supports undo/redo.
+   */
+  async copyFixturesToLooks(input: {
+    sourceLookId: string;
+    fixtureIds: string[];
+    targetLookIds: string[];
+  }): Promise<{
+    updatedLookCount: number;
+    affectedCueCount: number;
+    operationId: string;
+    updatedLooks: Array<{
+      id: string;
+      name: string;
+      updatedAt: string;
+      fixtureValues: Array<{
+        fixture: { id: string; name: string };
+        channels: Array<{ offset: number; value: number }>;
+      }>;
+    }>;
+  }> {
+    const mutation = `
+      mutation CopyFixturesToLooks($input: CopyFixturesToLooksInput!) {
+        copyFixturesToLooks(input: $input) {
+          updatedLookCount
+          affectedCueCount
+          operationId
+          updatedLooks {
+            id
+            name
+            updatedAt
+            fixtureValues {
+              fixture {
+                id
+                name
+              }
+              channels {
+                offset
+                value
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.copyFixturesToLooks;
   }
 }

@@ -219,6 +219,13 @@ const BulkUpdateLooksPartialSchema = z.object({
   })),
 });
 
+// Copy Fixtures to Looks Schema
+const CopyFixturesToLooksSchema = z.object({
+  sourceLookId: z.string(),
+  fixtureIds: z.array(z.string()).min(1),
+  targetLookIds: z.array(z.string()).min(1),
+});
+
 export class LookTools {
   constructor(
     private graphqlClient: LacyLightsGraphQLClient,
@@ -1105,6 +1112,50 @@ export class LookTools {
       };
     } catch (error) {
       throw new Error(`Failed to bulk delete looks: ${error}`);
+    }
+  }
+
+  /**
+   * Copy fixture channel values from a source look to multiple target looks.
+   * This is an atomic operation that supports undo/redo via the operation history.
+   */
+  async copyFixturesToLooks(args: z.infer<typeof CopyFixturesToLooksSchema>) {
+    const { sourceLookId, fixtureIds, targetLookIds } = CopyFixturesToLooksSchema.parse(args);
+
+    try {
+      // Validate inputs
+      if (fixtureIds.length === 0) {
+        throw new Error('At least one fixture ID must be provided');
+      }
+      if (targetLookIds.length === 0) {
+        throw new Error('At least one target look ID must be provided');
+      }
+
+      // Execute the copy operation
+      const result = await this.graphqlClient.copyFixturesToLooks({
+        sourceLookId,
+        fixtureIds,
+        targetLookIds,
+      });
+
+      return {
+        success: true,
+        sourceLookId,
+        fixturesCopied: fixtureIds.length,
+        updatedLookCount: result.updatedLookCount,
+        affectedCueCount: result.affectedCueCount,
+        operationId: result.operationId,
+        updatedLooks: result.updatedLooks.map(look => ({
+          lookId: look.id,
+          name: look.name,
+          updatedAt: look.updatedAt,
+          fixtureCount: look.fixtureValues?.length || 0,
+        })),
+        message: `Successfully copied ${fixtureIds.length} fixture(s) to ${result.updatedLookCount} look(s). ${result.affectedCueCount} cue(s) affected.`,
+        hint: result.operationId ? 'Use undo to revert this operation' : undefined,
+      };
+    } catch (error) {
+      throw new Error(`Failed to copy fixtures to looks: ${error}`);
     }
   }
 }
