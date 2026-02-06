@@ -17,6 +17,7 @@ import {
 } from '../types/lighting';
 import { PaginatedResponse } from '../types/pagination';
 import { normalizePaginationParams } from '../utils/pagination';
+import { isValidFingerprint, MAX_FINGERPRINT_LENGTH } from '../utils/device-fingerprint';
 
 /**
  * Default time (in seconds) assumed for manual cue advance when followTime is not specified.
@@ -24,32 +25,246 @@ import { normalizePaginationParams } from '../utils/pagination';
  */
 const DEFAULT_MANUAL_ADVANCE_TIME = 5;
 
+/**
+ * Error thrown when a device is not approved to access the backend.
+ */
+export class DeviceNotApprovedError extends Error {
+  public readonly fingerprint: string;
+
+  constructor(message: string, fingerprint: string) {
+    super(message);
+    this.name = 'DeviceNotApprovedError';
+    this.fingerprint = fingerprint;
+  }
+}
+
+/**
+ * Device status as returned by checkDevice query.
+ */
+export type DeviceStatus = 'PENDING' | 'APPROVED' | 'REVOKED' | 'UNKNOWN';
+
+/**
+ * Result of checking device status.
+ */
+export interface DeviceCheckResult {
+  status: DeviceStatus;
+  device?: {
+    id: string;
+    name: string;
+    fingerprint: string;
+    status: DeviceStatus;
+    permissions: string;
+    lastSeen?: string;
+    createdAt: string;
+    approvedAt?: string;
+  } | null;
+  message?: string;
+}
+
+/**
+ * Result of registering a new device.
+ */
+export interface DeviceRegistrationResult {
+  success: boolean;
+  device?: {
+    id: string;
+    name: string;
+    fingerprint: string;
+    status: DeviceStatus;
+  } | null;
+  message: string;
+}
+
+/**
+ * Authentication settings from the backend.
+ */
+export interface AuthSettings {
+  authEnabled: boolean;
+  deviceAuthEnabled: boolean;
+}
+
+/**
+ * Validate and sanitize a fingerprint for use in HTTP headers.
+ * Returns null if the fingerprint is invalid or unsafe.
+ * Uses shared validation from device-fingerprint module to avoid duplication.
+ */
+function validateFingerprint(fingerprint: string | undefined | null): string | null {
+  if (!fingerprint) {
+    return null;
+  }
+  const trimmed = fingerprint.trim();
+  if (trimmed.length === 0 ||
+      trimmed.length > MAX_FINGERPRINT_LENGTH ||
+      !isValidFingerprint(trimmed)) {
+    return null;
+  }
+  return trimmed;
+}
+
 export class LacyLightsGraphQLClient {
   private endpoint: string;
+  private deviceFingerprint: string | null;
 
-  constructor(endpoint: string = 'http://localhost:4000/graphql') {
+  constructor(endpoint: string = 'http://localhost:4000/graphql', deviceFingerprint?: string) {
     this.endpoint = endpoint;
+    // Validate fingerprint at construction to prevent header injection
+    this.deviceFingerprint = validateFingerprint(deviceFingerprint);
   }
 
-  private async query(query: string, variables?: any): Promise<any> {
+  /**
+   * Set the device fingerprint to include in all requests.
+   * Invalid fingerprints are treated as null (header will be omitted).
+   */
+  setDeviceFingerprint(fingerprint: string): void {
+    this.deviceFingerprint = validateFingerprint(fingerprint);
+  }
+
+  /**
+   * Get the current device fingerprint.
+   */
+  getDeviceFingerprint(): string | null {
+    return this.deviceFingerprint;
+  }
+
+  private async query(query: string, variables?: any, options?: { signal?: AbortSignal }): Promise<any> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add device fingerprint header if available
+    if (this.deviceFingerprint) {
+      headers['X-Device-Fingerprint'] = this.deviceFingerprint;
+    }
+
     const response = await fetch(this.endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         query,
         variables,
       }),
+      signal: options?.signal,
     });
+
+    // Handle non-2xx responses explicitly to provide better error context
+    if (!response.ok) {
+      let errorBody: string;
+      try {
+        const rawBody = await response.text();
+        // Truncate body to avoid leaking sensitive backend details (HTML error pages, stack traces)
+        // and to prevent very large log lines
+        const MAX_ERROR_BODY_LENGTH = 200;
+        errorBody = rawBody.length > MAX_ERROR_BODY_LENGTH
+          ? rawBody.slice(0, MAX_ERROR_BODY_LENGTH) + '...[truncated]'
+          : rawBody;
+      } catch {
+        errorBody = 'Could not read response body';
+      }
+      throw new Error(
+        `GraphQL request failed with status ${response.status} ${response.statusText}: ${errorBody}`
+      );
+    }
 
     const result = await response.json();
 
-    if (result.errors) {
-      throw new Error(result.errors[0].message);
+    if (Array.isArray(result.errors) && result.errors.length > 0) {
+      const error = result.errors[0];
+      // Handle malformed error objects (missing, null, or non-string message)
+      const rawMessage = error?.message;
+      const errorMessage = typeof rawMessage === 'string' ? rawMessage : 'Unknown GraphQL error';
+      const errorMessageLower = errorMessage.toLowerCase();
+      // Check for device-related errors
+      if (error?.extensions?.code === 'DEVICE_NOT_APPROVED' ||
+          errorMessageLower.includes('device not approved')) {
+        throw new DeviceNotApprovedError(
+          errorMessage,
+          this.deviceFingerprint || 'unknown'
+        );
+      }
+      throw new Error(errorMessage);
     }
 
     return result.data;
+  }
+
+  // ============================================================
+  // Device Authentication Methods
+  // ============================================================
+
+  /**
+   * Get authentication settings from the backend.
+   * This is typically the first call to determine if auth is enabled.
+   * @param options Optional request options including AbortSignal for timeout/cancellation
+   */
+  async getAuthSettings(options?: { signal?: AbortSignal }): Promise<AuthSettings> {
+    const gqlQuery = `
+      query GetAuthSettings {
+        authSettings {
+          authEnabled
+          deviceAuthEnabled
+        }
+      }
+    `;
+
+    const data = await this.query(gqlQuery, undefined, options);
+    return data.authSettings;
+  }
+
+  /**
+   * Check the status of a device by fingerprint.
+   * This can be called without authentication to check if a device is known.
+   * @param fingerprint The device fingerprint to check
+   * @param options Optional request options including AbortSignal for timeout/cancellation
+   */
+  async checkDevice(fingerprint: string, options?: { signal?: AbortSignal }): Promise<DeviceCheckResult> {
+    const gqlQuery = `
+      query CheckDevice($fingerprint: String!) {
+        checkDevice(fingerprint: $fingerprint) {
+          status
+          device {
+            id
+            name
+            fingerprint
+            status
+            permissions
+            lastSeen
+            createdAt
+            approvedAt
+          }
+          message
+        }
+      }
+    `;
+
+    const data = await this.query(gqlQuery, { fingerprint }, options);
+    return data.checkDevice;
+  }
+
+  /**
+   * Register a new device with the backend.
+   * The device will be in PENDING status until approved by an admin.
+   * @param fingerprint The device fingerprint to register
+   * @param name A human-readable name for the device
+   * @param options Optional request options including AbortSignal for timeout/cancellation
+   */
+  async registerDevice(fingerprint: string, name: string, options?: { signal?: AbortSignal }): Promise<DeviceRegistrationResult> {
+    const mutation = `
+      mutation RegisterDevice($fingerprint: String!, $name: String!) {
+        registerDevice(fingerprint: $fingerprint, name: $name) {
+          success
+          device {
+            id
+            name
+            fingerprint
+            status
+          }
+          message
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { fingerprint, name }, options);
+    return data.registerDevice;
   }
 
   async getProjects(): Promise<Project[]> {
@@ -2997,5 +3212,49 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(mutation, { projectId, confirmClear });
     return data.clearOperationHistory;
+  }
+
+  // ============================================================
+  // Copy Fixtures to Looks Operation
+  // ============================================================
+
+  /**
+   * Copy fixture channel values from a source look to multiple target looks.
+   * This is an atomic operation that supports undo/redo.
+   */
+  async copyFixturesToLooks(input: {
+    sourceLookId: string;
+    fixtureIds: string[];
+    targetLookIds: string[];
+  }): Promise<{
+    updatedLookCount: number;
+    affectedCueCount: number;
+    operationId: string;
+    updatedLooks: Array<{
+      id: string;
+      name: string;
+      updatedAt: string;
+    }>;
+  }> {
+    // Reduced selection set: only return look metadata, not full fixtureValues
+    // with channels array. Callers can query individual looks if they need
+    // the full fixture channel data.
+    const mutation = `
+      mutation CopyFixturesToLooks($input: CopyFixturesToLooksInput!) {
+        copyFixturesToLooks(input: $input) {
+          updatedLookCount
+          affectedCueCount
+          operationId
+          updatedLooks {
+            id
+            name
+            updatedAt
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { input });
+    return data.copyFixturesToLooks;
   }
 }

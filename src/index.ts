@@ -7,7 +7,7 @@ import {
   ListToolsRequestSchema,
 } from "./mcp-imports";
 
-import { LacyLightsGraphQLClient } from "./services/graphql-client-simple";
+import { LacyLightsGraphQLClient, DeviceNotApprovedError } from "./services/graphql-client-simple";
 import { RAGService } from "./services/rag-service-simple";
 import { AILightingService } from "./services/ai-lighting";
 import { FixtureTools } from "./tools/fixture-tools";
@@ -18,6 +18,18 @@ import { SettingsTools } from "./tools/settings-tools";
 import { LookBoardTools } from "./tools/look-board-tools";
 import { UndoRedoTools } from "./tools/undo-redo-tools";
 import { logger } from "./utils/logger";
+import { getDeviceFingerprint, getDeviceName } from "./utils/device-fingerprint";
+
+/**
+ * Redact a device fingerprint for safe logging.
+ * For fingerprints longer than 12 characters: shows first 8 and last 4 characters.
+ * For shorter fingerprints: shows only first 4 characters followed by '...'.
+ */
+function redactFingerprint(fingerprint: string | null | undefined): string {
+  if (!fingerprint) return 'unknown';
+  if (fingerprint.length <= 12) return fingerprint.slice(0, 4) + '...';
+  return fingerprint.slice(0, 8) + '...' + fingerprint.slice(-4);
+}
 
 class LacyLightsMCPServer {
   private server: Server;
@@ -49,7 +61,15 @@ class LacyLightsMCPServer {
     const graphqlEndpoint =
       process.env.LACYLIGHTS_GRAPHQL_ENDPOINT ||
       "http://localhost:4000/graphql";
-    this.graphqlClient = new LacyLightsGraphQLClient(graphqlEndpoint);
+
+    // Generate device fingerprint for authentication
+    const deviceFingerprint = getDeviceFingerprint();
+    logger.info('Device fingerprint generated', {
+      fingerprint: redactFingerprint(deviceFingerprint),
+      deviceName: getDeviceName(),
+    });
+
+    this.graphqlClient = new LacyLightsGraphQLClient(graphqlEndpoint, deviceFingerprint);
     this.ragService = new RAGService();
     this.aiLightingService = new AILightingService(this.ragService);
 
@@ -1572,6 +1592,32 @@ Use cases:
                 },
               },
               required: ["lookIds", "confirmDelete"],
+            },
+          },
+          {
+            name: "copy_fixtures_to_looks",
+            description: "Copy fixture channel values from a source look to multiple target looks. This is an atomic operation that supports undo/redo. Useful for propagating lighting changes across multiple looks efficiently.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                sourceLookId: {
+                  type: "string",
+                  description: "ID of the source look to copy fixture values from",
+                },
+                fixtureIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  minItems: 1,
+                  description: "Array of fixture IDs to copy (must exist in source look)",
+                },
+                targetLookIds: {
+                  type: "array",
+                  items: { type: "string" },
+                  minItems: 1,
+                  description: "Array of target look IDs to copy fixture values to",
+                },
+              },
+              required: ["sourceLookId", "fixtureIds", "targetLookIds"],
             },
           },
           // Cue Tools
@@ -3664,6 +3710,20 @@ Returns:
               ],
             };
 
+          case "copy_fixtures_to_looks":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.lookTools.copyFixturesToLooks(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
           // Cue Tools
           case "create_cue_sequence":
             return {
@@ -4428,11 +4488,19 @@ Returns:
   }
 
   async run() {
+    const fingerprint = this.graphqlClient.getDeviceFingerprint();
+    const deviceName = getDeviceName();
+
     // Log server startup
     logger.info('LacyLights MCP Server initializing', {
       logFile: logger.getLogPath(),
       graphqlEndpoint: process.env.LACYLIGHTS_GRAPHQL_ENDPOINT || "http://localhost:4000/graphql",
+      deviceFingerprint: redactFingerprint(fingerprint),
+      deviceName,
     });
+
+    // Check device authentication status
+    await this.checkDeviceStatus(fingerprint, deviceName);
 
     // Initialize RAG service
     try {
@@ -4447,6 +4515,143 @@ Returns:
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     logger.info('MCP Server connected and ready');
+  }
+
+  /**
+   * Check device authentication status with the backend.
+   * This method handles:
+   * - Auth disabled: logs message and continues
+   * - Device approved: logs message and continues
+   * - Device pending: logs warning asking admin to approve
+   * - Device unknown: auto-registers and logs message
+   * - Connection errors: logs warning and continues (allows offline use)
+   * - Timeout: logs warning and continues (allows startup when backend is hung)
+   */
+  private async checkDeviceStatus(fingerprint: string | null, deviceName: string): Promise<void> {
+    if (!fingerprint) {
+      logger.warn('No device fingerprint available, skipping device authentication check');
+      return;
+    }
+
+    // Timeout for device status check to prevent blocking startup indefinitely
+    const DEVICE_CHECK_TIMEOUT_MS = 5000;
+
+    // Create an AbortController with timeout to cancel underlying fetch requests
+    // This ensures that hung requests are actually terminated, not just ignored
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, DEVICE_CHECK_TIMEOUT_MS);
+
+    try {
+      // Check if authentication is enabled on the backend with timeout
+      const authSettings = await this.graphqlClient.getAuthSettings({ signal: controller.signal });
+
+      if (!authSettings.authEnabled) {
+        clearTimeout(timeoutId);
+        logger.info('Authentication disabled on server - all access allowed');
+        return;
+      }
+
+      if (!authSettings.deviceAuthEnabled) {
+        clearTimeout(timeoutId);
+        logger.info('Device authentication disabled - using standard authentication');
+        return;
+      }
+
+      logger.info('Device authentication enabled, checking device status...');
+
+      // Check device status (AbortController signal passed for timeout)
+      const result = await this.graphqlClient.checkDevice(fingerprint, { signal: controller.signal });
+
+      switch (result.status) {
+        case 'APPROVED':
+          logger.info('Device approved', {
+            deviceId: result.device?.id,
+            deviceName: result.device?.name,
+            permissions: result.device?.permissions,
+          });
+          break;
+
+        case 'PENDING':
+          logger.warn('Device is pending approval', {
+            message: 'Please approve this device in the LacyLights admin panel.',
+            deviceName,
+            fingerprint: redactFingerprint(fingerprint),
+          });
+          break;
+
+        case 'REVOKED':
+          logger.error('Device has been revoked', {
+            message: 'This device has been revoked and cannot access the system.',
+            fingerprint: redactFingerprint(fingerprint),
+          });
+          // Continue anyway - the backend will reject requests
+          break;
+
+        case 'UNKNOWN':
+        default:
+          // Auto-register the device
+          logger.info('Registering new device...', { deviceName, fingerprint: redactFingerprint(fingerprint) });
+          try {
+            const regResult = await this.graphqlClient.registerDevice(fingerprint, deviceName, { signal: controller.signal });
+            if (regResult.success) {
+              logger.info('Device registered successfully', {
+                deviceId: regResult.device?.id,
+                message: regResult.message,
+              });
+              logger.warn('Device pending approval', {
+                message: 'Please approve this device in the LacyLights admin panel.',
+                deviceName,
+                fingerprint: redactFingerprint(fingerprint),
+              });
+            } else {
+              logger.error('Device registration failed', {
+                message: regResult.message,
+              });
+            }
+          } catch (regError) {
+            // Convert abort errors to timeout errors for clearer messaging
+            if (regError instanceof Error && regError.name === 'AbortError') {
+              logger.error('Device registration timed out', {
+                error: 'Device authentication check timed out',
+              });
+            } else {
+              logger.error('Failed to register device', {
+                error: regError instanceof Error ? regError.message : String(regError),
+              });
+            }
+          }
+          break;
+      }
+      // Clear timeout on successful completion
+      clearTimeout(timeoutId);
+    } catch (error) {
+      // Clean up timeout and convert abort errors
+      clearTimeout(timeoutId);
+
+      if (error instanceof DeviceNotApprovedError) {
+        logger.error('Device not approved to access the system', {
+          message: 'Please approve this device in the LacyLights admin panel.',
+          fingerprint: redactFingerprint(error.fingerprint),
+          deviceName,
+        });
+        // Continue anyway - the MCP server can still start, requests will fail
+        return;
+      }
+
+      // Convert AbortError to a clearer timeout message
+      const errorMessage = error instanceof Error && error.name === 'AbortError'
+        ? 'Device authentication check timed out'
+        : error instanceof Error ? error.message : String(error);
+
+      // Connection error, timeout, or other issue - log and continue
+      // This allows the MCP server to start even if the backend is temporarily unavailable
+      logger.warn('Could not check device authentication status', {
+        error: errorMessage,
+        message: 'Continuing without device verification. Backend may be unavailable.',
+      });
+    }
   }
 }
 

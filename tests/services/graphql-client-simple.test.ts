@@ -5,6 +5,25 @@ import fetch from 'cross-fetch';
 jest.mock('cross-fetch');
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
+/**
+ * Helper to create a mock fetch response with proper Response-like properties.
+ * @param data The data to return from json()
+ * @param options Optional configuration for status code, ok flag, and status text
+ */
+function createMockResponse(
+  data: any,
+  options: { ok?: boolean; status?: number; statusText?: string } = {}
+): Partial<Response> {
+  const { ok = true, status = ok ? 200 : 500, statusText = ok ? 'OK' : 'Internal Server Error' } = options;
+  return {
+    ok,
+    status,
+    statusText,
+    json: jest.fn().mockResolvedValue(data),
+    text: jest.fn().mockResolvedValue(JSON.stringify(data)),
+  };
+}
+
 describe('LacyLightsGraphQLClient', () => {
   let client: LacyLightsGraphQLClient;
 
@@ -28,6 +47,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('query method', () => {
     it('should make successful GraphQL query', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { projects: [] }
         })
@@ -49,6 +69,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle GraphQL errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Test error' }]
         })
@@ -63,6 +84,32 @@ describe('LacyLightsGraphQLClient', () => {
 
       await expect(client.getProjects()).rejects.toThrow('Network error');
     });
+
+    it('should handle non-2xx responses with error details', async () => {
+      const errorBody = { error: 'Service unavailable' };
+      const mockResponse = createMockResponse(errorBody, { ok: false, status: 503, statusText: 'Service Unavailable' });
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      // Use regex to match the error message pattern since it includes truncated body
+      await expect(client.getProjects()).rejects.toThrow(
+        /GraphQL request failed with status 503 Service Unavailable/
+      );
+    });
+
+    it('should handle empty errors array gracefully', async () => {
+      const mockResponse = createMockResponse({ errors: [], data: { projects: [] } });
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getProjects();
+      expect(result).toEqual([]);
+    });
+
+    it('should handle malformed error with missing message', async () => {
+      const mockResponse = createMockResponse({ errors: [{ extensions: { code: 'SOME_CODE' } }] });
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.getProjects()).rejects.toThrow('Unknown GraphQL error');
+    });
   });
 
   describe('getProject', () => {
@@ -76,6 +123,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { project: mockProject }
         })
@@ -95,6 +143,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should return null for non-existent project', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { project: null }
         })
@@ -117,6 +166,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createProject: mockProject }
         })
@@ -146,6 +196,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createProject: mockProject }
         })
@@ -167,6 +218,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createLook: mockLook }
         })
@@ -195,6 +247,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { updateLook: mockLook }
         })
@@ -223,6 +276,7 @@ describe('LacyLightsGraphQLClient', () => {
       ];
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { fixtureDefinitions: mockDefinitions }
         })
@@ -246,6 +300,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createFixtureDefinition: mockDefinition }
         })
@@ -275,6 +330,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createFixtureInstance: mockInstance }
         })
@@ -304,6 +360,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { updateFixtureInstance: mockInstance }
         })
@@ -327,6 +384,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cueList: mockCueList }
         })
@@ -347,6 +405,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createCueList: mockCueList }
         })
@@ -379,11 +438,13 @@ describe('LacyLightsGraphQLClient', () => {
 
       mockFetch
         .mockResolvedValueOnce({
+          ok: true,
           json: jest.fn().mockResolvedValue({
             data: { cueList: mockCurrentCueList }
           })
         } as any)
         .mockResolvedValueOnce({
+          ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateCueList: mockUpdatedCueList }
           })
@@ -407,6 +468,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createCue: mockCue }
         })
@@ -448,11 +510,13 @@ describe('LacyLightsGraphQLClient', () => {
 
       mockFetch
         .mockResolvedValueOnce({
+          ok: true,
           json: jest.fn().mockResolvedValue({
             data: { cue: mockCurrentCue }
           })
         } as any)
         .mockResolvedValueOnce({
+          ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateCue: mockUpdatedCue }
           })
@@ -481,6 +545,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { toggleCueSkip: mockCue }
         })
@@ -503,6 +568,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle toggle cue skip errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Cue not found' }]
         })
@@ -516,6 +582,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('deleteCue', () => {
     it('should delete cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { deleteCue: true }
         })
@@ -530,6 +597,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('deleteCueList', () => {
     it('should delete cue list', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { deleteCueList: true }
         })
@@ -544,6 +612,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('deleteProject', () => {
     it('should delete project', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { deleteProject: true }
         })
@@ -574,6 +643,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('addFixturesToLook', () => {
       it('should add fixtures to scene', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -599,6 +669,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should handle overwrite parameter', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -621,6 +692,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should include lookOrder in GraphQL query response', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -651,6 +723,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('removeFixturesFromLook', () => {
       it('should remove fixtures from scene', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { removeFixturesFromLook: mockLook }
           })
@@ -672,6 +745,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should remove multiple fixtures', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { removeFixturesFromLook: mockLook }
           })
@@ -690,6 +764,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should include lookOrder in response', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { removeFixturesFromLook: mockLook }
           })
@@ -717,6 +792,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('updateLookPartial', () => {
       it('should update scene with metadata only', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookPartial: mockLook }
           })
@@ -741,6 +817,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should update scene with fixture values', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookPartial: mockLook }
           })
@@ -763,6 +840,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should handle merge mode correctly', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookPartial: mockLook }
           })
@@ -784,6 +862,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should include lookOrder in fixture values', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookPartial: mockLook }
           })
@@ -817,6 +896,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('GraphQL Query Structure', () => {
       it('should include all required fields in look queries', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -842,6 +922,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should structure mutation variables correctly', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -874,6 +955,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('API Consistency Tests', () => {
       it('should use consistent response structure across all safe look methods', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { 
               addFixturesToLook: mockLook,
@@ -912,6 +994,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('Error Handling', () => {
       it('should handle GraphQL errors consistently', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             errors: [{ message: 'Look not found' }]
           })
@@ -943,6 +1026,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should handle malformed responses', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({})
         };
         mockFetch.mockResolvedValue(mockResponse as any);
@@ -963,6 +1047,7 @@ describe('LacyLightsGraphQLClient', () => {
         { id: '2', name: 'Cue 2', cueNumber: 2, fadeInTime: 3, fadeOutTime: 3, followTime: null, notes: '', look: { id: 'look-1', name: 'Scene 1' } }
       ];
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { bulkUpdateCues: mockCues }
         })
@@ -992,6 +1077,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('deleteFixtureInstance', () => {
     it('should delete fixture instance', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { deleteFixtureInstance: true }
         })
@@ -1015,6 +1101,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('setLookLive', () => {
     it('should set scene live', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { setLookLive: true }
         })
@@ -1038,6 +1125,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('fadeToBlack', () => {
     it('should fade to black', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { fadeToBlack: true }
         })
@@ -1069,6 +1157,7 @@ describe('LacyLightsGraphQLClient', () => {
         fixtureValues: []
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { look: mockLook }
         })
@@ -1090,6 +1179,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should return null for non-existent look', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { look: null }
         })
@@ -1104,6 +1194,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('goToCue', () => {
     it('should go to cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { goToCue: true }
         })
@@ -1125,6 +1216,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should go to cue without fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { goToCue: true }
         })
@@ -1140,6 +1232,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('stopCueList', () => {
     it('should stop cue list', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { stopCueList: true }
         })
@@ -1172,6 +1265,7 @@ describe('LacyLightsGraphQLClient', () => {
         fixtureValues: []
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { currentActiveLook: mockLook }
         })
@@ -1193,6 +1287,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should return null when no look is active', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { currentActiveLook: null }
         })
@@ -1217,6 +1312,7 @@ describe('LacyLightsGraphQLClient', () => {
         look: { id: 'look-1', name: 'Scene 1' }
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cue: mockCue }
         })
@@ -1238,6 +1334,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should return null for non-existent cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cue: null }
         })
@@ -1252,6 +1349,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('previousCue', () => {
     it('should go to previous cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { previousCue: true }
         })
@@ -1273,6 +1371,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should go to previous cue without fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { previousCue: true }
         })
@@ -1288,6 +1387,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('playCue', () => {
     it('should play cue with fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { playCue: true }
         })
@@ -1309,6 +1409,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should play cue without fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { playCue: true }
         })
@@ -1338,6 +1439,7 @@ describe('LacyLightsGraphQLClient', () => {
         }
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cueListPlaybackStatus: mockStatus }
         })
@@ -1367,6 +1469,7 @@ describe('LacyLightsGraphQLClient', () => {
         lastUpdated: '2024-01-01T00:00:00Z'
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cueListPlaybackStatus: mockStatus }
         })
@@ -1388,6 +1491,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('startCueList', () => {
     it('should start cue list from beginning', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { startCueList: true }
         })
@@ -1409,6 +1513,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should start cue list from specific cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { startCueList: true }
         })
@@ -1424,6 +1529,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('nextCue', () => {
     it('should advance to next cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { nextCue: true }
         })
@@ -1445,6 +1551,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should advance to next cue without fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { nextCue: true }
         })
@@ -1481,6 +1588,7 @@ describe('LacyLightsGraphQLClient', () => {
         ];
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { lookBoards: mockBoards }
           })
@@ -1509,6 +1617,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { lookBoard: mockBoard }
           })
@@ -1542,6 +1651,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { createLookBoard: mockBoard }
           })
@@ -1570,6 +1680,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookBoard: mockBoard }
           })
@@ -1585,6 +1696,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('deleteLookBoard', () => {
       it('should delete a look board', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { deleteLookBoard: true }
           })
@@ -1617,6 +1729,7 @@ describe('LacyLightsGraphQLClient', () => {
         }));
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { bulkCreateLookBoards: mockBoards }
           })
@@ -1638,6 +1751,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { bulkDeleteLookBoards: mockResult }
           })
@@ -1673,6 +1787,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addLookToBoard: mockButton }
           })
@@ -1704,6 +1819,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookBoardButton: mockButton }
           })
@@ -1719,6 +1835,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('removeLookFromBoard', () => {
       it('should remove a button from board', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { removeLookFromBoard: true }
           })
@@ -1739,6 +1856,7 @@ describe('LacyLightsGraphQLClient', () => {
         ];
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookBoardButtonPositions: true }
           })
@@ -1770,6 +1888,7 @@ describe('LacyLightsGraphQLClient', () => {
         }));
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { bulkCreateLookBoardButtons: mockButtons }
           })
@@ -1791,6 +1910,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { bulkDeleteLookBoardButtons: mockResult }
           })
@@ -1806,6 +1926,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('activateLookFromBoard', () => {
       it('should activate scene with board default fade time', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { activateLookFromBoard: true }
           })
@@ -1819,6 +1940,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should activate scene with custom fade time', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { activateLookFromBoard: true }
           })
@@ -1841,6 +1963,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { buildInfo: mockBuildInfo }
         })
@@ -1868,6 +1991,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { buildInfo: mockBuildInfo }
         })
@@ -1888,6 +2012,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle GraphQL errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Build info not available' }]
         })
@@ -1905,6 +2030,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle null response', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { buildInfo: null }
         })
@@ -1923,6 +2049,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { buildInfo: mockBuildInfo }
         })
@@ -1937,6 +2064,557 @@ describe('LacyLightsGraphQLClient', () => {
       expect(typeof result.version).toBe('string');
       expect(typeof result.gitCommit).toBe('string');
       expect(typeof result.buildTime).toBe('string');
+    });
+  });
+
+  // ========================================================================
+  // Device Authentication Tests
+  // ========================================================================
+
+  describe('Device Fingerprint Header', () => {
+    it('should include device fingerprint header when set', async () => {
+      const clientWithFingerprint = new LacyLightsGraphQLClient(
+        'http://localhost:4000/graphql',
+        'test-fingerprint-123'
+      );
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { projects: [] }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await clientWithFingerprint.getProjects();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'X-Device-Fingerprint': 'test-fingerprint-123'
+          })
+        })
+      );
+    });
+
+    it('should not include fingerprint header when not set', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { projects: [] }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await client.getProjects();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+      );
+    });
+
+    it('should set and get device fingerprint', () => {
+      client.setDeviceFingerprint('new-fingerprint-456');
+      expect(client.getDeviceFingerprint()).toBe('new-fingerprint-456');
+    });
+
+    it('should return null when no fingerprint is set', () => {
+      expect(client.getDeviceFingerprint()).toBeNull();
+    });
+  });
+
+  describe('DeviceNotApprovedError', () => {
+    it('should throw DeviceNotApprovedError when extension code is DEVICE_NOT_APPROVED', async () => {
+      const clientWithFingerprint = new LacyLightsGraphQLClient(
+        'http://localhost:4000/graphql',
+        'test-fingerprint'
+      );
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'Access denied',
+            extensions: { code: 'DEVICE_NOT_APPROVED' }
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(clientWithFingerprint.getProjects()).rejects.toThrow('Access denied');
+      try {
+        await clientWithFingerprint.getProjects();
+      } catch (error: any) {
+        expect(error.name).toBe('DeviceNotApprovedError');
+        expect(error.fingerprint).toBe('test-fingerprint');
+      }
+    });
+
+    it('should throw DeviceNotApprovedError when message contains "device not approved" (case insensitive)', async () => {
+      const clientWithFingerprint = new LacyLightsGraphQLClient(
+        'http://localhost:4000/graphql',
+        'test-fingerprint'
+      );
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'Device Not Approved for this operation'
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(clientWithFingerprint.getProjects()).rejects.toThrow('Device Not Approved for this operation');
+    });
+
+    it('should throw DeviceNotApprovedError when message contains "DEVICE NOT APPROVED" (uppercase)', async () => {
+      const clientWithFingerprint = new LacyLightsGraphQLClient(
+        'http://localhost:4000/graphql',
+        'test-fingerprint'
+      );
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'DEVICE NOT APPROVED'
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(clientWithFingerprint.getProjects()).rejects.toThrow('DEVICE NOT APPROVED');
+    });
+
+    it('should use "unknown" fingerprint when client has no fingerprint', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'device not approved',
+            extensions: { code: 'DEVICE_NOT_APPROVED' }
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      try {
+        await client.getProjects();
+      } catch (error: any) {
+        expect(error.fingerprint).toBe('unknown');
+      }
+    });
+
+    it('should not throw DeviceNotApprovedError for unrelated errors', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'Some other error'
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.getProjects()).rejects.toThrow('Some other error');
+      // Should be a regular Error, not DeviceNotApprovedError
+      try {
+        await client.getProjects();
+      } catch (error: any) {
+        expect(error.name).not.toBe('DeviceNotApprovedError');
+      }
+    });
+  });
+
+  describe('getAuthSettings', () => {
+    it('should get auth settings successfully', async () => {
+      const mockAuthSettings = {
+        authEnabled: true,
+        deviceAuthEnabled: true
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { authSettings: mockAuthSettings }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getAuthSettings();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('GetAuthSettings')
+        })
+      );
+      expect(result).toEqual(mockAuthSettings);
+      expect(result.authEnabled).toBe(true);
+      expect(result.deviceAuthEnabled).toBe(true);
+    });
+
+    it('should return auth disabled settings', async () => {
+      const mockAuthSettings = {
+        authEnabled: false,
+        deviceAuthEnabled: false
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { authSettings: mockAuthSettings }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getAuthSettings();
+
+      expect(result.authEnabled).toBe(false);
+      expect(result.deviceAuthEnabled).toBe(false);
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Auth settings not available' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.getAuthSettings()).rejects.toThrow('Auth settings not available');
+    });
+
+    it('should handle network errors', async () => {
+      mockFetch.mockRejectedValue(new Error('Network error'));
+
+      await expect(client.getAuthSettings()).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('checkDevice', () => {
+    it('should check device and return APPROVED status', async () => {
+      const mockDeviceCheck = {
+        status: 'APPROVED',
+        device: {
+          id: 'device-123',
+          name: 'Test Device',
+          fingerprint: 'test-fingerprint',
+          status: 'APPROVED',
+          permissions: 'FULL',
+          lastSeen: '2024-01-01T00:00:00Z',
+          createdAt: '2024-01-01T00:00:00Z',
+          approvedAt: '2024-01-01T00:00:00Z'
+        },
+        message: 'Device approved'
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { checkDevice: mockDeviceCheck }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.checkDevice('test-fingerprint');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('CheckDevice')
+        })
+      );
+      expect(result.status).toBe('APPROVED');
+      expect(result.device?.id).toBe('device-123');
+      expect(result.device?.permissions).toBe('FULL');
+    });
+
+    it('should check device and return PENDING status', async () => {
+      const mockDeviceCheck = {
+        status: 'PENDING',
+        device: {
+          id: 'device-123',
+          name: 'Test Device',
+          fingerprint: 'test-fingerprint',
+          status: 'PENDING',
+          permissions: 'NONE',
+          createdAt: '2024-01-01T00:00:00Z'
+        },
+        message: 'Device awaiting approval'
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { checkDevice: mockDeviceCheck }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.checkDevice('test-fingerprint');
+
+      expect(result.status).toBe('PENDING');
+      expect(result.message).toBe('Device awaiting approval');
+    });
+
+    it('should check device and return REVOKED status', async () => {
+      const mockDeviceCheck = {
+        status: 'REVOKED',
+        device: {
+          id: 'device-123',
+          name: 'Test Device',
+          fingerprint: 'test-fingerprint',
+          status: 'REVOKED',
+          permissions: 'NONE',
+          createdAt: '2024-01-01T00:00:00Z'
+        },
+        message: 'Device has been revoked'
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { checkDevice: mockDeviceCheck }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.checkDevice('test-fingerprint');
+
+      expect(result.status).toBe('REVOKED');
+    });
+
+    it('should check device and return UNKNOWN status', async () => {
+      const mockDeviceCheck = {
+        status: 'UNKNOWN',
+        device: null,
+        message: 'Device not found'
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { checkDevice: mockDeviceCheck }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.checkDevice('unknown-fingerprint');
+
+      expect(result.status).toBe('UNKNOWN');
+      expect(result.device).toBeNull();
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Device check failed' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.checkDevice('test-fingerprint')).rejects.toThrow('Device check failed');
+    });
+  });
+
+  describe('registerDevice', () => {
+    it('should register device successfully', async () => {
+      const mockRegistration = {
+        success: true,
+        device: {
+          id: 'device-new',
+          name: 'New Device',
+          fingerprint: 'new-fingerprint',
+          status: 'PENDING'
+        },
+        message: 'Device registered successfully'
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { registerDevice: mockRegistration }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.registerDevice('new-fingerprint', 'New Device');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('RegisterDevice')
+        })
+      );
+      expect(result.success).toBe(true);
+      expect(result.device?.id).toBe('device-new');
+      expect(result.device?.status).toBe('PENDING');
+      expect(result.message).toBe('Device registered successfully');
+    });
+
+    it('should handle registration failure', async () => {
+      const mockRegistration = {
+        success: false,
+        device: null,
+        message: 'Device already exists'
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { registerDevice: mockRegistration }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.registerDevice('existing-fingerprint', 'Existing Device');
+
+      expect(result.success).toBe(false);
+      expect(result.device).toBeNull();
+      expect(result.message).toBe('Device already exists');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Registration failed' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.registerDevice('test-fingerprint', 'Test Device')).rejects.toThrow('Registration failed');
+    });
+
+    it('should handle network errors', async () => {
+      mockFetch.mockRejectedValue(new Error('Network unavailable'));
+
+      await expect(client.registerDevice('test-fingerprint', 'Test Device')).rejects.toThrow('Network unavailable');
+    });
+  });
+
+  describe('copyFixturesToLooks', () => {
+    it('should copy fixtures to looks successfully', async () => {
+      // Mock response matches the actual GraphQL selection set which only
+      // requests id, name, updatedAt (not fixtureValues with channels)
+      const mockResult = {
+        updatedLookCount: 3,
+        affectedCueCount: 5,
+        operationId: 'op-123',
+        updatedLooks: [
+          {
+            id: 'look-1',
+            name: 'Look 1',
+            updatedAt: '2024-01-01T00:00:00Z'
+          },
+          {
+            id: 'look-2',
+            name: 'Look 2',
+            updatedAt: '2024-01-01T00:00:00Z'
+          }
+        ]
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { copyFixturesToLooks: mockResult }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.copyFixturesToLooks({
+        sourceLookId: 'source-look',
+        fixtureIds: ['fixture-1', 'fixture-2'],
+        targetLookIds: ['look-1', 'look-2', 'look-3']
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('CopyFixturesToLooks')
+        })
+      );
+      expect(result.updatedLookCount).toBe(3);
+      expect(result.affectedCueCount).toBe(5);
+      expect(result.operationId).toBe('op-123');
+      expect(result.updatedLooks).toHaveLength(2);
+    });
+
+    it('should include look metadata in response', async () => {
+      const mockResult = {
+        updatedLookCount: 1,
+        affectedCueCount: 0,
+        operationId: 'op-456',
+        updatedLooks: [
+          {
+            id: 'look-1',
+            name: 'Updated Look',
+            updatedAt: '2024-01-01T00:00:00Z'
+          }
+        ]
+      };
+
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          data: { copyFixturesToLooks: mockResult }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.copyFixturesToLooks({
+        sourceLookId: 'source-look',
+        fixtureIds: ['fixture-1'],
+        targetLookIds: ['look-1']
+      });
+
+      // Verify response contains look metadata (fixtureValues no longer returned)
+      expect(result.updatedLooks[0].id).toBe('look-1');
+      expect(result.updatedLooks[0].name).toBe('Updated Look');
+      expect(result.updatedLooks[0].updatedAt).toBe('2024-01-01T00:00:00Z');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Source look not found' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.copyFixturesToLooks({
+        sourceLookId: 'invalid-look',
+        fixtureIds: ['fixture-1'],
+        targetLookIds: ['look-1']
+      })).rejects.toThrow('Source look not found');
+    });
+
+    it('should handle network errors', async () => {
+      mockFetch.mockRejectedValue(new Error('Network timeout'));
+
+      await expect(client.copyFixturesToLooks({
+        sourceLookId: 'source-look',
+        fixtureIds: ['fixture-1'],
+        targetLookIds: ['look-1']
+      })).rejects.toThrow('Network timeout');
     });
   });
 });

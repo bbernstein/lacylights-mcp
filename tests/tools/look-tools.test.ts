@@ -2106,6 +2106,156 @@ describe('LookTools', () => {
         })).rejects.toThrow('Failed to bulk delete looks');
       });
     });
+
+    describe('copyFixturesToLooks', () => {
+      it('should copy fixtures to looks successfully', async () => {
+        const mockResult = {
+          updatedLookCount: 3,
+          affectedCueCount: 5,
+          operationId: 'op-123',
+          updatedLooks: [
+            {
+              id: 'look-1',
+              name: 'Look 1',
+              updatedAt: '2024-01-01T00:00:00Z'
+            },
+            {
+              id: 'look-2',
+              name: 'Look 2',
+              updatedAt: '2024-01-01T00:00:00Z'
+            }
+          ]
+        };
+
+        mockGraphQLClient.copyFixturesToLooks = jest.fn().mockResolvedValue(mockResult);
+
+        const result = await lookTools.copyFixturesToLooks({
+          sourceLookId: 'source-look',
+          fixtureIds: ['fixture-1', 'fixture-2'],
+          targetLookIds: ['look-1', 'look-2', 'look-3']
+        });
+
+        expect(mockGraphQLClient.copyFixturesToLooks).toHaveBeenCalledWith({
+          sourceLookId: 'source-look',
+          fixtureIds: ['fixture-1', 'fixture-2'],
+          targetLookIds: ['look-1', 'look-2', 'look-3']
+        });
+        expect(result.success).toBe(true);
+        expect(result.updatedLookCount).toBe(3);
+        expect(result.affectedCueCount).toBe(5);
+        expect(result.operationId).toBe('op-123');
+        expect(result.updatedLooks).toHaveLength(2);
+        expect(result.message).toContain('Successfully copied');
+      });
+
+      it('should include look metadata in response', async () => {
+        const mockResult = {
+          updatedLookCount: 1,
+          affectedCueCount: 2,
+          operationId: 'op-456',
+          updatedLooks: [
+            {
+              id: 'look-1',
+              name: 'Test Look',
+              updatedAt: '2024-01-01T00:00:00Z'
+            }
+          ]
+        };
+
+        mockGraphQLClient.copyFixturesToLooks = jest.fn().mockResolvedValue(mockResult);
+
+        const result = await lookTools.copyFixturesToLooks({
+          sourceLookId: 'source-look',
+          fixtureIds: ['fixture-1'],
+          targetLookIds: ['look-1']
+        });
+
+        // Verify the response contains look metadata (fixtureValues no longer returned)
+        expect(result.updatedLooks[0].lookId).toBe('look-1');
+        expect(result.updatedLooks[0].name).toBe('Test Look');
+        expect(result.updatedLooks[0].updatedAt).toBe('2024-01-01T00:00:00Z');
+      });
+
+      it('should validate sourceLookId is required', async () => {
+        await expect(lookTools.copyFixturesToLooks({
+          fixtureIds: ['fixture-1'],
+          targetLookIds: ['look-1']
+        } as any)).rejects.toThrow();
+      });
+
+      it('should validate fixtureIds array is not empty (via Zod schema)', async () => {
+        await expect(lookTools.copyFixturesToLooks({
+          sourceLookId: 'source-look',
+          fixtureIds: [],
+          targetLookIds: ['look-1']
+        })).rejects.toThrow();
+      });
+
+      it('should validate targetLookIds array is not empty (via Zod schema)', async () => {
+        await expect(lookTools.copyFixturesToLooks({
+          sourceLookId: 'source-look',
+          fixtureIds: ['fixture-1'],
+          targetLookIds: []
+        })).rejects.toThrow();
+      });
+
+      it('should handle copy operation errors', async () => {
+        mockGraphQLClient.copyFixturesToLooks = jest.fn().mockRejectedValue(new Error('Source look not found'));
+
+        await expect(lookTools.copyFixturesToLooks({
+          sourceLookId: 'invalid-source',
+          fixtureIds: ['fixture-1'],
+          targetLookIds: ['look-1']
+        })).rejects.toThrow('Failed to copy fixtures to looks: Error: Source look not found');
+      });
+
+      it('should handle partial copy failures', async () => {
+        const mockResult = {
+          updatedLookCount: 2,
+          affectedCueCount: 0,
+          operationId: 'op-789',
+          updatedLooks: [
+            {
+              id: 'look-1',
+              name: 'Look 1',
+              updatedAt: '2024-01-01T00:00:00Z'
+            }
+          ]
+        };
+
+        mockGraphQLClient.copyFixturesToLooks = jest.fn().mockResolvedValue(mockResult);
+
+        const result = await lookTools.copyFixturesToLooks({
+          sourceLookId: 'source-look',
+          fixtureIds: ['fixture-1'],
+          targetLookIds: ['look-1', 'look-2', 'look-3']
+        });
+
+        // Should still succeed even if some looks weren't in the response
+        expect(result.success).toBe(true);
+        expect(result.updatedLookCount).toBe(2);
+      });
+
+      it('should report affected cues in the response', async () => {
+        const mockResult = {
+          updatedLookCount: 2,
+          affectedCueCount: 10,
+          operationId: 'op-cue',
+          updatedLooks: []
+        };
+
+        mockGraphQLClient.copyFixturesToLooks = jest.fn().mockResolvedValue(mockResult);
+
+        const result = await lookTools.copyFixturesToLooks({
+          sourceLookId: 'source-look',
+          fixtureIds: ['fixture-1'],
+          targetLookIds: ['look-1', 'look-2']
+        });
+
+        expect(result.affectedCueCount).toBe(10);
+        expect(result.message).toContain('10 cue(s) affected');
+      });
+    });
   });
 
 });
