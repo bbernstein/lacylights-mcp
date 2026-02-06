@@ -139,18 +139,20 @@ export class LacyLightsGraphQLClient {
 
     const result = await response.json();
 
-    if (result.errors) {
+    if (Array.isArray(result.errors) && result.errors.length > 0) {
       const error = result.errors[0];
-      const errorMessageLower = (error.message ?? '').toLowerCase();
+      // Handle malformed error objects (missing or null message)
+      const errorMessage = error?.message ?? 'Unknown GraphQL error';
+      const errorMessageLower = errorMessage.toLowerCase();
       // Check for device-related errors
-      if (error.extensions?.code === 'DEVICE_NOT_APPROVED' ||
+      if (error?.extensions?.code === 'DEVICE_NOT_APPROVED' ||
           errorMessageLower.includes('device not approved')) {
         throw new DeviceNotApprovedError(
-          error.message,
+          errorMessage,
           this.deviceFingerprint || 'unknown'
         );
       }
-      throw new Error(error.message);
+      throw new Error(errorMessage);
     }
 
     return result.data;

@@ -64,7 +64,7 @@ class LacyLightsMCPServer {
     // Generate device fingerprint for authentication
     const deviceFingerprint = getDeviceFingerprint();
     logger.info('Device fingerprint generated', {
-      fingerprint: deviceFingerprint.substring(0, 8) + '...',
+      fingerprint: redactFingerprint(deviceFingerprint),
       deviceName: getDeviceName(),
     });
 
@@ -4492,7 +4492,7 @@ Returns:
     logger.info('LacyLights MCP Server initializing', {
       logFile: logger.getLogPath(),
       graphqlEndpoint: process.env.LACYLIGHTS_GRAPHQL_ENDPOINT || "http://localhost:4000/graphql",
-      deviceFingerprint: fingerprint ? fingerprint.substring(0, 8) + '...' : 'none',
+      deviceFingerprint: redactFingerprint(fingerprint),
       deviceName,
     });
 

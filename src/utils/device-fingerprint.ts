@@ -75,7 +75,29 @@ export function getDeviceFingerprint(): string {
     // Atomic write: write to temp file then rename to avoid partial writes
     const tempFile = `${FINGERPRINT_FILE}.tmp-${process.pid}-${Date.now()}`;
     fs.writeFileSync(tempFile, fingerprint, { encoding: 'utf-8', mode: 0o600, flag: 'w' });
-    fs.renameSync(tempFile, FINGERPRINT_FILE);
+    try {
+      fs.renameSync(tempFile, FINGERPRINT_FILE);
+    } catch (renameError: unknown) {
+      // On Windows, renameSync can fail if destination exists (EEXIST/EPERM)
+      // Retry after unlinking the destination file
+      const isWindowsConflict = renameError instanceof Error &&
+        ('code' in renameError && (renameError.code === 'EEXIST' || renameError.code === 'EPERM'));
+      if (isWindowsConflict) {
+        try {
+          fs.unlinkSync(FINGERPRINT_FILE);
+          fs.renameSync(tempFile, FINGERPRINT_FILE);
+        } catch (_retryError) {
+          // Fallback to non-atomic overwrite
+          fs.writeFileSync(FINGERPRINT_FILE, fingerprint, { encoding: 'utf-8', mode: 0o600 });
+          // Clean up temp file
+          try { fs.unlinkSync(tempFile); } catch { /* ignore cleanup errors */ }
+        }
+      } else {
+        // Non-Windows error or different issue - clean up temp file and rethrow
+        try { fs.unlinkSync(tempFile); } catch { /* ignore cleanup errors */ }
+        throw renameError;
+      }
+    }
     logger.debug('Cached device fingerprint', { path: FINGERPRINT_FILE });
   } catch (error) {
     logger.warn('Failed to cache device fingerprint', { error });

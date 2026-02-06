@@ -8,13 +8,17 @@ const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 /**
  * Helper to create a mock fetch response with proper Response-like properties.
  * @param data The data to return from json()
- * @param ok Whether the response is ok (status 200-299). Defaults to true.
+ * @param options Optional configuration for status code, ok flag, and status text
  */
-function createMockResponse(data: any, ok: boolean = true): Partial<Response> {
+function createMockResponse(
+  data: any,
+  options: { ok?: boolean; status?: number; statusText?: string } = {}
+): Partial<Response> {
+  const { ok = true, status = ok ? 200 : 500, statusText = ok ? 'OK' : 'Internal Server Error' } = options;
   return {
     ok,
-    status: ok ? 200 : 500,
-    statusText: ok ? 'OK' : 'Internal Server Error',
+    status,
+    statusText,
     json: jest.fn().mockResolvedValue(data),
     text: jest.fn().mockResolvedValue(JSON.stringify(data)),
   };
@@ -79,6 +83,31 @@ describe('LacyLightsGraphQLClient', () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
 
       await expect(client.getProjects()).rejects.toThrow('Network error');
+    });
+
+    it('should handle non-2xx responses with error details', async () => {
+      const errorBody = { error: 'Service unavailable' };
+      const mockResponse = createMockResponse(errorBody, { ok: false, status: 503, statusText: 'Service Unavailable' });
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.getProjects()).rejects.toThrow(
+        'GraphQL request failed with status 503 Service Unavailable'
+      );
+    });
+
+    it('should handle empty errors array gracefully', async () => {
+      const mockResponse = createMockResponse({ errors: [], data: { projects: [] } });
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getProjects();
+      expect(result).toEqual([]);
+    });
+
+    it('should handle malformed error with missing message', async () => {
+      const mockResponse = createMockResponse({ errors: [{ extensions: { code: 'SOME_CODE' } }] });
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.getProjects()).rejects.toThrow('Unknown GraphQL error');
     });
   });
 
