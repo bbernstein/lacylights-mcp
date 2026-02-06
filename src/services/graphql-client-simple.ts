@@ -17,6 +17,7 @@ import {
 } from '../types/lighting';
 import { PaginatedResponse } from '../types/pagination';
 import { normalizePaginationParams } from '../utils/pagination';
+import { isValidFingerprint, MAX_FINGERPRINT_LENGTH } from '../utils/device-fingerprint';
 
 /**
  * Default time (in seconds) assumed for manual cue advance when followTime is not specified.
@@ -82,14 +83,10 @@ export interface AuthSettings {
   deviceAuthEnabled: boolean;
 }
 
-// Fingerprint validation pattern: alphanumeric/hyphen only, reasonable length
-// This prevents header injection and ensures consistent format
-const FINGERPRINT_PATTERN = /^[a-zA-Z0-9-]+$/;
-const MAX_FINGERPRINT_LENGTH = 128;
-
 /**
  * Validate and sanitize a fingerprint for use in HTTP headers.
  * Returns null if the fingerprint is invalid or unsafe.
+ * Uses shared validation from device-fingerprint module to avoid duplication.
  */
 function validateFingerprint(fingerprint: string | undefined | null): string | null {
   if (!fingerprint) {
@@ -98,7 +95,7 @@ function validateFingerprint(fingerprint: string | undefined | null): string | n
   const trimmed = fingerprint.trim();
   if (trimmed.length === 0 ||
       trimmed.length > MAX_FINGERPRINT_LENGTH ||
-      !FINGERPRINT_PATTERN.test(trimmed)) {
+      !isValidFingerprint(trimmed)) {
     return null;
   }
   return trimmed;

@@ -18,17 +18,30 @@ import { logger } from './logger';
 const FINGERPRINT_FILE = path.join(os.homedir(), '.lacylights', 'device-id');
 
 // Fingerprint validation: alphanumeric/hyphen, reasonable length
-const FINGERPRINT_PATTERN = /^[a-zA-Z0-9-]+$/;
-const MAX_FINGERPRINT_LENGTH = 128;
+// Exported for use by GraphQL client header validation
+export const FINGERPRINT_PATTERN = /^[a-zA-Z0-9-]+$/;
+export const MAX_FINGERPRINT_LENGTH = 128;
 
 /**
  * Validate a fingerprint string.
  * Must be alphanumeric/hyphen only and within reasonable length.
+ * Exported for use by GraphQL client header validation.
  */
-function isValidFingerprint(value: string): boolean {
+export function isValidFingerprint(value: string): boolean {
   return value.length > 0 &&
          value.length <= MAX_FINGERPRINT_LENGTH &&
          FINGERPRINT_PATTERN.test(value);
+}
+
+/**
+ * Helper to serialize error objects for logging.
+ * JSON.stringify() on Error objects returns {} since message/stack aren't enumerable.
+ */
+function serializeError(error: unknown): { message?: string; stack?: string; error?: string } {
+  if (error instanceof Error) {
+    return { message: error.message, stack: error.stack };
+  }
+  return { error: String(error) };
 }
 
 /**
@@ -57,7 +70,7 @@ export function getDeviceFingerprint(): string {
       }
     }
   } catch (error) {
-    logger.warn('Failed to read cached device fingerprint', { error });
+    logger.warn('Failed to read cached device fingerprint', serializeError(error));
   }
 
   // Helper to generate fallback fingerprint from hostname/username
@@ -66,7 +79,7 @@ export function getDeviceFingerprint(): string {
     try {
       username = os.userInfo().username;
     } catch (userError) {
-      logger.warn('Failed to get OS user info for fingerprint, falling back to hostname-only', { error: userError });
+      logger.warn('Failed to get OS user info for fingerprint, falling back to hostname-only', serializeError(userError));
     }
     const data = `${os.hostname()}-${username}-lacylights-mcp`;
     return crypto.createHash('sha256').update(data).digest('hex').slice(0, 32);
@@ -91,7 +104,7 @@ export function getDeviceFingerprint(): string {
     }
   } catch (error) {
     // Fallback: hash of hostname + username
-    logger.warn('Failed to get machine ID, using fallback', { error });
+    logger.warn('Failed to get machine ID, using fallback', serializeError(error));
     fingerprint = generateFallbackFingerprint();
     logger.debug('Generated fingerprint from hostname/username hash');
   }
@@ -130,7 +143,7 @@ export function getDeviceFingerprint(): string {
     }
     logger.debug('Cached device fingerprint', { path: FINGERPRINT_FILE });
   } catch (error) {
-    logger.warn('Failed to cache device fingerprint', { error });
+    logger.warn('Failed to cache device fingerprint', serializeError(error));
     // Continue without caching - we can still use the fingerprint
   }
 
@@ -158,6 +171,6 @@ export function clearCachedFingerprint(): void {
       logger.info('Cleared cached device fingerprint');
     }
   } catch (error) {
-    logger.warn('Failed to clear cached device fingerprint', { error });
+    logger.warn('Failed to clear cached device fingerprint', serializeError(error));
   }
 }
