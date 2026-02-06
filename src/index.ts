@@ -22,7 +22,8 @@ import { getDeviceFingerprint, getDeviceName } from "./utils/device-fingerprint"
 
 /**
  * Redact a device fingerprint for safe logging.
- * Shows first 8 and last 4 characters with dots in between.
+ * For fingerprints longer than 12 characters: shows first 8 and last 4 characters.
+ * For shorter fingerprints: shows only first 4 characters followed by '...'.
  */
 function redactFingerprint(fingerprint: string | null | undefined): string {
   if (!fingerprint) return 'unknown';
@@ -4522,6 +4523,7 @@ Returns:
    * - Device pending: logs warning asking admin to approve
    * - Device unknown: auto-registers and logs message
    * - Connection errors: logs warning and continues (allows offline use)
+   * - Timeout: logs warning and continues (allows startup when backend is hung)
    */
   private async checkDeviceStatus(fingerprint: string | null, deviceName: string): Promise<void> {
     if (!fingerprint) {
@@ -4529,9 +4531,22 @@ Returns:
       return;
     }
 
+    // Timeout for device status check to prevent blocking startup indefinitely
+    const DEVICE_CHECK_TIMEOUT_MS = 5000;
+
+    // Helper to wrap promises with timeout
+    const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = DEVICE_CHECK_TIMEOUT_MS): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Device authentication check timed out')), timeoutMs)
+        ),
+      ]);
+    };
+
     try {
-      // Check if authentication is enabled on the backend
-      const authSettings = await this.graphqlClient.getAuthSettings();
+      // Check if authentication is enabled on the backend with timeout
+      const authSettings = await withTimeout(this.graphqlClient.getAuthSettings());
 
       if (!authSettings.authEnabled) {
         logger.info('Authentication disabled on server - all access allowed');
@@ -4545,8 +4560,8 @@ Returns:
 
       logger.info('Device authentication enabled, checking device status...');
 
-      // Check device status
-      const result = await this.graphqlClient.checkDevice(fingerprint);
+      // Check device status with timeout
+      const result = await withTimeout(this.graphqlClient.checkDevice(fingerprint));
 
       switch (result.status) {
         case 'APPROVED':
@@ -4578,7 +4593,7 @@ Returns:
           // Auto-register the device
           logger.info('Registering new device...', { deviceName, fingerprint: redactFingerprint(fingerprint) });
           try {
-            const regResult = await this.graphqlClient.registerDevice(fingerprint, deviceName);
+            const regResult = await withTimeout(this.graphqlClient.registerDevice(fingerprint, deviceName));
             if (regResult.success) {
               logger.info('Device registered successfully', {
                 deviceId: regResult.device?.id,
