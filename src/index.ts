@@ -4534,45 +4534,33 @@ Returns:
     // Timeout for device status check to prevent blocking startup indefinitely
     const DEVICE_CHECK_TIMEOUT_MS = 5000;
 
-    // Helper to wrap promises with timeout, ensuring the timeout is cleared when the promise settles
-    const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = DEVICE_CHECK_TIMEOUT_MS): Promise<T> => {
-      return new Promise<T>((resolve, reject) => {
-        const timeoutId = setTimeout(
-          () => reject(new Error('Device authentication check timed out')),
-          timeoutMs
-        );
-
-        promise.then(
-          (value) => {
-            clearTimeout(timeoutId);
-            resolve(value);
-          },
-          (error) => {
-            clearTimeout(timeoutId);
-            reject(error);
-          }
-        );
-      });
-    };
+    // Create an AbortController with timeout to cancel underlying fetch requests
+    // This ensures that hung requests are actually terminated, not just ignored
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, DEVICE_CHECK_TIMEOUT_MS);
 
     try {
       // Check if authentication is enabled on the backend with timeout
-      const authSettings = await withTimeout(this.graphqlClient.getAuthSettings());
+      const authSettings = await this.graphqlClient.getAuthSettings({ signal: controller.signal });
 
       if (!authSettings.authEnabled) {
+        clearTimeout(timeoutId);
         logger.info('Authentication disabled on server - all access allowed');
         return;
       }
 
       if (!authSettings.deviceAuthEnabled) {
+        clearTimeout(timeoutId);
         logger.info('Device authentication disabled - using standard authentication');
         return;
       }
 
       logger.info('Device authentication enabled, checking device status...');
 
-      // Check device status with timeout
-      const result = await withTimeout(this.graphqlClient.checkDevice(fingerprint));
+      // Check device status (AbortController signal passed for timeout)
+      const result = await this.graphqlClient.checkDevice(fingerprint, { signal: controller.signal });
 
       switch (result.status) {
         case 'APPROVED':
@@ -4604,7 +4592,7 @@ Returns:
           // Auto-register the device
           logger.info('Registering new device...', { deviceName, fingerprint: redactFingerprint(fingerprint) });
           try {
-            const regResult = await withTimeout(this.graphqlClient.registerDevice(fingerprint, deviceName));
+            const regResult = await this.graphqlClient.registerDevice(fingerprint, deviceName, { signal: controller.signal });
             if (regResult.success) {
               logger.info('Device registered successfully', {
                 deviceId: regResult.device?.id,
@@ -4621,13 +4609,25 @@ Returns:
               });
             }
           } catch (regError) {
-            logger.error('Failed to register device', {
-              error: regError instanceof Error ? regError.message : String(regError),
-            });
+            // Convert abort errors to timeout errors for clearer messaging
+            if (regError instanceof Error && regError.name === 'AbortError') {
+              logger.error('Device registration timed out', {
+                error: 'Device authentication check timed out',
+              });
+            } else {
+              logger.error('Failed to register device', {
+                error: regError instanceof Error ? regError.message : String(regError),
+              });
+            }
           }
           break;
       }
+      // Clear timeout on successful completion
+      clearTimeout(timeoutId);
     } catch (error) {
+      // Clean up timeout and convert abort errors
+      clearTimeout(timeoutId);
+
       if (error instanceof DeviceNotApprovedError) {
         logger.error('Device not approved to access the system', {
           message: 'Please approve this device in the LacyLights admin panel.',
@@ -4638,10 +4638,15 @@ Returns:
         return;
       }
 
-      // Connection error or other issue - log and continue
+      // Convert AbortError to a clearer timeout message
+      const errorMessage = error instanceof Error && error.name === 'AbortError'
+        ? 'Device authentication check timed out'
+        : error instanceof Error ? error.message : String(error);
+
+      // Connection error, timeout, or other issue - log and continue
       // This allows the MCP server to start even if the backend is temporarily unavailable
       logger.warn('Could not check device authentication status', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
         message: 'Continuing without device verification. Backend may be unavailable.',
       });
     }

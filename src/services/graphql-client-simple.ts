@@ -105,7 +105,7 @@ export class LacyLightsGraphQLClient {
     return this.deviceFingerprint;
   }
 
-  private async query(query: string, variables?: any): Promise<any> {
+  private async query(query: string, variables?: any, options?: { signal?: AbortSignal }): Promise<any> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -122,6 +122,7 @@ export class LacyLightsGraphQLClient {
         query,
         variables,
       }),
+      signal: options?.signal,
     });
 
     // Handle non-2xx responses explicitly to provide better error context
@@ -171,8 +172,9 @@ export class LacyLightsGraphQLClient {
   /**
    * Get authentication settings from the backend.
    * This is typically the first call to determine if auth is enabled.
+   * @param options Optional request options including AbortSignal for timeout/cancellation
    */
-  async getAuthSettings(): Promise<AuthSettings> {
+  async getAuthSettings(options?: { signal?: AbortSignal }): Promise<AuthSettings> {
     const gqlQuery = `
       query GetAuthSettings {
         authSettings {
@@ -182,15 +184,17 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(gqlQuery);
+    const data = await this.query(gqlQuery, undefined, options);
     return data.authSettings;
   }
 
   /**
    * Check the status of a device by fingerprint.
    * This can be called without authentication to check if a device is known.
+   * @param fingerprint The device fingerprint to check
+   * @param options Optional request options including AbortSignal for timeout/cancellation
    */
-  async checkDevice(fingerprint: string): Promise<DeviceCheckResult> {
+  async checkDevice(fingerprint: string, options?: { signal?: AbortSignal }): Promise<DeviceCheckResult> {
     const gqlQuery = `
       query CheckDevice($fingerprint: String!) {
         checkDevice(fingerprint: $fingerprint) {
@@ -210,15 +214,18 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(gqlQuery, { fingerprint });
+    const data = await this.query(gqlQuery, { fingerprint }, options);
     return data.checkDevice;
   }
 
   /**
    * Register a new device with the backend.
    * The device will be in PENDING status until approved by an admin.
+   * @param fingerprint The device fingerprint to register
+   * @param name A human-readable name for the device
+   * @param options Optional request options including AbortSignal for timeout/cancellation
    */
-  async registerDevice(fingerprint: string, name: string): Promise<DeviceRegistrationResult> {
+  async registerDevice(fingerprint: string, name: string, options?: { signal?: AbortSignal }): Promise<DeviceRegistrationResult> {
     const mutation = `
       mutation RegisterDevice($fingerprint: String!, $name: String!) {
         registerDevice(fingerprint: $fingerprint, name: $name) {
@@ -234,7 +241,7 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const data = await this.query(mutation, { fingerprint, name });
+    const data = await this.query(mutation, { fingerprint, name }, options);
     return data.registerDevice;
   }
 
