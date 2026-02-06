@@ -1,6 +1,6 @@
 {
   "name": "lacylights-mcp",
-  "version": "2.0.0",
+  "version": "1.6.16",
   "description": "MCP Server for AI-powered theatrical lighting design",
   "main": "dist/index.js",
   "scripts": {
