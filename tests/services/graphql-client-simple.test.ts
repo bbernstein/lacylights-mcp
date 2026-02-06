@@ -1939,4 +1939,553 @@ describe('LacyLightsGraphQLClient', () => {
       expect(typeof result.buildTime).toBe('string');
     });
   });
+
+  // ========================================================================
+  // Device Authentication Tests
+  // ========================================================================
+
+  describe('Device Fingerprint Header', () => {
+    it('should include device fingerprint header when set', async () => {
+      const clientWithFingerprint = new LacyLightsGraphQLClient(
+        'http://localhost:4000/graphql',
+        'test-fingerprint-123'
+      );
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { projects: [] }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await clientWithFingerprint.getProjects();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'X-Device-Fingerprint': 'test-fingerprint-123'
+          })
+        })
+      );
+    });
+
+    it('should not include fingerprint header when not set', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { projects: [] }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await client.getProjects();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+      );
+    });
+
+    it('should set and get device fingerprint', () => {
+      client.setDeviceFingerprint('new-fingerprint-456');
+      expect(client.getDeviceFingerprint()).toBe('new-fingerprint-456');
+    });
+
+    it('should return null when no fingerprint is set', () => {
+      expect(client.getDeviceFingerprint()).toBeNull();
+    });
+  });
+
+  describe('DeviceNotApprovedError', () => {
+    it('should throw DeviceNotApprovedError when extension code is DEVICE_NOT_APPROVED', async () => {
+      const clientWithFingerprint = new LacyLightsGraphQLClient(
+        'http://localhost:4000/graphql',
+        'test-fingerprint'
+      );
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'Access denied',
+            extensions: { code: 'DEVICE_NOT_APPROVED' }
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(clientWithFingerprint.getProjects()).rejects.toThrow('Access denied');
+      try {
+        await clientWithFingerprint.getProjects();
+      } catch (error: any) {
+        expect(error.name).toBe('DeviceNotApprovedError');
+        expect(error.fingerprint).toBe('test-fingerprint');
+      }
+    });
+
+    it('should throw DeviceNotApprovedError when message contains "device not approved" (case insensitive)', async () => {
+      const clientWithFingerprint = new LacyLightsGraphQLClient(
+        'http://localhost:4000/graphql',
+        'test-fingerprint'
+      );
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'Device Not Approved for this operation'
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(clientWithFingerprint.getProjects()).rejects.toThrow('Device Not Approved for this operation');
+    });
+
+    it('should throw DeviceNotApprovedError when message contains "DEVICE NOT APPROVED" (uppercase)', async () => {
+      const clientWithFingerprint = new LacyLightsGraphQLClient(
+        'http://localhost:4000/graphql',
+        'test-fingerprint'
+      );
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'DEVICE NOT APPROVED'
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(clientWithFingerprint.getProjects()).rejects.toThrow('DEVICE NOT APPROVED');
+    });
+
+    it('should use "unknown" fingerprint when client has no fingerprint', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'device not approved',
+            extensions: { code: 'DEVICE_NOT_APPROVED' }
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      try {
+        await client.getProjects();
+      } catch (error: any) {
+        expect(error.fingerprint).toBe('unknown');
+      }
+    });
+
+    it('should not throw DeviceNotApprovedError for unrelated errors', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{
+            message: 'Some other error'
+          }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.getProjects()).rejects.toThrow('Some other error');
+      // Should be a regular Error, not DeviceNotApprovedError
+      try {
+        await client.getProjects();
+      } catch (error: any) {
+        expect(error.name).not.toBe('DeviceNotApprovedError');
+      }
+    });
+  });
+
+  describe('getAuthSettings', () => {
+    it('should get auth settings successfully', async () => {
+      const mockAuthSettings = {
+        authEnabled: true,
+        deviceAuthEnabled: true
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { authSettings: mockAuthSettings }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getAuthSettings();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('GetAuthSettings')
+        })
+      );
+      expect(result).toEqual(mockAuthSettings);
+      expect(result.authEnabled).toBe(true);
+      expect(result.deviceAuthEnabled).toBe(true);
+    });
+
+    it('should return auth disabled settings', async () => {
+      const mockAuthSettings = {
+        authEnabled: false,
+        deviceAuthEnabled: false
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { authSettings: mockAuthSettings }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.getAuthSettings();
+
+      expect(result.authEnabled).toBe(false);
+      expect(result.deviceAuthEnabled).toBe(false);
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Auth settings not available' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.getAuthSettings()).rejects.toThrow('Auth settings not available');
+    });
+
+    it('should handle network errors', async () => {
+      mockFetch.mockRejectedValue(new Error('Network error'));
+
+      await expect(client.getAuthSettings()).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('checkDevice', () => {
+    it('should check device and return APPROVED status', async () => {
+      const mockDeviceCheck = {
+        status: 'APPROVED',
+        device: {
+          id: 'device-123',
+          name: 'Test Device',
+          fingerprint: 'test-fingerprint',
+          status: 'APPROVED',
+          permissions: 'FULL',
+          lastSeen: '2024-01-01T00:00:00Z',
+          createdAt: '2024-01-01T00:00:00Z',
+          approvedAt: '2024-01-01T00:00:00Z'
+        },
+        message: 'Device approved'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { checkDevice: mockDeviceCheck }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.checkDevice('test-fingerprint');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('CheckDevice')
+        })
+      );
+      expect(result.status).toBe('APPROVED');
+      expect(result.device?.id).toBe('device-123');
+      expect(result.device?.permissions).toBe('FULL');
+    });
+
+    it('should check device and return PENDING status', async () => {
+      const mockDeviceCheck = {
+        status: 'PENDING',
+        device: {
+          id: 'device-123',
+          name: 'Test Device',
+          fingerprint: 'test-fingerprint',
+          status: 'PENDING',
+          permissions: 'NONE',
+          createdAt: '2024-01-01T00:00:00Z'
+        },
+        message: 'Device awaiting approval'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { checkDevice: mockDeviceCheck }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.checkDevice('test-fingerprint');
+
+      expect(result.status).toBe('PENDING');
+      expect(result.message).toBe('Device awaiting approval');
+    });
+
+    it('should check device and return REVOKED status', async () => {
+      const mockDeviceCheck = {
+        status: 'REVOKED',
+        device: {
+          id: 'device-123',
+          name: 'Test Device',
+          fingerprint: 'test-fingerprint',
+          status: 'REVOKED',
+          permissions: 'NONE',
+          createdAt: '2024-01-01T00:00:00Z'
+        },
+        message: 'Device has been revoked'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { checkDevice: mockDeviceCheck }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.checkDevice('test-fingerprint');
+
+      expect(result.status).toBe('REVOKED');
+    });
+
+    it('should check device and return UNKNOWN status', async () => {
+      const mockDeviceCheck = {
+        status: 'UNKNOWN',
+        device: null,
+        message: 'Device not found'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { checkDevice: mockDeviceCheck }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.checkDevice('unknown-fingerprint');
+
+      expect(result.status).toBe('UNKNOWN');
+      expect(result.device).toBeNull();
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Device check failed' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.checkDevice('test-fingerprint')).rejects.toThrow('Device check failed');
+    });
+  });
+
+  describe('registerDevice', () => {
+    it('should register device successfully', async () => {
+      const mockRegistration = {
+        success: true,
+        device: {
+          id: 'device-new',
+          name: 'New Device',
+          fingerprint: 'new-fingerprint',
+          status: 'PENDING'
+        },
+        message: 'Device registered successfully'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { registerDevice: mockRegistration }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.registerDevice('new-fingerprint', 'New Device');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('RegisterDevice')
+        })
+      );
+      expect(result.success).toBe(true);
+      expect(result.device?.id).toBe('device-new');
+      expect(result.device?.status).toBe('PENDING');
+      expect(result.message).toBe('Device registered successfully');
+    });
+
+    it('should handle registration failure', async () => {
+      const mockRegistration = {
+        success: false,
+        device: null,
+        message: 'Device already exists'
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { registerDevice: mockRegistration }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.registerDevice('existing-fingerprint', 'Existing Device');
+
+      expect(result.success).toBe(false);
+      expect(result.device).toBeNull();
+      expect(result.message).toBe('Device already exists');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Registration failed' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.registerDevice('test-fingerprint', 'Test Device')).rejects.toThrow('Registration failed');
+    });
+
+    it('should handle network errors', async () => {
+      mockFetch.mockRejectedValue(new Error('Network unavailable'));
+
+      await expect(client.registerDevice('test-fingerprint', 'Test Device')).rejects.toThrow('Network unavailable');
+    });
+  });
+
+  describe('copyFixturesToLooks', () => {
+    it('should copy fixtures to looks successfully', async () => {
+      const mockResult = {
+        updatedLookCount: 3,
+        affectedCueCount: 5,
+        operationId: 'op-123',
+        updatedLooks: [
+          {
+            id: 'look-1',
+            name: 'Look 1',
+            updatedAt: '2024-01-01T00:00:00Z',
+            fixtureValues: [
+              {
+                fixture: { id: 'fixture-1', name: 'LED Par 1' },
+                channels: [{ offset: 0, value: 255 }]
+              }
+            ]
+          },
+          {
+            id: 'look-2',
+            name: 'Look 2',
+            updatedAt: '2024-01-01T00:00:00Z',
+            fixtureValues: [
+              {
+                fixture: { id: 'fixture-1', name: 'LED Par 1' },
+                channels: [{ offset: 0, value: 255 }]
+              }
+            ]
+          }
+        ]
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { copyFixturesToLooks: mockResult }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.copyFixturesToLooks({
+        sourceLookId: 'source-look',
+        fixtureIds: ['fixture-1', 'fixture-2'],
+        targetLookIds: ['look-1', 'look-2', 'look-3']
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:4000/graphql',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('CopyFixturesToLooks')
+        })
+      );
+      expect(result.updatedLookCount).toBe(3);
+      expect(result.affectedCueCount).toBe(5);
+      expect(result.operationId).toBe('op-123');
+      expect(result.updatedLooks).toHaveLength(2);
+    });
+
+    it('should include fixture values in response', async () => {
+      const mockResult = {
+        updatedLookCount: 1,
+        affectedCueCount: 0,
+        operationId: 'op-456',
+        updatedLooks: [
+          {
+            id: 'look-1',
+            name: 'Updated Look',
+            updatedAt: '2024-01-01T00:00:00Z',
+            fixtureValues: [
+              {
+                fixture: { id: 'fixture-1', name: 'LED Par 1' },
+                channels: [
+                  { offset: 0, value: 255 },
+                  { offset: 1, value: 128 },
+                  { offset: 2, value: 64 }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          data: { copyFixturesToLooks: mockResult }
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      const result = await client.copyFixturesToLooks({
+        sourceLookId: 'source-look',
+        fixtureIds: ['fixture-1'],
+        targetLookIds: ['look-1']
+      });
+
+      expect(result.updatedLooks[0].fixtureValues).toHaveLength(1);
+      expect(result.updatedLooks[0].fixtureValues[0].channels).toHaveLength(3);
+      expect(result.updatedLooks[0].fixtureValues[0].fixture.name).toBe('LED Par 1');
+    });
+
+    it('should handle GraphQL errors', async () => {
+      const mockResponse = {
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'Source look not found' }]
+        })
+      };
+      mockFetch.mockResolvedValue(mockResponse as any);
+
+      await expect(client.copyFixturesToLooks({
+        sourceLookId: 'invalid-look',
+        fixtureIds: ['fixture-1'],
+        targetLookIds: ['look-1']
+      })).rejects.toThrow('Source look not found');
+    });
+
+    it('should handle network errors', async () => {
+      mockFetch.mockRejectedValue(new Error('Network timeout'));
+
+      await expect(client.copyFixturesToLooks({
+        sourceLookId: 'source-look',
+        fixtureIds: ['fixture-1'],
+        targetLookIds: ['look-1']
+      })).rejects.toThrow('Network timeout');
+    });
+  });
 });

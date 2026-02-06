@@ -1123,14 +1123,6 @@ export class LookTools {
     const { sourceLookId, fixtureIds, targetLookIds } = CopyFixturesToLooksSchema.parse(args);
 
     try {
-      // Validate inputs
-      if (fixtureIds.length === 0) {
-        throw new Error('At least one fixture ID must be provided');
-      }
-      if (targetLookIds.length === 0) {
-        throw new Error('At least one target look ID must be provided');
-      }
-
       // Execute the copy operation
       const result = await this.graphqlClient.copyFixturesToLooks({
         sourceLookId,

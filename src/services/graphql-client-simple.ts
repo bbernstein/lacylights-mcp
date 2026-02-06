@@ -128,10 +128,10 @@ export class LacyLightsGraphQLClient {
 
     if (result.errors) {
       const error = result.errors[0];
+      const errorMessageLower = (error.message ?? '').toLowerCase();
       // Check for device-related errors
       if (error.extensions?.code === 'DEVICE_NOT_APPROVED' ||
-          error.message?.includes('device not approved') ||
-          error.message?.includes('Device not approved')) {
+          errorMessageLower.includes('device not approved')) {
         throw new DeviceNotApprovedError(
           error.message,
           this.deviceFingerprint || 'unknown'
