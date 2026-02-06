@@ -148,8 +148,9 @@ export class LacyLightsGraphQLClient {
 
     if (Array.isArray(result.errors) && result.errors.length > 0) {
       const error = result.errors[0];
-      // Handle malformed error objects (missing or null message)
-      const errorMessage = error?.message ?? 'Unknown GraphQL error';
+      // Handle malformed error objects (missing, null, or non-string message)
+      const rawMessage = error?.message;
+      const errorMessage = typeof rawMessage === 'string' ? rawMessage : 'Unknown GraphQL error';
       const errorMessageLower = errorMessage.toLowerCase();
       // Check for device-related errors
       if (error?.extensions?.code === 'DEVICE_NOT_APPROVED' ||
@@ -3212,12 +3213,11 @@ export class LacyLightsGraphQLClient {
       id: string;
       name: string;
       updatedAt: string;
-      fixtureValues: Array<{
-        fixture: { id: string; name: string };
-        channels: Array<{ offset: number; value: number }>;
-      }>;
     }>;
   }> {
+    // Reduced selection set: only return look metadata, not full fixtureValues
+    // with channels array. Callers can query individual looks if they need
+    // the full fixture channel data.
     const mutation = `
       mutation CopyFixturesToLooks($input: CopyFixturesToLooksInput!) {
         copyFixturesToLooks(input: $input) {
@@ -3228,16 +3228,6 @@ export class LacyLightsGraphQLClient {
             id
             name
             updatedAt
-            fixtureValues {
-              fixture {
-                id
-                name
-              }
-              channels {
-                offset
-                value
-              }
-            }
           }
         }
       }

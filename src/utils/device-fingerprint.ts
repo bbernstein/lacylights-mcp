@@ -80,8 +80,8 @@ export function getDeviceFingerprint(): string {
     } catch (renameError: unknown) {
       // On Windows, renameSync can fail if destination exists (EEXIST/EPERM)
       // Retry after unlinking the destination file
-      const isWindowsConflict = renameError instanceof Error &&
-        ('code' in renameError && (renameError.code === 'EEXIST' || renameError.code === 'EPERM'));
+      const errnoError = renameError as NodeJS.ErrnoException;
+      const isWindowsConflict = errnoError.code === 'EEXIST' || errnoError.code === 'EPERM';
       if (isWindowsConflict) {
         try {
           fs.unlinkSync(FINGERPRINT_FILE);

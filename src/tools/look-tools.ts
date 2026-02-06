@@ -221,9 +221,9 @@ const BulkUpdateLooksPartialSchema = z.object({
 
 // Copy Fixtures to Looks Schema
 const CopyFixturesToLooksSchema = z.object({
-  sourceLookId: z.string(),
-  fixtureIds: z.array(z.string()).min(1),
-  targetLookIds: z.array(z.string()).min(1),
+  sourceLookId: z.string().min(1),
+  fixtureIds: z.array(z.string().min(1)).min(1),
+  targetLookIds: z.array(z.string().min(1)).min(1),
 });
 
 export class LookTools {
