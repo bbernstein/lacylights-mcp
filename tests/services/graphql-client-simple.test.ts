@@ -90,8 +90,9 @@ describe('LacyLightsGraphQLClient', () => {
       const mockResponse = createMockResponse(errorBody, { ok: false, status: 503, statusText: 'Service Unavailable' });
       mockFetch.mockResolvedValue(mockResponse as any);
 
+      // Use regex to match the error message pattern since it includes truncated body
       await expect(client.getProjects()).rejects.toThrow(
-        'GraphQL request failed with status 503 Service Unavailable'
+        /GraphQL request failed with status 503 Service Unavailable/
       );
     });
 
