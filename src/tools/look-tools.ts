@@ -1141,7 +1141,6 @@ export class LookTools {
           lookId: look.id,
           name: look.name,
           updatedAt: look.updatedAt,
-          fixtureCount: look.fixtureValues?.length || 0,
         })),
         message: `Successfully copied ${fixtureIds.length} fixture(s) to ${result.updatedLookCount} look(s). ${result.affectedCueCount} cue(s) affected.`,
         hint: result.operationId ? 'Use undo to revert this operation' : undefined,
