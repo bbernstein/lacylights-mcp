@@ -128,7 +128,13 @@ export class LacyLightsGraphQLClient {
     if (!response.ok) {
       let errorBody: string;
       try {
-        errorBody = await response.text();
+        const rawBody = await response.text();
+        // Truncate body to avoid leaking sensitive backend details (HTML error pages, stack traces)
+        // and to prevent very large log lines
+        const MAX_ERROR_BODY_LENGTH = 200;
+        errorBody = rawBody.length > MAX_ERROR_BODY_LENGTH
+          ? rawBody.slice(0, MAX_ERROR_BODY_LENGTH) + '...[truncated]'
+          : rawBody;
       } catch {
         errorBody = 'Could not read response body';
       }

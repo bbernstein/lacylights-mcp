@@ -4534,14 +4534,25 @@ Returns:
     // Timeout for device status check to prevent blocking startup indefinitely
     const DEVICE_CHECK_TIMEOUT_MS = 5000;
 
-    // Helper to wrap promises with timeout
+    // Helper to wrap promises with timeout, ensuring the timeout is cleared when the promise settles
     const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = DEVICE_CHECK_TIMEOUT_MS): Promise<T> => {
-      return Promise.race([
-        promise,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Device authentication check timed out')), timeoutMs)
-        ),
-      ]);
+      return new Promise<T>((resolve, reject) => {
+        const timeoutId = setTimeout(
+          () => reject(new Error('Device authentication check timed out')),
+          timeoutMs
+        );
+
+        promise.then(
+          (value) => {
+            clearTimeout(timeoutId);
+            resolve(value);
+          },
+          (error) => {
+            clearTimeout(timeoutId);
+            reject(error);
+          }
+        );
+      });
     };
 
     try {
