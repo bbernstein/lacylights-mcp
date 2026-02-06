@@ -2117,24 +2117,12 @@ describe('LookTools', () => {
             {
               id: 'look-1',
               name: 'Look 1',
-              updatedAt: '2024-01-01T00:00:00Z',
-              fixtureValues: [
-                {
-                  fixture: { id: 'fixture-1', name: 'LED Par 1' },
-                  channels: [{ offset: 0, value: 255 }]
-                }
-              ]
+              updatedAt: '2024-01-01T00:00:00Z'
             },
             {
               id: 'look-2',
               name: 'Look 2',
-              updatedAt: '2024-01-01T00:00:00Z',
-              fixtureValues: [
-                {
-                  fixture: { id: 'fixture-1', name: 'LED Par 1' },
-                  channels: [{ offset: 0, value: 255 }]
-                }
-              ]
+              updatedAt: '2024-01-01T00:00:00Z'
             }
           ]
         };
@@ -2160,7 +2148,7 @@ describe('LookTools', () => {
         expect(result.message).toContain('Successfully copied');
       });
 
-      it('should include fixture count in response', async () => {
+      it('should include look metadata in response', async () => {
         const mockResult = {
           updatedLookCount: 1,
           affectedCueCount: 2,
@@ -2169,23 +2157,7 @@ describe('LookTools', () => {
             {
               id: 'look-1',
               name: 'Test Look',
-              updatedAt: '2024-01-01T00:00:00Z',
-              fixtureValues: [
-                {
-                  fixture: { id: 'fixture-1', name: 'LED Par 1' },
-                  channels: [
-                    { offset: 0, value: 255 },
-                    { offset: 1, value: 128 },
-                    { offset: 2, value: 64 }
-                  ]
-                },
-                {
-                  fixture: { id: 'fixture-2', name: 'LED Par 2' },
-                  channels: [
-                    { offset: 0, value: 128 }
-                  ]
-                }
-              ]
+              updatedAt: '2024-01-01T00:00:00Z'
             }
           ]
         };
@@ -2198,10 +2170,10 @@ describe('LookTools', () => {
           targetLookIds: ['look-1']
         });
 
-        // The tool returns fixtureCount, not the full fixtureValues
-        expect(result.updatedLooks[0].fixtureCount).toBe(2);
+        // Verify the response contains look metadata (fixtureValues no longer returned)
         expect(result.updatedLooks[0].lookId).toBe('look-1');
         expect(result.updatedLooks[0].name).toBe('Test Look');
+        expect(result.updatedLooks[0].updatedAt).toBe('2024-01-01T00:00:00Z');
       });
 
       it('should validate sourceLookId is required', async () => {
@@ -2246,8 +2218,7 @@ describe('LookTools', () => {
             {
               id: 'look-1',
               name: 'Look 1',
-              updatedAt: '2024-01-01T00:00:00Z',
-              fixtureValues: []
+              updatedAt: '2024-01-01T00:00:00Z'
             }
           ]
         };

@@ -2566,7 +2566,7 @@ describe('LacyLightsGraphQLClient', () => {
       expect(result.updatedLooks).toHaveLength(2);
     });
 
-    it('should include fixture values in response', async () => {
+    it('should include look metadata in response', async () => {
       const mockResult = {
         updatedLookCount: 1,
         affectedCueCount: 0,
@@ -2575,17 +2575,7 @@ describe('LacyLightsGraphQLClient', () => {
           {
             id: 'look-1',
             name: 'Updated Look',
-            updatedAt: '2024-01-01T00:00:00Z',
-            fixtureValues: [
-              {
-                fixture: { id: 'fixture-1', name: 'LED Par 1' },
-                channels: [
-                  { offset: 0, value: 255 },
-                  { offset: 1, value: 128 },
-                  { offset: 2, value: 64 }
-                ]
-              }
-            ]
+            updatedAt: '2024-01-01T00:00:00Z'
           }
         ]
       };
@@ -2604,9 +2594,10 @@ describe('LacyLightsGraphQLClient', () => {
         targetLookIds: ['look-1']
       });
 
-      expect(result.updatedLooks[0].fixtureValues).toHaveLength(1);
-      expect(result.updatedLooks[0].fixtureValues[0].channels).toHaveLength(3);
-      expect(result.updatedLooks[0].fixtureValues[0].fixture.name).toBe('LED Par 1');
+      // Verify response contains look metadata (fixtureValues no longer returned)
+      expect(result.updatedLooks[0].id).toBe('look-1');
+      expect(result.updatedLooks[0].name).toBe('Updated Look');
+      expect(result.updatedLooks[0].updatedAt).toBe('2024-01-01T00:00:00Z');
     });
 
     it('should handle GraphQL errors', async () => {
