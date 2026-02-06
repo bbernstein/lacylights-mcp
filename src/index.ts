@@ -1607,11 +1607,13 @@ Use cases:
                 fixtureIds: {
                   type: "array",
                   items: { type: "string" },
+                  minItems: 1,
                   description: "Array of fixture IDs to copy (must exist in source look)",
                 },
                 targetLookIds: {
                   type: "array",
                   items: { type: "string" },
+                  minItems: 1,
                   description: "Array of target look IDs to copy fixture values to",
                 },
               },

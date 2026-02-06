@@ -17,6 +17,20 @@ import { logger } from './logger';
 
 const FINGERPRINT_FILE = path.join(os.homedir(), '.lacylights', 'device-id');
 
+// Fingerprint validation: alphanumeric/hyphen, reasonable length
+const FINGERPRINT_PATTERN = /^[a-zA-Z0-9-]+$/;
+const MAX_FINGERPRINT_LENGTH = 128;
+
+/**
+ * Validate a fingerprint string.
+ * Must be alphanumeric/hyphen only and within reasonable length.
+ */
+function isValidFingerprint(value: string): boolean {
+  return value.length > 0 &&
+         value.length <= MAX_FINGERPRINT_LENGTH &&
+         FINGERPRINT_PATTERN.test(value);
+}
+
 /**
  * Get or generate a stable device fingerprint.
  *
@@ -34,9 +48,12 @@ export function getDeviceFingerprint(): string {
   try {
     if (fs.existsSync(FINGERPRINT_FILE)) {
       const cached = fs.readFileSync(FINGERPRINT_FILE, 'utf-8').trim();
-      if (cached && cached.length > 0) {
+      if (cached && isValidFingerprint(cached)) {
         logger.debug('Using cached device fingerprint', { length: cached.length });
         return cached;
+      } else if (cached) {
+        // Cached value exists but is invalid - will regenerate
+        logger.warn('Cached device fingerprint is invalid, regenerating', { length: cached.length });
       }
     }
   } catch (error) {
