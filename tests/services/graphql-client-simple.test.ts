@@ -2510,6 +2510,8 @@ describe('LacyLightsGraphQLClient', () => {
 
   describe('copyFixturesToLooks', () => {
     it('should copy fixtures to looks successfully', async () => {
+      // Mock response matches the actual GraphQL selection set which only
+      // requests id, name, updatedAt (not fixtureValues with channels)
       const mockResult = {
         updatedLookCount: 3,
         affectedCueCount: 5,
@@ -2518,24 +2520,12 @@ describe('LacyLightsGraphQLClient', () => {
           {
             id: 'look-1',
             name: 'Look 1',
-            updatedAt: '2024-01-01T00:00:00Z',
-            fixtureValues: [
-              {
-                fixture: { id: 'fixture-1', name: 'LED Par 1' },
-                channels: [{ offset: 0, value: 255 }]
-              }
-            ]
+            updatedAt: '2024-01-01T00:00:00Z'
           },
           {
             id: 'look-2',
             name: 'Look 2',
-            updatedAt: '2024-01-01T00:00:00Z',
-            fixtureValues: [
-              {
-                fixture: { id: 'fixture-1', name: 'LED Par 1' },
-                channels: [{ offset: 0, value: 255 }]
-              }
-            ]
+            updatedAt: '2024-01-01T00:00:00Z'
           }
         ]
       };
