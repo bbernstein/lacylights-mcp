@@ -60,18 +60,8 @@ export function getDeviceFingerprint(): string {
     logger.warn('Failed to read cached device fingerprint', { error });
   }
 
-  // Generate new fingerprint
-  let fingerprint: string;
-  try {
-    // Primary: OS machine ID (very stable)
-    // macOS: IOPlatformUUID from IOKit
-    // Linux: /etc/machine-id
-    // Windows: MachineGuid from registry
-    fingerprint = machineIdSync();
-    logger.debug('Generated fingerprint from machine ID');
-  } catch (error) {
-    // Fallback: hash of hostname + username
-    logger.warn('Failed to get machine ID, using fallback', { error });
+  // Helper to generate fallback fingerprint from hostname/username
+  const generateFallbackFingerprint = (): string => {
     let username = 'unknown';
     try {
       username = os.userInfo().username;
@@ -79,7 +69,30 @@ export function getDeviceFingerprint(): string {
       logger.warn('Failed to get OS user info for fingerprint, falling back to hostname-only', { error: userError });
     }
     const data = `${os.hostname()}-${username}-lacylights-mcp`;
-    fingerprint = crypto.createHash('sha256').update(data).digest('hex').slice(0, 32);
+    return crypto.createHash('sha256').update(data).digest('hex').slice(0, 32);
+  };
+
+  // Generate new fingerprint
+  let fingerprint: string;
+  try {
+    // Primary: OS machine ID (very stable)
+    // macOS: IOPlatformUUID from IOKit
+    // Linux: /etc/machine-id
+    // Windows: MachineGuid from registry
+    const rawMachineId = machineIdSync();
+    // Validate machineIdSync output to prevent header injection or malformed values
+    if (isValidFingerprint(rawMachineId)) {
+      fingerprint = rawMachineId;
+      logger.debug('Generated fingerprint from machine ID');
+    } else {
+      logger.warn('machineIdSync returned invalid fingerprint, using fallback', { length: rawMachineId?.length });
+      fingerprint = generateFallbackFingerprint();
+      logger.debug('Generated fingerprint from hostname/username hash (machineId invalid)');
+    }
+  } catch (error) {
+    // Fallback: hash of hostname + username
+    logger.warn('Failed to get machine ID, using fallback', { error });
+    fingerprint = generateFallbackFingerprint();
     logger.debug('Generated fingerprint from hostname/username hash');
   }
 

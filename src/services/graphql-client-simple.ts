@@ -82,20 +82,44 @@ export interface AuthSettings {
   deviceAuthEnabled: boolean;
 }
 
+// Fingerprint validation pattern: alphanumeric/hyphen only, reasonable length
+// This prevents header injection and ensures consistent format
+const FINGERPRINT_PATTERN = /^[a-zA-Z0-9-]+$/;
+const MAX_FINGERPRINT_LENGTH = 128;
+
+/**
+ * Validate and sanitize a fingerprint for use in HTTP headers.
+ * Returns null if the fingerprint is invalid or unsafe.
+ */
+function validateFingerprint(fingerprint: string | undefined | null): string | null {
+  if (!fingerprint) {
+    return null;
+  }
+  const trimmed = fingerprint.trim();
+  if (trimmed.length === 0 ||
+      trimmed.length > MAX_FINGERPRINT_LENGTH ||
+      !FINGERPRINT_PATTERN.test(trimmed)) {
+    return null;
+  }
+  return trimmed;
+}
+
 export class LacyLightsGraphQLClient {
   private endpoint: string;
   private deviceFingerprint: string | null;
 
   constructor(endpoint: string = 'http://localhost:4000/graphql', deviceFingerprint?: string) {
     this.endpoint = endpoint;
-    this.deviceFingerprint = deviceFingerprint || null;
+    // Validate fingerprint at construction to prevent header injection
+    this.deviceFingerprint = validateFingerprint(deviceFingerprint);
   }
 
   /**
    * Set the device fingerprint to include in all requests.
+   * Invalid fingerprints are treated as null (header will be omitted).
    */
   setDeviceFingerprint(fingerprint: string): void {
-    this.deviceFingerprint = fingerprint;
+    this.deviceFingerprint = validateFingerprint(fingerprint);
   }
 
   /**
