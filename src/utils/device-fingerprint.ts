@@ -55,18 +55,27 @@ export function getDeviceFingerprint(): string {
   } catch (error) {
     // Fallback: hash of hostname + username
     logger.warn('Failed to get machine ID, using fallback', { error });
-    const data = `${os.hostname()}-${os.userInfo().username}-lacylights-mcp`;
+    let username = 'unknown';
+    try {
+      username = os.userInfo().username;
+    } catch (userError) {
+      logger.warn('Failed to get OS user info for fingerprint, falling back to hostname-only', { error: userError });
+    }
+    const data = `${os.hostname()}-${username}-lacylights-mcp`;
     fingerprint = crypto.createHash('sha256').update(data).digest('hex').slice(0, 32);
     logger.debug('Generated fingerprint from hostname/username hash');
   }
 
-  // Cache it
+  // Cache it with restrictive permissions using atomic write pattern
   try {
     const dir = path.dirname(FINGERPRINT_FILE);
     if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     }
-    fs.writeFileSync(FINGERPRINT_FILE, fingerprint, 'utf-8');
+    // Atomic write: write to temp file then rename to avoid partial writes
+    const tempFile = `${FINGERPRINT_FILE}.tmp-${process.pid}-${Date.now()}`;
+    fs.writeFileSync(tempFile, fingerprint, { encoding: 'utf-8', mode: 0o600, flag: 'w' });
+    fs.renameSync(tempFile, FINGERPRINT_FILE);
     logger.debug('Cached device fingerprint', { path: FINGERPRINT_FILE });
   } catch (error) {
     logger.warn('Failed to cache device fingerprint', { error });

@@ -20,6 +20,16 @@ import { UndoRedoTools } from "./tools/undo-redo-tools";
 import { logger } from "./utils/logger";
 import { getDeviceFingerprint, getDeviceName } from "./utils/device-fingerprint";
 
+/**
+ * Redact a device fingerprint for safe logging.
+ * Shows first 8 and last 4 characters with dots in between.
+ */
+function redactFingerprint(fingerprint: string | null | undefined): string {
+  if (!fingerprint) return 'unknown';
+  if (fingerprint.length <= 12) return fingerprint.slice(0, 4) + '...';
+  return fingerprint.slice(0, 8) + '...' + fingerprint.slice(-4);
+}
+
 class LacyLightsMCPServer {
   private server: Server;
   private graphqlClient: LacyLightsGraphQLClient;
@@ -4551,14 +4561,14 @@ Returns:
           logger.warn('Device is pending approval', {
             message: 'Please approve this device in the LacyLights admin panel.',
             deviceName,
-            fingerprint,
+            fingerprint: redactFingerprint(fingerprint),
           });
           break;
 
         case 'REVOKED':
           logger.error('Device has been revoked', {
             message: 'This device has been revoked and cannot access the system.',
-            fingerprint,
+            fingerprint: redactFingerprint(fingerprint),
           });
           // Continue anyway - the backend will reject requests
           break;
@@ -4566,7 +4576,7 @@ Returns:
         case 'UNKNOWN':
         default:
           // Auto-register the device
-          logger.info('Registering new device...', { deviceName, fingerprint });
+          logger.info('Registering new device...', { deviceName, fingerprint: redactFingerprint(fingerprint) });
           try {
             const regResult = await this.graphqlClient.registerDevice(fingerprint, deviceName);
             if (regResult.success) {
@@ -4577,7 +4587,7 @@ Returns:
               logger.warn('Device pending approval', {
                 message: 'Please approve this device in the LacyLights admin panel.',
                 deviceName,
-                fingerprint,
+                fingerprint: redactFingerprint(fingerprint),
               });
             } else {
               logger.error('Device registration failed', {
@@ -4595,7 +4605,7 @@ Returns:
       if (error instanceof DeviceNotApprovedError) {
         logger.error('Device not approved to access the system', {
           message: 'Please approve this device in the LacyLights admin panel.',
-          fingerprint: error.fingerprint,
+          fingerprint: redactFingerprint(error.fingerprint),
           deviceName,
         });
         // Continue anyway - the MCP server can still start, requests will fail

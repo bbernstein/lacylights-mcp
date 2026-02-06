@@ -5,6 +5,21 @@ import fetch from 'cross-fetch';
 jest.mock('cross-fetch');
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
+/**
+ * Helper to create a mock fetch response with proper Response-like properties.
+ * @param data The data to return from json()
+ * @param ok Whether the response is ok (status 200-299). Defaults to true.
+ */
+function createMockResponse(data: any, ok: boolean = true): Partial<Response> {
+  return {
+    ok,
+    status: ok ? 200 : 500,
+    statusText: ok ? 'OK' : 'Internal Server Error',
+    json: jest.fn().mockResolvedValue(data),
+    text: jest.fn().mockResolvedValue(JSON.stringify(data)),
+  };
+}
+
 describe('LacyLightsGraphQLClient', () => {
   let client: LacyLightsGraphQLClient;
 
@@ -28,6 +43,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('query method', () => {
     it('should make successful GraphQL query', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { projects: [] }
         })
@@ -49,6 +65,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle GraphQL errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Test error' }]
         })
@@ -76,6 +93,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { project: mockProject }
         })
@@ -95,6 +113,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should return null for non-existent project', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { project: null }
         })
@@ -117,6 +136,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createProject: mockProject }
         })
@@ -146,6 +166,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createProject: mockProject }
         })
@@ -167,6 +188,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createLook: mockLook }
         })
@@ -195,6 +217,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { updateLook: mockLook }
         })
@@ -223,6 +246,7 @@ describe('LacyLightsGraphQLClient', () => {
       ];
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { fixtureDefinitions: mockDefinitions }
         })
@@ -246,6 +270,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createFixtureDefinition: mockDefinition }
         })
@@ -275,6 +300,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createFixtureInstance: mockInstance }
         })
@@ -304,6 +330,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { updateFixtureInstance: mockInstance }
         })
@@ -327,6 +354,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cueList: mockCueList }
         })
@@ -347,6 +375,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createCueList: mockCueList }
         })
@@ -379,11 +408,13 @@ describe('LacyLightsGraphQLClient', () => {
 
       mockFetch
         .mockResolvedValueOnce({
+          ok: true,
           json: jest.fn().mockResolvedValue({
             data: { cueList: mockCurrentCueList }
           })
         } as any)
         .mockResolvedValueOnce({
+          ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateCueList: mockUpdatedCueList }
           })
@@ -407,6 +438,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { createCue: mockCue }
         })
@@ -448,11 +480,13 @@ describe('LacyLightsGraphQLClient', () => {
 
       mockFetch
         .mockResolvedValueOnce({
+          ok: true,
           json: jest.fn().mockResolvedValue({
             data: { cue: mockCurrentCue }
           })
         } as any)
         .mockResolvedValueOnce({
+          ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateCue: mockUpdatedCue }
           })
@@ -481,6 +515,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { toggleCueSkip: mockCue }
         })
@@ -503,6 +538,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle toggle cue skip errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Cue not found' }]
         })
@@ -516,6 +552,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('deleteCue', () => {
     it('should delete cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { deleteCue: true }
         })
@@ -530,6 +567,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('deleteCueList', () => {
     it('should delete cue list', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { deleteCueList: true }
         })
@@ -544,6 +582,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('deleteProject', () => {
     it('should delete project', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { deleteProject: true }
         })
@@ -574,6 +613,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('addFixturesToLook', () => {
       it('should add fixtures to scene', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -599,6 +639,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should handle overwrite parameter', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -621,6 +662,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should include lookOrder in GraphQL query response', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -651,6 +693,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('removeFixturesFromLook', () => {
       it('should remove fixtures from scene', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { removeFixturesFromLook: mockLook }
           })
@@ -672,6 +715,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should remove multiple fixtures', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { removeFixturesFromLook: mockLook }
           })
@@ -690,6 +734,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should include lookOrder in response', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { removeFixturesFromLook: mockLook }
           })
@@ -717,6 +762,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('updateLookPartial', () => {
       it('should update scene with metadata only', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookPartial: mockLook }
           })
@@ -741,6 +787,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should update scene with fixture values', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookPartial: mockLook }
           })
@@ -763,6 +810,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should handle merge mode correctly', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookPartial: mockLook }
           })
@@ -784,6 +832,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should include lookOrder in fixture values', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookPartial: mockLook }
           })
@@ -817,6 +866,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('GraphQL Query Structure', () => {
       it('should include all required fields in look queries', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -842,6 +892,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should structure mutation variables correctly', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addFixturesToLook: mockLook }
           })
@@ -874,6 +925,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('API Consistency Tests', () => {
       it('should use consistent response structure across all safe look methods', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { 
               addFixturesToLook: mockLook,
@@ -912,6 +964,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('Error Handling', () => {
       it('should handle GraphQL errors consistently', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             errors: [{ message: 'Look not found' }]
           })
@@ -943,6 +996,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should handle malformed responses', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({})
         };
         mockFetch.mockResolvedValue(mockResponse as any);
@@ -963,6 +1017,7 @@ describe('LacyLightsGraphQLClient', () => {
         { id: '2', name: 'Cue 2', cueNumber: 2, fadeInTime: 3, fadeOutTime: 3, followTime: null, notes: '', look: { id: 'look-1', name: 'Scene 1' } }
       ];
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { bulkUpdateCues: mockCues }
         })
@@ -992,6 +1047,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('deleteFixtureInstance', () => {
     it('should delete fixture instance', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { deleteFixtureInstance: true }
         })
@@ -1015,6 +1071,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('setLookLive', () => {
     it('should set scene live', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { setLookLive: true }
         })
@@ -1038,6 +1095,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('fadeToBlack', () => {
     it('should fade to black', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { fadeToBlack: true }
         })
@@ -1069,6 +1127,7 @@ describe('LacyLightsGraphQLClient', () => {
         fixtureValues: []
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { look: mockLook }
         })
@@ -1090,6 +1149,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should return null for non-existent look', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { look: null }
         })
@@ -1104,6 +1164,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('goToCue', () => {
     it('should go to cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { goToCue: true }
         })
@@ -1125,6 +1186,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should go to cue without fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { goToCue: true }
         })
@@ -1140,6 +1202,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('stopCueList', () => {
     it('should stop cue list', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { stopCueList: true }
         })
@@ -1172,6 +1235,7 @@ describe('LacyLightsGraphQLClient', () => {
         fixtureValues: []
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { currentActiveLook: mockLook }
         })
@@ -1193,6 +1257,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should return null when no look is active', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { currentActiveLook: null }
         })
@@ -1217,6 +1282,7 @@ describe('LacyLightsGraphQLClient', () => {
         look: { id: 'look-1', name: 'Scene 1' }
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cue: mockCue }
         })
@@ -1238,6 +1304,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should return null for non-existent cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cue: null }
         })
@@ -1252,6 +1319,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('previousCue', () => {
     it('should go to previous cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { previousCue: true }
         })
@@ -1273,6 +1341,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should go to previous cue without fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { previousCue: true }
         })
@@ -1288,6 +1357,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('playCue', () => {
     it('should play cue with fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { playCue: true }
         })
@@ -1309,6 +1379,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should play cue without fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { playCue: true }
         })
@@ -1338,6 +1409,7 @@ describe('LacyLightsGraphQLClient', () => {
         }
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cueListPlaybackStatus: mockStatus }
         })
@@ -1367,6 +1439,7 @@ describe('LacyLightsGraphQLClient', () => {
         lastUpdated: '2024-01-01T00:00:00Z'
       };
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { cueListPlaybackStatus: mockStatus }
         })
@@ -1388,6 +1461,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('startCueList', () => {
     it('should start cue list from beginning', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { startCueList: true }
         })
@@ -1409,6 +1483,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should start cue list from specific cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { startCueList: true }
         })
@@ -1424,6 +1499,7 @@ describe('LacyLightsGraphQLClient', () => {
   describe('nextCue', () => {
     it('should advance to next cue', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { nextCue: true }
         })
@@ -1445,6 +1521,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should advance to next cue without fade time', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { nextCue: true }
         })
@@ -1481,6 +1558,7 @@ describe('LacyLightsGraphQLClient', () => {
         ];
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { lookBoards: mockBoards }
           })
@@ -1509,6 +1587,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { lookBoard: mockBoard }
           })
@@ -1542,6 +1621,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { createLookBoard: mockBoard }
           })
@@ -1570,6 +1650,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookBoard: mockBoard }
           })
@@ -1585,6 +1666,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('deleteLookBoard', () => {
       it('should delete a look board', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { deleteLookBoard: true }
           })
@@ -1617,6 +1699,7 @@ describe('LacyLightsGraphQLClient', () => {
         }));
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { bulkCreateLookBoards: mockBoards }
           })
@@ -1638,6 +1721,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { bulkDeleteLookBoards: mockResult }
           })
@@ -1673,6 +1757,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { addLookToBoard: mockButton }
           })
@@ -1704,6 +1789,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookBoardButton: mockButton }
           })
@@ -1719,6 +1805,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('removeLookFromBoard', () => {
       it('should remove a button from board', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { removeLookFromBoard: true }
           })
@@ -1739,6 +1826,7 @@ describe('LacyLightsGraphQLClient', () => {
         ];
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { updateLookBoardButtonPositions: true }
           })
@@ -1770,6 +1858,7 @@ describe('LacyLightsGraphQLClient', () => {
         }));
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { bulkCreateLookBoardButtons: mockButtons }
           })
@@ -1791,6 +1880,7 @@ describe('LacyLightsGraphQLClient', () => {
         };
 
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { bulkDeleteLookBoardButtons: mockResult }
           })
@@ -1806,6 +1896,7 @@ describe('LacyLightsGraphQLClient', () => {
     describe('activateLookFromBoard', () => {
       it('should activate scene with board default fade time', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { activateLookFromBoard: true }
           })
@@ -1819,6 +1910,7 @@ describe('LacyLightsGraphQLClient', () => {
 
       it('should activate scene with custom fade time', async () => {
         const mockResponse = {
+        ok: true,
           json: jest.fn().mockResolvedValue({
             data: { activateLookFromBoard: true }
           })
@@ -1841,6 +1933,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { buildInfo: mockBuildInfo }
         })
@@ -1868,6 +1961,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { buildInfo: mockBuildInfo }
         })
@@ -1888,6 +1982,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle GraphQL errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Build info not available' }]
         })
@@ -1905,6 +2000,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle null response', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { buildInfo: null }
         })
@@ -1923,6 +2019,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { buildInfo: mockBuildInfo }
         })
@@ -1952,6 +2049,7 @@ describe('LacyLightsGraphQLClient', () => {
       );
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { projects: [] }
         })
@@ -1973,6 +2071,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should not include fingerprint header when not set', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { projects: [] }
         })
@@ -2009,6 +2108,7 @@ describe('LacyLightsGraphQLClient', () => {
       );
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{
             message: 'Access denied',
@@ -2034,6 +2134,7 @@ describe('LacyLightsGraphQLClient', () => {
       );
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{
             message: 'Device Not Approved for this operation'
@@ -2052,6 +2153,7 @@ describe('LacyLightsGraphQLClient', () => {
       );
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{
             message: 'DEVICE NOT APPROVED'
@@ -2065,6 +2167,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should use "unknown" fingerprint when client has no fingerprint', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{
             message: 'device not approved',
@@ -2083,6 +2186,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should not throw DeviceNotApprovedError for unrelated errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{
             message: 'Some other error'
@@ -2109,6 +2213,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { authSettings: mockAuthSettings }
         })
@@ -2136,6 +2241,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { authSettings: mockAuthSettings }
         })
@@ -2150,6 +2256,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle GraphQL errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Auth settings not available' }]
         })
@@ -2184,6 +2291,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { checkDevice: mockDeviceCheck }
         })
@@ -2219,6 +2327,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { checkDevice: mockDeviceCheck }
         })
@@ -2246,6 +2355,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { checkDevice: mockDeviceCheck }
         })
@@ -2265,6 +2375,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { checkDevice: mockDeviceCheck }
         })
@@ -2279,6 +2390,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle GraphQL errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Device check failed' }]
         })
@@ -2303,6 +2415,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { registerDevice: mockRegistration }
         })
@@ -2332,6 +2445,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { registerDevice: mockRegistration }
         })
@@ -2347,6 +2461,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle GraphQL errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Registration failed' }]
         })
@@ -2396,6 +2511,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { copyFixturesToLooks: mockResult }
         })
@@ -2446,6 +2562,7 @@ describe('LacyLightsGraphQLClient', () => {
       };
 
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           data: { copyFixturesToLooks: mockResult }
         })
@@ -2465,6 +2582,7 @@ describe('LacyLightsGraphQLClient', () => {
 
     it('should handle GraphQL errors', async () => {
       const mockResponse = {
+        ok: true,
         json: jest.fn().mockResolvedValue({
           errors: [{ message: 'Source look not found' }]
         })

@@ -56,7 +56,7 @@ export interface DeviceCheckResult {
     lastSeen?: string;
     createdAt: string;
     approvedAt?: string;
-  };
+  } | null;
   message?: string;
 }
 
@@ -70,7 +70,7 @@ export interface DeviceRegistrationResult {
     name: string;
     fingerprint: string;
     status: DeviceStatus;
-  };
+  } | null;
   message: string;
 }
 
@@ -123,6 +123,19 @@ export class LacyLightsGraphQLClient {
         variables,
       }),
     });
+
+    // Handle non-2xx responses explicitly to provide better error context
+    if (!response.ok) {
+      let errorBody: string;
+      try {
+        errorBody = await response.text();
+      } catch {
+        errorBody = 'Could not read response body';
+      }
+      throw new Error(
+        `GraphQL request failed with status ${response.status} ${response.statusText}: ${errorBody}`
+      );
+    }
 
     const result = await response.json();
 

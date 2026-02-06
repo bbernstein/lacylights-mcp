@@ -13,6 +13,7 @@ jest.mock('fs', () => ({
   writeFileSync: jest.fn(),
   mkdirSync: jest.fn(),
   unlinkSync: jest.fn(),
+  renameSync: jest.fn(),
 }));
 
 // Mock logger
@@ -76,19 +77,25 @@ describe('Device Fingerprint Utility', () => {
       expect(logger.debug).toHaveBeenCalledWith('Generated fingerprint from machine ID');
     });
 
-    it('should cache the generated fingerprint', () => {
+    it('should cache the generated fingerprint with atomic write', () => {
       const machineId = 'machine-id-xyz789';
       mockFs.existsSync.mockReturnValue(false);
       mockMachineIdSync.mockReturnValue(machineId);
 
       getDeviceFingerprint();
 
-      expect(mockFs.mkdirSync).toHaveBeenCalled();
-      expect(mockFs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('device-id'),
-        machineId,
-        'utf-8'
+      expect(mockFs.mkdirSync).toHaveBeenCalledWith(
+        expect.stringContaining('.lacylights'),
+        { recursive: true, mode: 0o700 }
       );
+      // Should write to temp file first (atomic write pattern)
+      expect(mockFs.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('device-id.tmp'),
+        machineId,
+        { encoding: 'utf-8', mode: 0o600, flag: 'w' }
+      );
+      // Should rename temp file to final location
+      expect(mockFs.renameSync).toHaveBeenCalled();
     });
 
     it('should use fallback when machineIdSync fails', () => {
@@ -211,7 +218,7 @@ describe('Device Fingerprint Utility', () => {
   });
 
   describe('file path', () => {
-    it('should use ~/.lacylights/device-id for cache', () => {
+    it('should use ~/.lacylights/device-id for cache with restrictive permissions', () => {
       const machineId = 'test-machine-id';
       mockFs.existsSync.mockReturnValue(false);
       mockMachineIdSync.mockReturnValue(machineId);
@@ -219,13 +226,21 @@ describe('Device Fingerprint Utility', () => {
       getDeviceFingerprint();
 
       const expectedDir = path.join(os.homedir(), '.lacylights');
-      expect(mockFs.mkdirSync).toHaveBeenCalledWith(expectedDir, { recursive: true });
+      // Directory should be created with mode 0700 (owner-only access)
+      expect(mockFs.mkdirSync).toHaveBeenCalledWith(expectedDir, { recursive: true, mode: 0o700 });
 
-      const expectedPath = path.join(expectedDir, 'device-id');
+      // Temp file should be written with mode 0600 (owner read/write only)
       expect(mockFs.writeFileSync).toHaveBeenCalledWith(
-        expectedPath,
+        expect.stringContaining('device-id.tmp'),
         machineId,
-        'utf-8'
+        { encoding: 'utf-8', mode: 0o600, flag: 'w' }
+      );
+
+      // File should be atomically renamed to final location
+      const expectedPath = path.join(expectedDir, 'device-id');
+      expect(mockFs.renameSync).toHaveBeenCalledWith(
+        expect.stringContaining('device-id.tmp'),
+        expectedPath
       );
     });
   });
