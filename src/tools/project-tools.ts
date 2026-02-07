@@ -8,7 +8,8 @@ const ListProjectsSchema = z.object({
 
 const CreateProjectSchema = z.object({
   name: z.string().describe('Project name'),
-  description: z.string().optional().describe('Project description')
+  description: z.string().optional().describe('Project description'),
+  groupId: z.string().optional().describe('Group ID to own this project')
 });
 
 const GetProjectSchema = z.object({
@@ -28,7 +29,8 @@ const DeleteProjectSchema = z.object({
 const BulkCreateProjectsSchema = z.object({
   projects: z.array(z.object({
     name: z.string().describe('Project name'),
-    description: z.string().optional().describe('Project description')
+    description: z.string().optional().describe('Project description'),
+    groupId: z.string().optional().describe('Group ID to own this project')
   })).describe('Array of projects to create')
 });
 
@@ -107,12 +109,13 @@ export class ProjectTools {
   }
 
   async createProject(args: z.infer<typeof CreateProjectSchema>) {
-    const { name, description} = CreateProjectSchema.parse(args);
+    const { name, description, groupId} = CreateProjectSchema.parse(args);
 
     try {
       const project = await this.graphqlClient.createProject({
         name,
-        description
+        description,
+        groupId
       });
 
       return {
