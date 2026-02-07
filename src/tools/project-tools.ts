@@ -56,6 +56,7 @@ export class ProjectTools {
             id: project.id,
             name: project.name,
             description: project.description,
+            groupId: project.groupId,
             createdAt: project.createdAt,
             updatedAt: project.updatedAt,
             fixtureCount: project.fixtureCount,
@@ -72,7 +73,8 @@ export class ProjectTools {
         projects: projects.map(project => ({
           id: project.id,
           name: project.name,
-          description: project.description
+          description: project.description,
+          groupId: project.groupId
         })),
         totalProjects: projects.length
       };
@@ -96,6 +98,7 @@ export class ProjectTools {
           id: project.id,
           name: project.name,
           description: project.description,
+          groupId: project.groupId,
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
           fixtureCount: project.fixtureCount,
@@ -109,7 +112,7 @@ export class ProjectTools {
   }
 
   async createProject(args: z.infer<typeof CreateProjectSchema>) {
-    const { name, description, groupId} = CreateProjectSchema.parse(args);
+    const { name, description, groupId } = CreateProjectSchema.parse(args);
 
     try {
       const project = await this.graphqlClient.createProject({
@@ -123,6 +126,7 @@ export class ProjectTools {
           id: project.id,
           name: project.name,
           description: project.description,
+          groupId: project.groupId,
           createdAt: project.createdAt
         },
         message: `Successfully created project "${name}"`
@@ -161,6 +165,7 @@ export class ProjectTools {
           id: project.id,
           name: project.name,
           description: project.description,
+          groupId: project.groupId,
           createdAt: project.createdAt,
           updatedAt: project.updatedAt
         },
@@ -249,6 +254,7 @@ export class ProjectTools {
           projectId: project.id,
           name: project.name,
           description: project.description,
+          groupId: project.groupId,
           createdAt: project.createdAt,
         })),
         summary: {
