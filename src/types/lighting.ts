@@ -3,6 +3,7 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
+  groupId?: string;
   createdAt?: string;
   updatedAt?: string;
   fixtures: FixtureInstance[];

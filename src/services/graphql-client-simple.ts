@@ -274,6 +274,7 @@ export class LacyLightsGraphQLClient {
           id
           name
           description
+          groupId
           createdAt
           updatedAt
           fixtures {
@@ -329,6 +330,7 @@ export class LacyLightsGraphQLClient {
           id
           name
           description
+          groupId
           createdAt
           updatedAt
           fixtures {
@@ -409,6 +411,7 @@ export class LacyLightsGraphQLClient {
     id: string;
     name: string;
     description?: string;
+    groupId?: string;
     createdAt: string;
     updatedAt: string;
     fixtureCount: number;
@@ -421,6 +424,7 @@ export class LacyLightsGraphQLClient {
           id
           name
           description
+          groupId
           createdAt
           updatedAt
           fixtureCount
@@ -443,6 +447,7 @@ export class LacyLightsGraphQLClient {
     id: string;
     name: string;
     description?: string;
+    groupId?: string;
     createdAt: string;
     updatedAt: string;
     fixtureCount: number;
@@ -455,6 +460,7 @@ export class LacyLightsGraphQLClient {
           id
           name
           description
+          groupId
           createdAt
           updatedAt
           fixtureCount
@@ -1240,6 +1246,7 @@ export class LacyLightsGraphQLClient {
   async createProject(input: {
     name: string;
     description?: string;
+    groupId?: string;
   }): Promise<Project> {
     const mutation = `
       mutation CreateProject($input: CreateProjectInput!) {
@@ -1247,6 +1254,7 @@ export class LacyLightsGraphQLClient {
           id
           name
           description
+          groupId
           createdAt
           updatedAt
         }
@@ -1713,6 +1721,7 @@ export class LacyLightsGraphQLClient {
     projects: Array<{
       name: string;
       description?: string;
+      groupId?: string;
     }>;
   }): Promise<Project[]> {
     const mutation = `
@@ -1721,6 +1730,7 @@ export class LacyLightsGraphQLClient {
           id
           name
           description
+          groupId
           createdAt
           updatedAt
         }

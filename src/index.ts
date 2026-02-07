@@ -136,6 +136,10 @@ Use includeDetails=true when you need to understand project sizes.`,
                   type: "string",
                   description: "Project description",
                 },
+                groupId: {
+                  type: "string",
+                  description: "Group ID to own this project (optional, defaults to user's personal group)",
+                },
               },
               required: ["name"],
             },
@@ -217,6 +221,10 @@ Use this tool first to understand project scope before drilling down into specif
                       description: {
                         type: "string",
                         description: "Project description",
+                      },
+                      groupId: {
+                        type: "string",
+                        description: "Group ID to own this project (optional)",
                       },
                     },
                     required: ["name"],

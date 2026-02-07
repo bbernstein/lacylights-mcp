@@ -93,7 +93,8 @@ describe('ProjectTools', () => {
           {
             id: 'project-1',
             name: 'Test Project',
-            description: 'Test description'
+            description: 'Test description',
+            groupId: undefined
           }
         ],
         totalProjects: 1
@@ -123,6 +124,7 @@ describe('ProjectTools', () => {
             id: 'project-1',
             name: 'Test Project',
             description: 'Test description',
+            groupId: undefined,
             createdAt: '2024-01-01',
             updatedAt: '2024-01-01',
             fixtureCount: 2,
@@ -132,6 +134,18 @@ describe('ProjectTools', () => {
         ],
         totalProjects: 1
       });
+    });
+
+    it('should include groupId in project listings', async () => {
+      const projectWithGroup = {
+        ...mockProject,
+        groupId: 'group-789'
+      };
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithGroup]);
+
+      const result = await projectTools.listProjects({ includeDetails: false });
+
+      expect(result.projects[0].groupId).toBe('group-789');
     });
 
     it('should use default value for includeDetails', async () => {
@@ -187,6 +201,7 @@ describe('ProjectTools', () => {
           id: 'new-project',
           name: 'New Project',
           description: 'New description',
+          groupId: undefined,
           createdAt: '2024-01-01'
         },
         message: 'Successfully created project "New Project"'
@@ -206,12 +221,62 @@ describe('ProjectTools', () => {
         name: 'New Project'
       });
 
-      expect(mockGraphQLClient.createProject).toHaveBeenCalledWith({
-        name: 'New Project',
-        description: undefined
-      });
+      expect(mockGraphQLClient.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'New Project' })
+      );
 
       expect(result.project.name).toBe('New Project');
+    });
+
+    it('should create project with groupId', async () => {
+      const createdProject = {
+        id: 'new-project',
+        name: 'Group Project',
+        description: 'Group description',
+        groupId: 'group-123',
+        createdAt: '2024-01-01'
+      };
+
+      mockGraphQLClient.createProject.mockResolvedValue(createdProject as any);
+
+      const result = await projectTools.createProject({
+        name: 'Group Project',
+        description: 'Group description',
+        groupId: 'group-123'
+      });
+
+      expect(mockGraphQLClient.createProject).toHaveBeenCalledWith({
+        name: 'Group Project',
+        description: 'Group description',
+        groupId: 'group-123'
+      });
+
+      expect(result.project.id).toBe('new-project');
+      expect(result.project.groupId).toBe('group-123');
+      expect(result.message).toBe('Successfully created project "Group Project"');
+    });
+
+    it('should create project without groupId (defaults to undefined)', async () => {
+      const createdProject = {
+        id: 'new-project',
+        name: 'No Group Project',
+        createdAt: '2024-01-01'
+      };
+
+      mockGraphQLClient.createProject.mockResolvedValue(createdProject as any);
+
+      const result = await projectTools.createProject({
+        name: 'No Group Project'
+      });
+
+      expect(mockGraphQLClient.createProject).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'No Group Project' })
+      );
+      // Verify groupId is not set to a non-undefined value
+      const callArgs = mockGraphQLClient.createProject.mock.calls[0][0];
+      expect(callArgs.groupId).toBeUndefined();
+
+      expect(result.project.name).toBe('No Group Project');
     });
 
     it('should handle creation errors', async () => {
@@ -248,6 +313,7 @@ describe('ProjectTools', () => {
           id: 'project-1',
           name: 'Test Project',
           description: 'Test description',
+          groupId: undefined,
           createdAt: '2024-01-01',
           updatedAt: '2024-01-01',
           fixtureCount: 2,
@@ -304,6 +370,7 @@ describe('ProjectTools', () => {
         id: 'project-1',
         name: 'Test Project',
         description: 'Test description',
+        groupId: undefined,
         createdAt: '2024-01-01',
         updatedAt: '2024-01-01'
       });
@@ -489,6 +556,35 @@ describe('ProjectTools', () => {
         expect(result.createdProjects).toHaveLength(2);
         expect(result.summary.totalCreated).toBe(2);
         expect(result.message).toContain('Successfully created 2 projects');
+      });
+
+      it('should create projects with groupId', async () => {
+        const mockCreatedProjects = [
+          {
+            id: 'project-1',
+            name: 'Group Project 1',
+            description: 'First project',
+            groupId: 'group-456',
+            createdAt: '2024-01-01T00:00:00Z'
+          }
+        ];
+
+        mockGraphQLClient.bulkCreateProjects = jest.fn().mockResolvedValue(mockCreatedProjects);
+
+        const result = await projectTools.bulkCreateProjects({
+          projects: [
+            { name: 'Group Project 1', description: 'First project', groupId: 'group-456' }
+          ]
+        });
+
+        expect(mockGraphQLClient.bulkCreateProjects).toHaveBeenCalledWith({
+          projects: [
+            { name: 'Group Project 1', description: 'First project', groupId: 'group-456' }
+          ],
+        });
+        expect(result.success).toBe(true);
+        expect(result.createdProjects).toHaveLength(1);
+        expect(result.createdProjects[0].groupId).toBe('group-456');
       });
 
       it('should throw error when no projects provided', async () => {
