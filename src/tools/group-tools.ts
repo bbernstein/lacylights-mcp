@@ -8,7 +8,7 @@ const GetGroupDetailsSchema = z.object({
 const InviteToGroupSchema = z.object({
   groupId: z.string().describe('The group ID to invite the user to'),
   email: z.string().email().describe('Email address of the user to invite'),
-  role: z.enum(['MEMBER', 'GROUP_ADMIN']).optional().describe('Role for the invited user (default: MEMBER)'),
+  role: z.enum(['MEMBER', 'GROUP_ADMIN']).default('MEMBER').describe('Role for the invited user (default: MEMBER)'),
 });
 
 export class GroupTools {
@@ -82,9 +82,36 @@ export class GroupTools {
   }
 
   /**
+   * List pending invitations for the current user
+   */
+  async listMyInvitations() {
+    try {
+      const invitations = await this.graphqlClient.getMyInvitations();
+      return {
+        count: invitations.length,
+        invitations: invitations.map((inv: any) => ({
+          id: inv.id,
+          groupId: inv.group?.id,
+          groupName: inv.group?.name,
+          email: inv.email,
+          invitedBy: inv.invitedBy ? {
+            email: inv.invitedBy.email,
+            name: inv.invitedBy.name,
+          } : null,
+          role: inv.role,
+          status: inv.status,
+          expiresAt: inv.expiresAt,
+        })),
+      };
+    } catch (error) {
+      throw new Error(`Failed to list invitations: ${error}`);
+    }
+  }
+
+  /**
    * Invite a user to a group by email
    */
-  async inviteToGroup(args: z.infer<typeof InviteToGroupSchema>) {
+  async inviteToGroup(args: z.input<typeof InviteToGroupSchema>) {
     const { groupId, email, role } = InviteToGroupSchema.parse(args);
     try {
       const invitation = await this.graphqlClient.inviteToGroup(groupId, email, role);

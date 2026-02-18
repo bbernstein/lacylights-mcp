@@ -1,13 +1,9 @@
 import { GroupTools } from '../../src/tools/group-tools';
 import { LacyLightsGraphQLClient } from '../../src/services/graphql-client-simple';
 
-// Mock the GraphQL client
-jest.mock('../../src/services/graphql-client-simple');
-const MockGraphQLClient = LacyLightsGraphQLClient as jest.MockedClass<typeof LacyLightsGraphQLClient>;
-
 describe('GroupTools', () => {
   let groupTools: GroupTools;
-  let mockGraphQLClient: jest.Mocked<LacyLightsGraphQLClient>;
+  let mockGraphQLClient: jest.Mocked<Pick<LacyLightsGraphQLClient, 'getMyGroups' | 'getGroupDetails' | 'getMyInvitations' | 'inviteToGroup'>>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -17,10 +13,9 @@ describe('GroupTools', () => {
       getGroupDetails: jest.fn(),
       getMyInvitations: jest.fn(),
       inviteToGroup: jest.fn(),
-    } as any;
+    };
 
-    MockGraphQLClient.mockImplementation(() => mockGraphQLClient);
-    groupTools = new GroupTools(mockGraphQLClient);
+    groupTools = new GroupTools(mockGraphQLClient as any);
   });
 
   describe('listGroups', () => {
@@ -32,7 +27,7 @@ describe('GroupTools', () => {
           description: 'Main stage crew',
           memberCount: 5,
           isPersonal: false,
-          devices: [{ id: 'd1', name: 'Booth', isAuthorized: true }],
+          devices: [{ id: 'd1' }],
         },
         {
           id: 'group-2',
@@ -199,6 +194,56 @@ describe('GroupTools', () => {
     });
   });
 
+  describe('listMyInvitations', () => {
+    it('should return formatted invitation list', async () => {
+      mockGraphQLClient.getMyInvitations.mockResolvedValue([
+        {
+          id: 'inv-1',
+          group: { id: 'group-1', name: 'Stage Crew' },
+          email: 'me@test.com',
+          invitedBy: { id: 'u1', email: 'admin@test.com', name: 'Admin' },
+          role: 'MEMBER',
+          status: 'PENDING',
+          expiresAt: '2025-02-01T00:00:00Z',
+        },
+      ]);
+
+      const result = await groupTools.listMyInvitations();
+
+      expect(mockGraphQLClient.getMyInvitations).toHaveBeenCalled();
+      expect(result).toEqual({
+        count: 1,
+        invitations: [
+          {
+            id: 'inv-1',
+            groupId: 'group-1',
+            groupName: 'Stage Crew',
+            email: 'me@test.com',
+            invitedBy: { email: 'admin@test.com', name: 'Admin' },
+            role: 'MEMBER',
+            status: 'PENDING',
+            expiresAt: '2025-02-01T00:00:00Z',
+          },
+        ],
+      });
+    });
+
+    it('should return empty array when no invitations', async () => {
+      mockGraphQLClient.getMyInvitations.mockResolvedValue([]);
+
+      const result = await groupTools.listMyInvitations();
+
+      expect(result).toEqual({ count: 0, invitations: [] });
+    });
+
+    it('should handle GraphQL client errors', async () => {
+      mockGraphQLClient.getMyInvitations.mockRejectedValue(new Error('GraphQL error'));
+
+      await expect(groupTools.listMyInvitations())
+        .rejects.toThrow('Failed to list invitations: Error: GraphQL error');
+    });
+  });
+
   describe('inviteToGroup', () => {
     it('should send invitation with default MEMBER role', async () => {
       mockGraphQLClient.inviteToGroup.mockResolvedValue({
@@ -214,7 +259,7 @@ describe('GroupTools', () => {
         email: 'newuser@test.com',
       });
 
-      expect(mockGraphQLClient.inviteToGroup).toHaveBeenCalledWith('group-1', 'newuser@test.com', undefined);
+      expect(mockGraphQLClient.inviteToGroup).toHaveBeenCalledWith('group-1', 'newuser@test.com', 'MEMBER');
       expect(result).toEqual({
         success: true,
         invitation: {

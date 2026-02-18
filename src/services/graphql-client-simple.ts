@@ -3284,15 +3284,8 @@ export class LacyLightsGraphQLClient {
           description
           memberCount
           isPersonal
-          members {
-            id
-            user { id email name }
-            role
-          }
           devices {
             id
-            name
-            isAuthorized
           }
         }
       }
@@ -3328,7 +3321,6 @@ export class LacyLightsGraphQLClient {
           devices {
             id
             name
-            fingerprint
             isAuthorized
             lastSeenAt
           }

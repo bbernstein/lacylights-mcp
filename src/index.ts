@@ -3158,6 +3158,15 @@ Returns:
             },
           },
           {
+            name: "list_my_invitations",
+            description: "List pending group invitations for the current user/device. Shows which groups you've been invited to, who invited you, and the offered role.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              required: [],
+            },
+          },
+          {
             name: "invite_to_group",
             description: "Invite a user to join a group by their email address. Requires GROUP_ADMIN role in the target group. The invited user will receive a pending invitation they can accept or decline.",
             inputSchema: {
@@ -3174,6 +3183,7 @@ Returns:
                 role: {
                   type: "string",
                   enum: ["MEMBER", "GROUP_ADMIN"],
+                  default: "MEMBER",
                   description: "Role for the invited user (default: MEMBER)",
                 },
               },
@@ -4541,6 +4551,20 @@ Returns:
                   type: "text",
                   text: JSON.stringify(
                     await this.groupTools.getGroupDetails(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "list_my_invitations":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.groupTools.listMyInvitations(),
                     null,
                     2,
                   ),
