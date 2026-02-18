@@ -30,7 +30,7 @@
     "cross-fetch": "^4.1.0",
     "graphql": "^16.12.0",
     "node-machine-id": "^1.1.12",
-    "openai": "^6.18.0",
+    "openai": "^6.22.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
