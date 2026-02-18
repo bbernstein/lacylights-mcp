@@ -17,6 +17,7 @@ import { ProjectTools } from "./tools/project-tools";
 import { SettingsTools } from "./tools/settings-tools";
 import { LookBoardTools } from "./tools/look-board-tools";
 import { UndoRedoTools } from "./tools/undo-redo-tools";
+import { GroupTools } from "./tools/group-tools";
 import { logger } from "./utils/logger";
 import { getDeviceFingerprint, getDeviceName } from "./utils/device-fingerprint";
 
@@ -43,6 +44,7 @@ class LacyLightsMCPServer {
   private settingsTools: SettingsTools;
   private lookBoardTools: LookBoardTools;
   private undoRedoTools: UndoRedoTools;
+  private groupTools: GroupTools;
 
   constructor() {
     this.server = new Server(
@@ -89,6 +91,7 @@ class LacyLightsMCPServer {
     this.settingsTools = new SettingsTools(this.graphqlClient);
     this.lookBoardTools = new LookBoardTools(this.graphqlClient);
     this.undoRedoTools = new UndoRedoTools(this.graphqlClient);
+    this.groupTools = new GroupTools(this.graphqlClient);
 
     this.setupHandlers();
   }
@@ -3129,6 +3132,64 @@ Returns:
               required: ["projectId", "confirmClear"],
             },
           },
+
+          // Group Tools
+          {
+            name: "list_groups",
+            description: "List groups accessible to this device/user. Shows group names, member counts, and device counts. Groups determine which projects you can access.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              required: [],
+            },
+          },
+          {
+            name: "get_group_details",
+            description: "Get full details of a group including its members, projects, and assigned devices. Requires the group ID.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                groupId: {
+                  type: "string",
+                  description: "The group ID to get details for",
+                },
+              },
+              required: ["groupId"],
+            },
+          },
+          {
+            name: "list_my_invitations",
+            description: "List pending group invitations for the current user/device. Shows which groups you've been invited to, who invited you, and the offered role.",
+            inputSchema: {
+              type: "object",
+              properties: {},
+              required: [],
+            },
+          },
+          {
+            name: "invite_to_group",
+            description: "Invite a user to join a group by their email address. Requires GROUP_ADMIN role in the target group. The invited user will receive a pending invitation they can accept or decline.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                groupId: {
+                  type: "string",
+                  description: "The group ID to invite the user to",
+                },
+                email: {
+                  type: "string",
+                  description: "Email address of the user to invite",
+                },
+                role: {
+                  type: "string",
+                  enum: ["MEMBER", "GROUP_ADMIN"],
+                  default: "MEMBER",
+                  description: "Role for the invited user (default: MEMBER)",
+                },
+              },
+              required: ["groupId", "email"],
+            },
+          },
         ],
       };
     });
@@ -4461,6 +4522,63 @@ Returns:
                   type: "text",
                   text: JSON.stringify(
                     await this.undoRedoTools.clearOperationHistory(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          // Group Tools
+          case "list_groups":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.groupTools.listGroups(),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "get_group_details":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.groupTools.getGroupDetails(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "list_my_invitations":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.groupTools.listMyInvitations(),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "invite_to_group":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.groupTools.inviteToGroup(args as any),
                     null,
                     2,
                   ),

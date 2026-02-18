@@ -3267,4 +3267,112 @@ export class LacyLightsGraphQLClient {
     const data = await this.query(mutation, { input });
     return data.copyFixturesToLooks;
   }
+
+  // ============================================================
+  // Group Management Operations
+  // ============================================================
+
+  /**
+   * Get groups accessible to the current device/user.
+   */
+  async getMyGroups(): Promise<any[]> {
+    const query = `
+      query GetMyGroups {
+        myGroups {
+          id
+          name
+          description
+          memberCount
+          isPersonal
+          devices {
+            id
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(query);
+    return data.myGroups || [];
+  }
+
+  /**
+   * Get a single group by ID with full details including members, projects, and devices.
+   */
+  async getGroupDetails(groupId: string): Promise<any> {
+    const query = `
+      query GetGroupDetails($id: ID!) {
+        userGroup(id: $id) {
+          id
+          name
+          description
+          memberCount
+          isPersonal
+          members {
+            id
+            user { id email name role }
+            role
+            joinedAt
+          }
+          projects {
+            id
+            name
+            description
+          }
+          devices {
+            id
+            name
+            isAuthorized
+            lastSeenAt
+          }
+          createdAt
+          updatedAt
+        }
+      }
+    `;
+
+    const data = await this.query(query, { id: groupId });
+    return data.userGroup;
+  }
+
+  /**
+   * Get pending invitations for the current user.
+   */
+  async getMyInvitations(): Promise<any[]> {
+    const query = `
+      query GetMyInvitations {
+        myInvitations {
+          id
+          group { id name }
+          email
+          invitedBy { id email name }
+          role
+          status
+          expiresAt
+        }
+      }
+    `;
+
+    const data = await this.query(query);
+    return data.myInvitations || [];
+  }
+
+  /**
+   * Invite a user to a group by email.
+   */
+  async inviteToGroup(groupId: string, email: string, role?: string): Promise<any> {
+    const mutation = `
+      mutation InviteToGroup($groupId: ID!, $email: String!, $role: GroupMemberRole) {
+        inviteToGroup(groupId: $groupId, email: $email, role: $role) {
+          id
+          email
+          role
+          status
+          expiresAt
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { groupId, email, role: role || 'MEMBER' });
+    return data.inviteToGroup;
+  }
 }
