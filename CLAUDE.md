@@ -212,3 +212,14 @@ mockFetch.mockResolvedValue({
 - `get_operation_history` - Get paginated operation history for a project
 - `jump_to_operation` - Jump to a specific point in history
 - `clear_operation_history` - Clear all operation history (destructive)
+
+### Eos ASCII Import/Export Tools
+- `import_eos_ascii(asciiContent, newProjectName?, targetProjectId?)` -
+  Import an ETC Eos ASCII (.asc) showfile into a new or existing project.
+  `newProjectName` and `targetProjectId` are mutually exclusive.
+- `export_eos_ascii(projectId)` - Export a project as ETC Eos ASCII text.
+- Both wrap GraphQL mutations on lacylights-go and surface structured
+  warnings to the agent (e.g. `EFFECT_SKIPPED`, `UNPATCHED_CHANNEL`,
+  `FIXTURE_SYNTHESIZED`, `GROUP_AUTO_ASSIGNED`).
+- Implementation: `src/tools/eos-tools.ts` (Zod-validated args) +
+  `src/services/graphql-client-simple.ts` (typed GraphQL methods).
