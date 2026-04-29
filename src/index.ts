@@ -18,6 +18,7 @@ import { SettingsTools } from "./tools/settings-tools";
 import { LookBoardTools } from "./tools/look-board-tools";
 import { UndoRedoTools } from "./tools/undo-redo-tools";
 import { GroupTools } from "./tools/group-tools";
+import { EosTools } from "./tools/eos-tools";
 import { logger } from "./utils/logger";
 import { getDeviceFingerprint, getDeviceName } from "./utils/device-fingerprint";
 
@@ -45,6 +46,7 @@ class LacyLightsMCPServer {
   private lookBoardTools: LookBoardTools;
   private undoRedoTools: UndoRedoTools;
   private groupTools: GroupTools;
+  private eosTools: EosTools;
 
   constructor() {
     this.server = new Server(
@@ -92,6 +94,7 @@ class LacyLightsMCPServer {
     this.lookBoardTools = new LookBoardTools(this.graphqlClient);
     this.undoRedoTools = new UndoRedoTools(this.graphqlClient);
     this.groupTools = new GroupTools(this.graphqlClient);
+    this.eosTools = new EosTools(this.graphqlClient);
 
     this.setupHandlers();
   }
@@ -263,6 +266,56 @@ Use this tool first to understand project scope before drilling down into specif
             inputSchema: {
               type: "object",
               properties: {},
+            },
+          },
+          {
+            name: "import_eos_ascii",
+            description: `Import an ETC Eos ASCII (.asc) showfile into LacyLights.
+
+Creates a new project (or appends into an existing one if targetProjectId is given) populated with the patch, cues, palettes, and groups from the Eos showfile. EOS-only concepts (effects, partitions, magic sheets, action triggers, curves, submasters) are skipped and surfaced as structured warnings. Palettes/presets are imported as standalone Looks in dedicated cue lists ("Color Palettes", "Beam Palettes", etc.).
+
+Returns:
+- projectId: the created or updated project
+- counts of fixtures, looks, cue lists, cues, groups created
+- warnings: structured list with code/severity/message/context entries
+- synthesizedDefinitionIds: definitions auto-synthesized when no library match was found
+
+Provide either newProjectName or targetProjectId, not both. If both are omitted, the project name comes from the showfile's $$Title.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                asciiContent: {
+                  type: "string",
+                  description: "Full text content of the .asc showfile.",
+                },
+                newProjectName: {
+                  type: "string",
+                  description: "Optional explicit name for the new project.",
+                },
+                targetProjectId: {
+                  type: "string",
+                  description: "Optional existing project ID to append the import into. Existing data is preserved.",
+                },
+              },
+              required: ["asciiContent"],
+            },
+          },
+          {
+            name: "export_eos_ascii",
+            description: `Export a LacyLights project as an ETC Eos ASCII (.asc) showfile.
+
+Returns the file content as a string along with a suggested filename suffix and any export warnings. LacyLights-only concepts (Look Boards, per-channel fade behaviors, synthesized definitions) ride along as $$ LACYLIGHTS: comment lines at the end of file so a subsequent re-import preserves them. EOS itself ignores those comments.
+
+Output is deterministic: the same project produces byte-identical output across runs.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to export.",
+                },
+              },
+              required: ["projectId"],
             },
           },
           // Fixture Tools
@@ -3318,6 +3371,34 @@ Returns:
                     why_not_here: "QLC+ files are typically 10-100KB+ of XML content, which exceeds practical limits for AI chat context windows. The web UI is optimized for file handling.",
                     export_available: "QLC+ export is still available via this MCP interface and can generate .qxw files for download."
                   }, null, 2),
+                },
+              ],
+            };
+
+          case "import_eos_ascii":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.eosTools.importEosAscii(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "export_eos_ascii":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.eosTools.exportEosAscii(args as any),
+                    null,
+                    2,
+                  ),
                 },
               ],
             };
