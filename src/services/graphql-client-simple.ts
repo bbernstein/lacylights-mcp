@@ -3375,4 +3375,100 @@ export class LacyLightsGraphQLClient {
     const data = await this.query(mutation, { groupId, email, role: role || 'MEMBER' });
     return data.inviteToGroup;
   }
+
+  // ============================================================
+  // ETC Eos ASCII Import/Export
+  // ============================================================
+
+  async importEosAscii(
+    asciiContent: string,
+    options?: { newProjectName?: string; targetProjectId?: string },
+  ): Promise<EosImportResult> {
+    const mutation = `
+      mutation ImportProjectFromEos(
+        $asciiContent: String!
+        $options: EosImportOptionsInput
+      ) {
+        importProjectFromEos(
+          asciiContent: $asciiContent
+          options: $options
+        ) {
+          projectId
+          fixtureDefinitionsCount
+          fixtureInstancesCount
+          looksCount
+          cueListsCount
+          cuesCount
+          groupsCount
+          warnings {
+            code
+            severity
+            message
+            context { key value }
+          }
+          synthesizedDefinitionIds
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, {
+      asciiContent,
+      options,
+    });
+    return data.importProjectFromEos;
+  }
+
+  async exportEosAscii(projectId: string): Promise<EosExportResult> {
+    const mutation = `
+      mutation ExportProjectToEos($projectId: ID!) {
+        exportProjectToEos(projectId: $projectId) {
+          projectId
+          projectName
+          asciiContent
+          filenameSuffix
+          warnings {
+            code
+            severity
+            message
+            context { key value }
+          }
+        }
+      }
+    `;
+
+    const data = await this.query(mutation, { projectId });
+    return data.exportProjectToEos;
+  }
+}
+
+export interface EosWarningContextEntry {
+  key: string;
+  value: string;
+}
+
+export interface EosWarning {
+  code: string;
+  severity: 'INFO' | 'WARN';
+  message: string;
+  context: EosWarningContextEntry[];
+}
+
+export interface EosImportResult {
+  projectId: string;
+  fixtureDefinitionsCount: number;
+  fixtureInstancesCount: number;
+  looksCount: number;
+  cueListsCount: number;
+  cuesCount: number;
+  groupsCount: number;
+  warnings: EosWarning[];
+  synthesizedDefinitionIds: string[];
+}
+
+export interface EosExportResult {
+  projectId: string;
+  projectName: string;
+  asciiContent: string;
+  filenameSuffix: string;
+  warnings: EosWarning[];
 }
