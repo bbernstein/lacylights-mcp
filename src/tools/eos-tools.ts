@@ -7,7 +7,7 @@ import {
 
 const ImportEosAsciiSchema = z.object({
   asciiContent: z.string().describe('Full text content of the ETC Eos ASCII (.asc) showfile'),
-  newProjectName: z.string().optional().describe('Optional explicit project name. If omitted, uses the showfile $$Title or originalFileName'),
+  newProjectName: z.string().optional().describe('Optional explicit project name. If omitted, uses the showfile $$Title or a backend default'),
   targetProjectId: z.string().optional().describe('Optional existing project ID to import into. Mutually exclusive with newProjectName'),
 });
 

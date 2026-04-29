@@ -3413,7 +3413,7 @@ export class LacyLightsGraphQLClient {
 
     const data = await this.query(mutation, {
       asciiContent,
-      options: options ?? null,
+      options,
     });
     return data.importProjectFromEos;
   }
