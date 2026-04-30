@@ -73,7 +73,7 @@ describe('AILightingService', () => {
   });
 
   describe('generateLook', () => {
-    it('should generate scene with valid fixture values', async () => {
+    it('should generate look with valid fixture values', async () => {
       const mockRecommendations = {
         colorSuggestions: ['red', 'blue'],
         intensityLevels: { ambient: 50, key: 75 },
@@ -87,8 +87,8 @@ describe('AILightingService', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              name: 'Romantic Scene',
-              description: 'A romantic lighting scene',
+              name: 'Romantic Look',
+              description: 'A romantic lighting look',
               fixtureValues: [
                 {
                   fixtureId: 'fixture-1',
@@ -121,7 +121,7 @@ describe('AILightingService', () => {
         ['LED_PAR']
       );
 
-      expect(result.name).toBe('Romantic Scene');
+      expect(result.name).toBe('Romantic Look');
       expect(result.fixtureValues).toHaveLength(1);
       expect(result.fixtureValues[0].fixtureId).toBe('fixture-1');
       expect(result.fixtureValues[0].channels).toEqual([{ offset: 0, value: 255 }, { offset: 1, value: 128 }, { offset: 2, value: 64 }]);
@@ -169,7 +169,7 @@ describe('AILightingService', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              name: 'Test Scene',
+              name: 'Test Look',
               fixtureValues: [
                 {
                   fixtureId: 'invalid-fixture',
@@ -214,7 +214,7 @@ describe('AILightingService', () => {
                 {
                   name: 'Lights Up',
                   cueNumber: 1.0,
-                  sceneId: '0',
+                  lookId: '0',
                   fadeInTime: 3.0,
                   fadeOutTime: 3.0,
                   followTime: null,
@@ -229,10 +229,10 @@ describe('AILightingService', () => {
 
       (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(mockAIResponse);
 
-      const scenes = [
+      const looks = [
         {
           name: 'Opening',
-          description: 'Opening scene',
+          description: 'Opening look',
           fixtureValues: [],
           reasoning: 'Test'
         }
@@ -240,7 +240,7 @@ describe('AILightingService', () => {
 
       const result = await aiService.generateCueSequence(
         'Act 1, Scene 1',
-        scenes,
+        looks,
         { defaultFadeIn: 3, defaultFadeOut: 3, followCues: false }
       );
 
@@ -270,9 +270,9 @@ describe('AILightingService', () => {
   });
 
   describe('optimizeLookForFixtures', () => {
-    it('should optimize scene fixture values', async () => {
-      const scene = {
-        name: 'Test Scene',
+    it('should optimize look fixture values', async () => {
+      const look = {
+        name: 'Test Look',
         description: 'Test',
         fixtureValues: [
           {
@@ -283,7 +283,7 @@ describe('AILightingService', () => {
         reasoning: 'Test'
       };
 
-      const result = await aiService.optimizeLookForFixtures(scene, [mockFixture]);
+      const result = await aiService.optimizeLookForFixtures(look, [mockFixture]);
 
       // Values should be clamped to 0-255 range (sparse format)
       expect(result.fixtureValues[0].channels).toEqual([
@@ -294,8 +294,8 @@ describe('AILightingService', () => {
     });
 
     it('should preserve sparse format (no padding needed)', async () => {
-      const scene = {
-        name: 'Test Scene',
+      const look = {
+        name: 'Test Look',
         description: 'Test',
         fixtureValues: [
           {
@@ -306,7 +306,7 @@ describe('AILightingService', () => {
         reasoning: 'Test'
       };
 
-      const result = await aiService.optimizeLookForFixtures(scene, [mockFixture]);
+      const result = await aiService.optimizeLookForFixtures(look, [mockFixture]);
 
       // Sparse format: no padding needed, just preserve provided values
       expect(result.fixtureValues[0].channels).toEqual([
@@ -316,8 +316,8 @@ describe('AILightingService', () => {
     });
 
     it('should filter out-of-bounds offsets', async () => {
-      const scene = {
-        name: 'Test Scene',
+      const look = {
+        name: 'Test Look',
         description: 'Test',
         fixtureValues: [
           {
@@ -328,7 +328,7 @@ describe('AILightingService', () => {
         reasoning: 'Test'
       };
 
-      const result = await aiService.optimizeLookForFixtures(scene, [mockFixture]);
+      const result = await aiService.optimizeLookForFixtures(look, [mockFixture]);
 
       // Sparse format: offsets 3 and 4 should be filtered out (fixture only has 3 channels, offsets 0-2)
       expect(result.fixtureValues[0].channels).toEqual([
@@ -400,8 +400,8 @@ describe('AILightingService', () => {
     });
   });
 
-  describe('generateLook - additive scenes', () => {
-    it('should generate additive scene with only specified fixtures', async () => {
+  describe('generateLook - additive looks', () => {
+    it('should generate additive look with only specified fixtures', async () => {
       const allFixtures: FixtureInstance[] = [
         mockFixture,
         {
@@ -423,7 +423,7 @@ describe('AILightingService', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              name: 'Additive Scene',
+              name: 'Additive Look',
               description: 'Only modifying some fixtures',
               fixtureValues: [
                 {
@@ -448,12 +448,12 @@ describe('AILightingService', () => {
 
       const result = await aiService.generateLook(request);
 
-      expect(result.name).toBe('Additive Scene');
+      expect(result.name).toBe('Additive Look');
       expect(result.fixtureValues).toHaveLength(1);
       expect(result.fixtureValues[0].fixtureId).toBe('fixture-1');
     });
 
-    it('should handle additive scene with many fixtures', async () => {
+    it('should handle additive look with many fixtures', async () => {
       // Create 20 fixtures to test truncation
       const manyFixtures = Array.from({ length: 20 }, (_, i) => ({
         ...mockFixture,
@@ -472,7 +472,7 @@ describe('AILightingService', () => {
         choices: [{
           message: {
             content: JSON.stringify({
-              name: 'Test Scene',
+              name: 'Test Look',
               fixtureValues: []
             })
           }
@@ -508,7 +508,7 @@ describe('AILightingService', () => {
       const mockAIResponse = {
         choices: [{
           message: {
-            content: 'Here is the scene: {"name": "Test", "fixtureValues": []}'
+            content: 'Here is the look: {"name": "Test", "fixtureValues": []}'
           }
         }]
       };
