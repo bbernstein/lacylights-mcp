@@ -26,7 +26,7 @@
   "license": "MIT",
   "dependencies": {
     "@apollo/client": "^4.1.9",
-    "@modelcontextprotocol/sdk": "^1.25.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "cross-fetch": "^4.1.0",
     "graphql": "^16.12.0",
     "node-machine-id": "^1.1.12",
