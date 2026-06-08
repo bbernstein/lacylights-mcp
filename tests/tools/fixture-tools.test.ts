@@ -861,6 +861,36 @@ describe('FixtureTools', () => {
       expect(result.fixtures).toHaveLength(1);
     });
 
+    it('should use "look" terminology in strobe suitability recommendations', async () => {
+      // Capabilities are derived from the fixture instance's flattened channels
+      const projectWithStrobeFixture = {
+        ...mockProject,
+        fixtures: [{
+          ...mockProject.fixtures[0],
+          id: 'fixture-strobe',
+          name: 'Strobe Par',
+          channelCount: 2,
+          channels: [
+            { id: 'ch1', offset: 0, name: 'Intensity', type: ChannelType.INTENSITY, minValue: 0, maxValue: 255, defaultValue: 0 },
+            { id: 'ch2', offset: 1, name: 'Strobe', type: ChannelType.STROBE, minValue: 0, maxValue: 255, defaultValue: 0 }
+          ]
+        }]
+      };
+
+      mockGraphQLClient.getProjects.mockResolvedValue([projectWithStrobeFixture] as any);
+
+      const result = await fixtureTools.analyzeFixtureCapabilities({
+        fixtureId: 'fixture-strobe',
+        analysisType: 'general'
+      });
+
+      const generalAnalysis = result.fixtures[0] as any;
+      expect(generalAnalysis.suitableFor).toEqual(
+        expect.arrayContaining(['Concert lighting', 'Dance looks', 'Special effects'])
+      );
+      expect(generalAnalysis.suitableFor).not.toContain('Dance scenes');
+    });
+
     it('should analyze fixture with white and amber channels', async () => {
       const whiteAmberFixture = {
         id: 'def-white-amber',
