@@ -58,9 +58,11 @@ jobs:
           exit 1
 
       - name: Setup Node.js
+        # Node 22 to match the rest of CI and satisfy codegen toolchain engines
+        # (@graphql-codegen/cli v7 pulls listr2, which requires node >=22.13).
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install MCP dependencies
