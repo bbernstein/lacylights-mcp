@@ -1,5 +1,7 @@
 # LacyLights MCP Server
 
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Fbbernstein%2Flacylights-mcp.svg)](https://mcptoplist.com/server/glama%2Fbbernstein%2Flacylights-mcp)
+
 [![GitHub Release](https://img.shields.io/github/v/release/bbernstein/lacylights-mcp?label=stable)](https://github.com/bbernstein/lacylights-mcp/releases/latest)
 [![GitHub Pre-release](https://img.shields.io/github/v/release/bbernstein/lacylights-mcp?include_prereleases&label=beta)](https://github.com/bbernstein/lacylights-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
