@@ -3538,6 +3538,8 @@ export class LacyLightsGraphQLClient {
       field = legacy.field;
       data = await this.query(legacy.document, variables);
     }
+    // The export fields are non-null in the schema, so null is treated the same
+    // as missing. Revisit if a field ever becomes nullable (e.g. "not found").
     const value = data?.[field];
     if (value === undefined || value === null) {
       throw new Error(`GraphQL response did not include "${field}"`);

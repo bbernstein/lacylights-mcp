@@ -221,7 +221,7 @@ mockFetch.mockResolvedValue({
 - Import wraps the `importProjectFromEos` mutation; export uses the
   read-only `projectExportEos` query (falling back to the deprecated
   `exportProjectToEos` mutation on backends that predate the query).
-  Both surface structured warnings to the agent (e.g. `EFFECT_SKIPPED`, `UNPATCHED_CHANNEL`,
-  `FIXTURE_SYNTHESIZED`, `GROUP_AUTO_ASSIGNED`).
+  Both surface structured warnings to the agent (e.g. `EFFECT_SKIPPED`,
+  `UNPATCHED_CHANNEL`, `FIXTURE_SYNTHESIZED`, `GROUP_AUTO_ASSIGNED`).
 - Implementation: `src/tools/eos-tools.ts` (Zod-validated args) +
   `src/services/graphql-client-simple.ts` (typed GraphQL methods).
