@@ -39,6 +39,36 @@ export class DeviceNotApprovedError extends Error {
 }
 
 /**
+ * Error thrown for a failed GraphQL request. `graphQLErrorMessages` holds every
+ * GraphQL error message the server returned (parsed from the JSON body, also for
+ * non-2xx responses such as gqlgen's HTTP 422 validation failures), so callers can
+ * inspect them without parsing the human-readable `message`.
+ */
+export class GraphQLRequestError extends Error {
+  public readonly graphQLErrorMessages: string[];
+
+  constructor(message: string, graphQLErrorMessages: string[] = []) {
+    super(message);
+    this.name = 'GraphQLRequestError';
+    this.graphQLErrorMessages = graphQLErrorMessages;
+  }
+}
+
+/**
+ * Collect the string `message` of every entry in a GraphQL `errors` array.
+ * Returns an empty array for anything that is not a GraphQL error payload.
+ */
+function extractGraphQLErrorMessages(payload: unknown): string[] {
+  const errors = (payload as { errors?: unknown } | null)?.errors;
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+  return errors
+    .map((e) => (e as { message?: unknown } | null)?.message)
+    .filter((m): m is string => typeof m === 'string');
+}
+
+/**
  * Device status as returned by checkDevice query.
  */
 export type DeviceStatus = 'PENDING' | 'APPROVED' | 'REVOKED' | 'UNKNOWN';
@@ -109,7 +139,12 @@ export function isUnknownQueryFieldError(error: unknown, field: string): boolean
   if (!(error instanceof Error)) {
     return false;
   }
-  return error.message.includes(`Cannot query field "${field}" on type "Query"`);
+  const needle = `Cannot query field "${field}" on type "Query"`;
+  // For a GraphQLRequestError only trust the parsed GraphQL error messages, so a
+  // non-GraphQL body (HTML error page, proxy text) can never trigger a fallback.
+  const messages =
+    error instanceof GraphQLRequestError ? error.graphQLErrorMessages : [error.message];
+  return messages.some((m) => m.includes(needle));
 }
 
 export class LacyLightsGraphQLClient {
@@ -160,8 +195,16 @@ export class LacyLightsGraphQLClient {
     // Handle non-2xx responses explicitly to provide better error context
     if (!response.ok) {
       let errorBody: string;
+      let graphQLErrorMessages: string[] = [];
       try {
         const rawBody = await response.text();
+        // GraphQL servers (e.g. gqlgen) answer validation failures with HTTP 422
+        // and a regular JSON `errors` payload; keep those messages intact.
+        try {
+          graphQLErrorMessages = extractGraphQLErrorMessages(JSON.parse(rawBody));
+        } catch {
+          // Not JSON (HTML error page, plain text, ...)
+        }
         // Truncate body to avoid leaking sensitive backend details (HTML error pages, stack traces)
         // and to prevent very large log lines
         const MAX_ERROR_BODY_LENGTH = 200;
@@ -171,8 +214,9 @@ export class LacyLightsGraphQLClient {
       } catch {
         errorBody = 'Could not read response body';
       }
-      throw new Error(
-        `GraphQL request failed with status ${response.status} ${response.statusText}: ${errorBody}`
+      throw new GraphQLRequestError(
+        `GraphQL request failed with status ${response.status} ${response.statusText}: ${errorBody}`,
+        graphQLErrorMessages,
       );
     }
 
@@ -192,7 +236,7 @@ export class LacyLightsGraphQLClient {
           this.deviceFingerprint || 'unknown'
         );
       }
-      throw new Error(errorMessage);
+      throw new GraphQLRequestError(errorMessage, extractGraphQLErrorMessages(result));
     }
 
     return result.data;
@@ -3482,16 +3526,22 @@ export class LacyLightsGraphQLClient {
     legacy: { document: string; field: string },
     variables: Record<string, unknown>,
   ): Promise<T> {
+    let data: any;
+    let field = primary.field;
     try {
-      const data = await this.query(primary.document, variables);
-      return data[primary.field];
+      data = await this.query(primary.document, variables);
     } catch (error) {
       if (!isUnknownQueryFieldError(error, primary.field)) {
         throw error;
       }
-      const data = await this.query(legacy.document, variables);
-      return data[legacy.field];
+      field = legacy.field;
+      data = await this.query(legacy.document, variables);
     }
+    const value = data?.[field];
+    if (value === undefined || value === null) {
+      throw new Error(`GraphQL response did not include "${field}"`);
+    }
+    return value as T;
   }
 }
 

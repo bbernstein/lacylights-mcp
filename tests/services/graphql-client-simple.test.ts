@@ -1,4 +1,4 @@
-import { LacyLightsGraphQLClient, isUnknownQueryFieldError } from '../../src/services/graphql-client-simple';
+import { LacyLightsGraphQLClient, GraphQLRequestError, isUnknownQueryFieldError } from '../../src/services/graphql-client-simple';
 import fetch from 'cross-fetch';
 
 // Mock cross-fetch
@@ -2667,6 +2667,93 @@ describe('LacyLightsGraphQLClient', () => {
       expect(legacyBody.variables).toEqual({ projectId: 'p1' });
     });
 
+    it('falls back when the backend rejects the query with HTTP 422 (gqlgen validation failure)', async () => {
+      // Exact body returned by lacylights-go before projectExportEos existed.
+      const gqlgen422 = {
+        errors: [
+          {
+            message: 'Cannot query field "projectExportEos" on type "Query".',
+            locations: [{ line: 1, column: 16 }],
+            extensions: { code: 'GRAPHQL_VALIDATION_FAILED' },
+          },
+        ],
+        data: null,
+      };
+      mockFetch
+        .mockResolvedValueOnce(
+          createMockResponse(gqlgen422, {
+            ok: false,
+            status: 422,
+            statusText: 'Unprocessable Entity',
+          }) as any,
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({ data: { exportProjectToEos: eosResult } }) as any,
+        );
+
+      const result = await client.exportEosAscii('p1');
+
+      expect(result).toEqual(eosResult);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(sentBody(1).query).toMatch(/^\s*mutation ExportProjectToEos\(/);
+    });
+
+    it('falls back when the unknown-field error is not the first GraphQL error', async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          createMockResponse(
+            {
+              errors: [
+                { message: 'some other validation error' },
+                { message: 'Cannot query field "projectExportEos" on type "Query".' },
+              ],
+            },
+            { ok: false, status: 422, statusText: 'Unprocessable Entity' },
+          ) as any,
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({ data: { exportProjectToEos: eosResult } }) as any,
+        );
+
+      await expect(client.exportEosAscii('p1')).resolves.toEqual(eosResult);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not fall back for a non-JSON non-2xx response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        statusText: 'Bad Gateway',
+        json: jest.fn().mockRejectedValue(new Error('not json')),
+        text: jest.fn().mockResolvedValue('<html>Cannot query field "projectExportEos" on type "Query"</html>'),
+      } as any);
+
+      await expect(client.exportEosAscii('p1')).rejects.toThrow(/status 502 Bad Gateway/);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws a clear error when the response lacks the export field', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({ data: {} }) as any);
+
+      await expect(client.exportEosAscii('p1')).rejects.toThrow(
+        'GraphQL response did not include "projectExportEos"',
+      );
+    });
+
+    it('throws a clear error when the legacy response lacks the export field', async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          createMockResponse({
+            errors: [{ message: 'Cannot query field "projectExportEos" on type "Query".' }],
+          }) as any,
+        )
+        .mockResolvedValueOnce(createMockResponse({ data: { exportProjectToEos: null } }) as any);
+
+      await expect(client.exportEosAscii('p1')).rejects.toThrow(
+        'GraphQL response did not include "exportProjectToEos"',
+      );
+    });
+
     it('does not fall back for other errors', async () => {
       mockFetch.mockResolvedValueOnce(
         createMockResponse({ errors: [{ message: 'project not found' }] }) as any,
@@ -2715,6 +2802,24 @@ describe('LacyLightsGraphQLClient', () => {
           'projectExport',
         ),
       ).toBe(false);
+    });
+
+    it('checks every GraphQL error message on a GraphQLRequestError', () => {
+      const err = new GraphQLRequestError(
+        'GraphQL request failed with status 422 Unprocessable Entity: {"errors":[{"message":"Cannot query field \\"projectExport\\"',
+        ['first error', 'Cannot query field "projectExport" on type "Query".'],
+      );
+      expect(isUnknownQueryFieldError(err, 'projectExport')).toBe(true);
+      expect(isUnknownQueryFieldError(err, 'projectExportEos')).toBe(false);
+    });
+
+    it('ignores the message of a GraphQLRequestError without parsed GraphQL errors', () => {
+      const err = new GraphQLRequestError(
+        'GraphQL request failed with status 502 Bad Gateway: Cannot query field "projectExport" on type "Query"',
+      );
+      expect(err.graphQLErrorMessages).toEqual([]);
+      expect(err.name).toBe('GraphQLRequestError');
+      expect(isUnknownQueryFieldError(err, 'projectExport')).toBe(false);
     });
 
     it('returns false for non-Error values', () => {
