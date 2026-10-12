@@ -1,4 +1,4 @@
-import { LacyLightsGraphQLClient } from '../../src/services/graphql-client-simple';
+import { LacyLightsGraphQLClient, isUnknownQueryFieldError } from '../../src/services/graphql-client-simple';
 import fetch from 'cross-fetch';
 
 // Mock cross-fetch
@@ -2615,6 +2615,111 @@ describe('LacyLightsGraphQLClient', () => {
         fixtureIds: ['fixture-1'],
         targetLookIds: ['look-1']
       })).rejects.toThrow('Network timeout');
+    });
+  });
+
+  describe('exportEosAscii', () => {
+    const eosResult = {
+      projectId: 'p1',
+      projectName: 'Show',
+      asciiContent: 'IDENT 3:0\n',
+      filenameSuffix: '.asc',
+      warnings: [],
+    };
+
+    const sentBody = (callIndex: number) =>
+      JSON.parse((mockFetch.mock.calls[callIndex][1] as RequestInit).body as string);
+
+    it('uses the projectExportEos query', async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({ data: { projectExportEos: eosResult } }) as any,
+      );
+
+      const result = await client.exportEosAscii('p1');
+
+      expect(result).toEqual(eosResult);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const body = sentBody(0);
+      expect(body.query).toMatch(/^\s*query ProjectExportEos\(/);
+      expect(body.query).toContain('projectExportEos(projectId: $projectId)');
+      expect(body.query).not.toContain('mutation');
+      expect(body.variables).toEqual({ projectId: 'p1' });
+    });
+
+    it('falls back to the legacy exportProjectToEos mutation on older backends', async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          createMockResponse({
+            errors: [{ message: 'Cannot query field "projectExportEos" on type "Query".' }],
+          }) as any,
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({ data: { exportProjectToEos: eosResult } }) as any,
+        );
+
+      const result = await client.exportEosAscii('p1');
+
+      expect(result).toEqual(eosResult);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const legacyBody = sentBody(1);
+      expect(legacyBody.query).toMatch(/^\s*mutation ExportProjectToEos\(/);
+      expect(legacyBody.query).toContain('exportProjectToEos(projectId: $projectId)');
+      expect(legacyBody.variables).toEqual({ projectId: 'p1' });
+    });
+
+    it('does not fall back for other errors', async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({ errors: [{ message: 'project not found' }] }) as any,
+      );
+
+      await expect(client.exportEosAscii('missing')).rejects.toThrow('project not found');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates errors from the legacy mutation', async () => {
+      mockFetch
+        .mockResolvedValueOnce(
+          createMockResponse({
+            errors: [{ message: 'Cannot query field "projectExportEos" on type "Query".' }],
+          }) as any,
+        )
+        .mockResolvedValueOnce(
+          createMockResponse({ errors: [{ message: 'access denied' }] }) as any,
+        );
+
+      await expect(client.exportEosAscii('p1')).rejects.toThrow('access denied');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('isUnknownQueryFieldError', () => {
+    it('matches the GraphQL validation error for the given Query field', () => {
+      expect(
+        isUnknownQueryFieldError(
+          new Error('Cannot query field "projectExport" on type "Query". Did you mean "project"?'),
+          'projectExport',
+        ),
+      ).toBe(true);
+    });
+
+    it('does not match a different field or type', () => {
+      expect(
+        isUnknownQueryFieldError(
+          new Error('Cannot query field "projectExportEos" on type "Query".'),
+          'projectExport',
+        ),
+      ).toBe(false);
+      expect(
+        isUnknownQueryFieldError(
+          new Error('Cannot query field "projectExport" on type "Mutation".'),
+          'projectExport',
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false for non-Error values', () => {
+      expect(isUnknownQueryFieldError('Cannot query field "x" on type "Query"', 'x')).toBe(false);
+      expect(isUnknownQueryFieldError(undefined, 'x')).toBe(false);
     });
   });
 });

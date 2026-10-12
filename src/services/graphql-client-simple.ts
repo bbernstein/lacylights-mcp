@@ -101,6 +101,17 @@ function validateFingerprint(fingerprint: string | undefined | null): string | n
   return trimmed;
 }
 
+/**
+ * True when a GraphQL error says the server does not know `field` on the Query
+ * type, which is how older backends reject newly added Query fields.
+ */
+export function isUnknownQueryFieldError(error: unknown, field: string): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return error.message.includes(`Cannot query field "${field}" on type "Query"`);
+}
+
 export class LacyLightsGraphQLClient {
   private endpoint: string;
   private deviceFingerprint: string | null;
@@ -3418,10 +3429,17 @@ export class LacyLightsGraphQLClient {
     return data.importProjectFromEos;
   }
 
+  /**
+   * Export a project as ETC Eos ASCII.
+   *
+   * Uses the read-only `projectExportEos` Query. Backends that predate it only
+   * offer the deprecated `exportProjectToEos` Mutation, so if the server rejects
+   * the Query field as unknown we retry once with the Mutation. The MCP server
+   * and the backend are versioned and updated independently (e.g. lacylights-mac
+   * updates each component separately), so the MCP may run against an older backend.
+   */
   async exportEosAscii(projectId: string): Promise<EosExportResult> {
-    const mutation = `
-      mutation ExportProjectToEos($projectId: ID!) {
-        exportProjectToEos(projectId: $projectId) {
+    const selection = `
           projectId
           projectName
           asciiContent
@@ -3432,12 +3450,48 @@ export class LacyLightsGraphQLClient {
             message
             context { key value }
           }
-        }
+    `;
+    const exportQuery = `
+      query ProjectExportEos($projectId: ID!) {
+        projectExportEos(projectId: $projectId) {${selection}}
+      }
+    `;
+    const legacyMutation = `
+      mutation ExportProjectToEos($projectId: ID!) {
+        exportProjectToEos(projectId: $projectId) {${selection}}
       }
     `;
 
-    const data = await this.query(mutation, { projectId });
-    return data.exportProjectToEos;
+    return this.queryWithLegacyMutationFallback<EosExportResult>(
+      { document: exportQuery, field: 'projectExportEos' },
+      { document: legacyMutation, field: 'exportProjectToEos' },
+      { projectId },
+    );
+  }
+
+  /**
+   * Run a read-only Query, falling back to a legacy Mutation when the backend
+   * does not know the Query field yet (GraphQL validation error
+   * `Cannot query field "<field>" on type "Query"`). Any other error is rethrown.
+   *
+   * Requests go straight through fetch with no client-side cache, so large
+   * export payloads are never retained.
+   */
+  private async queryWithLegacyMutationFallback<T>(
+    primary: { document: string; field: string },
+    legacy: { document: string; field: string },
+    variables: Record<string, unknown>,
+  ): Promise<T> {
+    try {
+      const data = await this.query(primary.document, variables);
+      return data[primary.field];
+    } catch (error) {
+      if (!isUnknownQueryFieldError(error, primary.field)) {
+        throw error;
+      }
+      const data = await this.query(legacy.document, variables);
+      return data[legacy.field];
+    }
   }
 }
 
