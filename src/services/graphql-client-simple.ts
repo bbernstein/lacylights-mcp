@@ -39,6 +39,36 @@ export class DeviceNotApprovedError extends Error {
 }
 
 /**
+ * Error thrown for a failed GraphQL request. `graphQLErrorMessages` holds every
+ * GraphQL error message the server returned (parsed from the JSON body, also for
+ * non-2xx responses such as gqlgen's HTTP 422 validation failures), so callers can
+ * inspect them without parsing the human-readable `message`.
+ */
+export class GraphQLRequestError extends Error {
+  public readonly graphQLErrorMessages: string[];
+
+  constructor(message: string, graphQLErrorMessages: string[] = []) {
+    super(message);
+    this.name = 'GraphQLRequestError';
+    this.graphQLErrorMessages = graphQLErrorMessages;
+  }
+}
+
+/**
+ * Collect the string `message` of every entry in a GraphQL `errors` array.
+ * Returns an empty array for anything that is not a GraphQL error payload.
+ */
+function extractGraphQLErrorMessages(payload: unknown): string[] {
+  const errors = (payload as { errors?: unknown } | null)?.errors;
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+  return errors
+    .map((e) => (e as { message?: unknown } | null)?.message)
+    .filter((m): m is string => typeof m === 'string');
+}
+
+/**
  * Device status as returned by checkDevice query.
  */
 export type DeviceStatus = 'PENDING' | 'APPROVED' | 'REVOKED' | 'UNKNOWN';
@@ -101,6 +131,22 @@ function validateFingerprint(fingerprint: string | undefined | null): string | n
   return trimmed;
 }
 
+/**
+ * True when a GraphQL error says the server does not know `field` on the Query
+ * type, which is how older backends reject newly added Query fields.
+ */
+export function isUnknownQueryFieldError(error: unknown, field: string): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const needle = `Cannot query field "${field}" on type "Query"`;
+  // For a GraphQLRequestError only trust the parsed GraphQL error messages, so a
+  // non-GraphQL body (HTML error page, proxy text) can never trigger a fallback.
+  const messages =
+    error instanceof GraphQLRequestError ? error.graphQLErrorMessages : [error.message];
+  return messages.some((m) => m.includes(needle));
+}
+
 export class LacyLightsGraphQLClient {
   private endpoint: string;
   private deviceFingerprint: string | null;
@@ -149,8 +195,16 @@ export class LacyLightsGraphQLClient {
     // Handle non-2xx responses explicitly to provide better error context
     if (!response.ok) {
       let errorBody: string;
+      let graphQLErrorMessages: string[] = [];
       try {
         const rawBody = await response.text();
+        // GraphQL servers (e.g. gqlgen) answer validation failures with HTTP 422
+        // and a regular JSON `errors` payload; keep those messages intact.
+        try {
+          graphQLErrorMessages = extractGraphQLErrorMessages(JSON.parse(rawBody));
+        } catch {
+          // Not JSON (HTML error page, plain text, ...)
+        }
         // Truncate body to avoid leaking sensitive backend details (HTML error pages, stack traces)
         // and to prevent very large log lines
         const MAX_ERROR_BODY_LENGTH = 200;
@@ -160,8 +214,9 @@ export class LacyLightsGraphQLClient {
       } catch {
         errorBody = 'Could not read response body';
       }
-      throw new Error(
-        `GraphQL request failed with status ${response.status} ${response.statusText}: ${errorBody}`
+      throw new GraphQLRequestError(
+        `GraphQL request failed with status ${response.status} ${response.statusText}: ${errorBody}`,
+        graphQLErrorMessages,
       );
     }
 
@@ -181,7 +236,7 @@ export class LacyLightsGraphQLClient {
           this.deviceFingerprint || 'unknown'
         );
       }
-      throw new Error(errorMessage);
+      throw new GraphQLRequestError(errorMessage, extractGraphQLErrorMessages(result));
     }
 
     return result.data;
@@ -3418,10 +3473,17 @@ export class LacyLightsGraphQLClient {
     return data.importProjectFromEos;
   }
 
+  /**
+   * Export a project as ETC Eos ASCII.
+   *
+   * Uses the read-only `projectExportEos` Query. Backends that predate it only
+   * offer the deprecated `exportProjectToEos` Mutation, so if the server rejects
+   * the Query field as unknown we retry once with the Mutation. The MCP server
+   * and the backend are versioned and updated independently (e.g. lacylights-mac
+   * updates each component separately), so the MCP may run against an older backend.
+   */
   async exportEosAscii(projectId: string): Promise<EosExportResult> {
-    const mutation = `
-      mutation ExportProjectToEos($projectId: ID!) {
-        exportProjectToEos(projectId: $projectId) {
+    const selection = `
           projectId
           projectName
           asciiContent
@@ -3432,12 +3494,57 @@ export class LacyLightsGraphQLClient {
             message
             context { key value }
           }
-        }
+    `;
+    const exportQuery = `
+      query ProjectExportEos($projectId: ID!) {
+        projectExportEos(projectId: $projectId) {${selection}}
+      }
+    `;
+    const legacyMutation = `
+      mutation ExportProjectToEos($projectId: ID!) {
+        exportProjectToEos(projectId: $projectId) {${selection}}
       }
     `;
 
-    const data = await this.query(mutation, { projectId });
-    return data.exportProjectToEos;
+    return this.queryWithLegacyMutationFallback<EosExportResult>(
+      { document: exportQuery, field: 'projectExportEos' },
+      { document: legacyMutation, field: 'exportProjectToEos' },
+      { projectId },
+    );
+  }
+
+  /**
+   * Run a read-only Query, falling back to a legacy Mutation when the backend
+   * does not know the Query field yet (GraphQL validation error
+   * `Cannot query field "<field>" on type "Query"`). Any other error is rethrown.
+   *
+   * Requests go straight through fetch with no client-side cache, so the client
+   * keeps no copy of large export payloads after returning them (the parsed
+   * response still lives in memory for the caller).
+   */
+  private async queryWithLegacyMutationFallback<T>(
+    primary: { document: string; field: string },
+    legacy: { document: string; field: string },
+    variables: Record<string, unknown>,
+  ): Promise<T> {
+    let data: Record<string, unknown> | null | undefined;
+    let field = primary.field;
+    try {
+      data = await this.query(primary.document, variables);
+    } catch (error) {
+      if (!isUnknownQueryFieldError(error, primary.field)) {
+        throw error;
+      }
+      field = legacy.field;
+      data = await this.query(legacy.document, variables);
+    }
+    // The export fields are non-null in the schema, so null is treated the same
+    // as missing. Revisit if a field ever becomes nullable (e.g. "not found").
+    const value = data?.[field];
+    if (value === undefined || value === null) {
+      throw new Error(`GraphQL response did not include "${field}"`);
+    }
+    return value as T;
   }
 }
 
