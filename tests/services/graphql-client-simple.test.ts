@@ -1,4 +1,9 @@
-import { LacyLightsGraphQLClient, GraphQLRequestError, isUnknownQueryFieldError } from '../../src/services/graphql-client-simple';
+import {
+  LacyLightsGraphQLClient,
+  DeviceNotApprovedError,
+  GraphQLRequestError,
+  isUnknownQueryFieldError,
+} from '../../src/services/graphql-client-simple';
 import fetch from 'cross-fetch';
 
 // Mock cross-fetch
@@ -2752,6 +2757,17 @@ describe('LacyLightsGraphQLClient', () => {
       await expect(client.exportEosAscii('p1')).rejects.toThrow(
         'GraphQL response did not include "exportProjectToEos"',
       );
+    });
+
+    it('rethrows DeviceNotApprovedError from the query without falling back', async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({
+          errors: [{ message: 'Device not approved', extensions: { code: 'DEVICE_NOT_APPROVED' } }],
+        }) as any,
+      );
+
+      await expect(client.exportEosAscii('p1')).rejects.toBeInstanceOf(DeviceNotApprovedError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
     it('does not fall back for other errors', async () => {

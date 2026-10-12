@@ -3518,15 +3518,16 @@ export class LacyLightsGraphQLClient {
    * does not know the Query field yet (GraphQL validation error
    * `Cannot query field "<field>" on type "Query"`). Any other error is rethrown.
    *
-   * Requests go straight through fetch with no client-side cache, so large
-   * export payloads are never retained.
+   * Requests go straight through fetch with no client-side cache, so the client
+   * keeps no copy of large export payloads after returning them (the parsed
+   * response still lives in memory for the caller).
    */
   private async queryWithLegacyMutationFallback<T>(
     primary: { document: string; field: string },
     legacy: { document: string; field: string },
     variables: Record<string, unknown>,
   ): Promise<T> {
-    let data: any;
+    let data: Record<string, unknown> | null | undefined;
     let field = primary.field;
     try {
       data = await this.query(primary.document, variables);
