@@ -269,4 +269,48 @@ describe('GraphQL Client Integration Contract Tests', () => {
       }
     });
   });
+
+  describe('Data Export (CSV / XLSX)', () => {
+    it('should list exportable tables with scopes and columns', async () => {
+      const tables = await client.getDataExportTables();
+
+      expect(Array.isArray(tables)).toBe(true);
+      expect(tables.length).toBeGreaterThan(0);
+      for (const t of tables) {
+        expect(typeof t.table).toBe('string');
+        expect(typeof t.label).toBe('string');
+        expect(['none', 'project', 'look', 'cueList', 'lookBoard']).toContain(t.scope);
+        expect(Array.isArray(t.columns)).toBe(true);
+      }
+      expect(tables.map((t) => t.table)).toEqual(
+        expect.arrayContaining(['FIXTURE_LIBRARY', 'FIXTURES', 'LOOKS', 'CUE_LISTS']),
+      );
+    });
+
+    it('should export the global fixture library as CSV without a project', async () => {
+      const result = await client.exportDataTable({ table: 'FIXTURE_LIBRARY', format: 'CSV' });
+
+      expect(result.filename).toMatch(/\.csv$/);
+      expect(typeof result.mimeType).toBe('string');
+      expect(typeof result.rowCount).toBe('number');
+      const text = Buffer.from(result.contentBase64, 'base64').toString('utf-8');
+      // Header row is always present, even with no data rows.
+      expect(text.length).toBeGreaterThan(0);
+    });
+
+    it('should export a project workbook as XLSX', async () => {
+      const project = await client.createProject({ name: `contract-data-export-${Date.now()}` });
+      try {
+        const result = await client.exportDataWorkbook(project.id, ['FIXTURES', 'LOOKS']);
+
+        expect(result.filename).toMatch(/\.xlsx$/);
+        expect(result.rowCount).toBeGreaterThanOrEqual(0);
+        const bytes = Buffer.from(result.contentBase64, 'base64');
+        // XLSX is a ZIP archive: starts with "PK".
+        expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
+      } finally {
+        await client.deleteProject(project.id);
+      }
+    });
+  });
 });

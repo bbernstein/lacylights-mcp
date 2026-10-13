@@ -19,6 +19,11 @@ import { LookBoardTools } from "./tools/look-board-tools";
 import { UndoRedoTools } from "./tools/undo-redo-tools";
 import { GroupTools } from "./tools/group-tools";
 import { EosTools } from "./tools/eos-tools";
+import {
+  DataExportTools,
+  DEFAULT_EXPORT_DIR_ENV,
+  DEFAULT_MAX_CSV_CHARACTERS,
+} from "./tools/data-export-tools";
 import { logger } from "./utils/logger";
 import { getDeviceFingerprint, getDeviceName } from "./utils/device-fingerprint";
 
@@ -47,6 +52,7 @@ class LacyLightsMCPServer {
   private undoRedoTools: UndoRedoTools;
   private groupTools: GroupTools;
   private eosTools: EosTools;
+  private dataExportTools: DataExportTools;
 
   constructor() {
     this.server = new Server(
@@ -95,6 +101,7 @@ class LacyLightsMCPServer {
     this.undoRedoTools = new UndoRedoTools(this.graphqlClient);
     this.groupTools = new GroupTools(this.graphqlClient);
     this.eosTools = new EosTools(this.graphqlClient);
+    this.dataExportTools = new DataExportTools(this.graphqlClient);
 
     this.setupHandlers();
   }
@@ -313,6 +320,92 @@ Output is deterministic: the same project produces byte-identical output across 
                 projectId: {
                   type: "string",
                   description: "Project ID to export.",
+                },
+              },
+              required: ["projectId"],
+            },
+          },
+          // Data Export Tools (CSV / Excel)
+          {
+            name: "list_data_export_tables",
+            description: `List the data tables that can be exported as CSV or Excel (XLSX), with their column headers and scope.
+
+Each table has a scope that says which IDs export_data_table needs:
+- none: global (FIXTURE_LIBRARY); projectId optional
+- project: projectId required (FIXTURE_TYPES, FIXTURES, LOOKS, EFFECTS, CUE_LISTS)
+- look: projectId + scopeId = look ID (LOOK_DETAILS)
+- cueList: projectId + scopeId = cue list ID (CUE_LIST_DETAILS)
+- lookBoard: projectId, optional scopeId = look board ID (LOOK_BOARD_ENTRIES)
+
+Requires LacyLights backend v0.4.0 or newer.`,
+            inputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
+          {
+            name: "export_data_table",
+            description: `Export one data table (fixtures, looks, cue lists, look details, ...) as CSV or Excel.
+
+- format "csv" (default): returns the CSV text inline so you can read it. Large exports are truncated (default ${DEFAULT_MAX_CSV_CHARACTERS} characters), preferably at a line break, with truncated=true and a note. A cut is not guaranteed to fall between complete rows (a very long first line, or a quoted field containing line breaks, may be split); pass outputDirectory to also save the full file, or raise maxCharacters.
+- format "xlsx": writes the Excel file to disk and returns its path, row count and size (no file content in the response).
+
+Files are written to outputDirectory, else the ${DEFAULT_EXPORT_DIR_ENV} environment variable, else a private lacylights-exports folder in the system temp directory. Existing files are never overwritten; a numeric suffix is added instead. Use list_data_export_tables to see the tables and which need scopeId.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID. Required for every table except FIXTURE_LIBRARY.",
+                },
+                table: {
+                  type: "string",
+                  description: "Table to export (case-insensitive): FIXTURE_TYPES, FIXTURE_LIBRARY, FIXTURES, LOOKS, LOOK_DETAILS, EFFECTS, LOOK_BOARD_ENTRIES, CUE_LISTS or CUE_LIST_DETAILS. See list_data_export_tables for what the connected backend supports.",
+                },
+                format: {
+                  type: "string",
+                  default: "csv",
+                  description: "\"csv\" (default) or \"xlsx\", case-insensitive. csv returns text inline; xlsx writes a file and returns its path.",
+                },
+                scopeId: {
+                  type: "string",
+                  description: "Look ID for LOOK_DETAILS, cue list ID for CUE_LIST_DETAILS, optional look board ID for LOOK_BOARD_ENTRIES.",
+                },
+                outputDirectory: {
+                  type: "string",
+                  description: "Directory to write the file to (created if missing). For CSV, setting this also saves the full untruncated file.",
+                },
+                maxCharacters: {
+                  type: "integer",
+                  minimum: 1,
+                  description: `CSV only (ignored for xlsx): maximum characters returned inline (default ${DEFAULT_MAX_CSV_CHARACTERS}).`,
+                },
+              },
+              required: ["table"],
+            },
+          },
+          {
+            name: "export_data_workbook",
+            description: `Export several project tables as one multi-sheet Excel (XLSX) workbook, one sheet per table.
+
+Writes the file to disk and returns its path, total row count and size. Omit tables to export the backend's default set of project-level tables. FIXTURE_LIBRARY and scoped tables (LOOK_DETAILS, CUE_LIST_DETAILS, LOOK_BOARD_ENTRIES) cannot be included.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                projectId: {
+                  type: "string",
+                  description: "Project ID to export.",
+                },
+                tables: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                  description: "Project-level tables to include (case-insensitive), e.g. FIXTURE_TYPES, FIXTURES, LOOKS, EFFECTS, CUE_LISTS. Omit for the backend's default set; an empty list is rejected.",
+                },
+                outputDirectory: {
+                  type: "string",
+                  description: `Directory to write the workbook to (created if missing). Defaults to ${DEFAULT_EXPORT_DIR_ENV} or the system temp directory.`,
                 },
               },
               required: ["projectId"],
@@ -3396,6 +3489,48 @@ Returns:
                   type: "text",
                   text: JSON.stringify(
                     await this.eosTools.exportEosAscii(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "list_data_export_tables":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.dataExportTools.listDataExportTables(),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "export_data_table":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.dataExportTools.exportDataTable(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "export_data_workbook":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.dataExportTools.exportDataWorkbook(args as any),
                     null,
                     2,
                   ),
