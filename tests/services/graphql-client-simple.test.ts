@@ -2843,6 +2843,7 @@ describe('LacyLightsGraphQLClient', () => {
       expect(isUnknownQueryFieldError(undefined, 'x')).toBe(false);
     });
   });
+
   describe('data export (CSV / XLSX)', () => {
     const sentBody = (callIndex: number) =>
       JSON.parse((mockFetch.mock.calls[callIndex][1] as RequestInit).body as string);

@@ -231,11 +231,13 @@ mockFetch.mockResolvedValue({
 - `list_data_export_tables()` - Tables with columns and scope (none, project,
   look, cueList, lookBoard), which say whether `projectId`/`scopeId` are needed.
 - `export_data_table(table, projectId?, format?, scopeId?, outputDirectory?, maxCharacters?)` -
-  CSV is returned inline, truncated at a line boundary (default 50,000
-  characters) with `truncated`/`note`; XLSX is written to disk and only the
+  CSV is returned inline (BOM stripped), truncated, preferably at a line
+  break (default 50,000 characters) with `truncated`/`note`; XLSX is written to disk and only the
   path, row count and size are returned.
 - `export_data_workbook(projectId, tables?, outputDirectory?)` - Multi-sheet
   XLSX written to disk. Omitting `tables` uses the backend default set.
+- Files are created exclusively with mode 0600 (no overwrite, numeric suffix
+  on clashes, symlinks never followed); the default temp folder is 0700.
 - Wraps the read-only `dataExportTables`, `exportDataTable` and
   `exportDataWorkbook` queries (lacylights-go v0.4.0+). On older backends the
   `Cannot query field` error (`isUnknownQueryFieldError`) becomes an

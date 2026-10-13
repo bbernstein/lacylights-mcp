@@ -328,6 +328,71 @@ describe('DataExportTools', () => {
       }
     });
 
+    it('creates the default temp-dir folder private to the user', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const tmpdirSpy = jest.spyOn(require('os') as typeof os, 'tmpdir').mockReturnValue(tmpDir);
+      try {
+        client.exportDataTable.mockResolvedValue({
+          filename: 'default.xlsx',
+          mimeType: XLSX_MIME,
+          contentBase64: b64('xx'),
+          rowCount: 1,
+        });
+
+        await tools.exportDataTable({ projectId: 'p1', table: 'FIXTURES', format: 'xlsx' });
+
+        const dirMode = fs.statSync(path.join(tmpDir, 'lacylights-exports')).mode & 0o777;
+        expect(dirMode).toBe(0o700);
+      } finally {
+        tmpdirSpy.mockRestore();
+      }
+    });
+
+    it('refuses a default temp-dir folder that is a symlink', async () => {
+      const elsewhere = path.join(tmpDir, 'elsewhere');
+      fs.mkdirSync(elsewhere);
+      fs.symlinkSync(elsewhere, path.join(tmpDir, 'lacylights-exports'));
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const tmpdirSpy = jest.spyOn(require('os') as typeof os, 'tmpdir').mockReturnValue(tmpDir);
+      try {
+        client.exportDataTable.mockResolvedValue({
+          filename: 'default.xlsx',
+          mimeType: XLSX_MIME,
+          contentBase64: b64('xx'),
+          rowCount: 1,
+        });
+
+        await expect(
+          tools.exportDataTable({ projectId: 'p1', table: 'FIXTURES', format: 'xlsx' }),
+        ).rejects.toThrow(/not a private directory/);
+        expect(fs.readdirSync(elsewhere)).toEqual([]);
+      } finally {
+        tmpdirSpy.mockRestore();
+      }
+    });
+
+    it('tightens permissions on an existing default folder owned by the user', async () => {
+      const dir = path.join(tmpDir, 'lacylights-exports');
+      fs.mkdirSync(dir, { mode: 0o755 });
+      fs.chmodSync(dir, 0o755);
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const tmpdirSpy = jest.spyOn(require('os') as typeof os, 'tmpdir').mockReturnValue(tmpDir);
+      try {
+        client.exportDataTable.mockResolvedValue({
+          filename: 'default.xlsx',
+          mimeType: XLSX_MIME,
+          contentBase64: b64('xx'),
+          rowCount: 1,
+        });
+
+        await tools.exportDataTable({ projectId: 'p1', table: 'FIXTURES', format: 'xlsx' });
+
+        expect(fs.statSync(dir).mode & 0o777).toBe(0o700);
+      } finally {
+        tmpdirSpy.mockRestore();
+      }
+    });
+
     it('never writes outside the output directory, whatever filename the server sends', async () => {
       client.exportDataTable.mockResolvedValue({
         filename: '../../etc/evil.xlsx',
@@ -366,6 +431,184 @@ describe('DataExportTools', () => {
         expect(result.filePath).toBe(path.join(tmpDir, 'lacylights-export.xlsx'));
       },
     );
+
+    it('strips the UTF-8 BOM from inline CSV but keeps it in the saved file', async () => {
+      const withBom = '\uFEFFName\nPar\n';
+      client.exportDataTable.mockResolvedValue({
+        filename: 'bom.csv',
+        mimeType: 'text/csv',
+        contentBase64: b64(withBom),
+        rowCount: 1,
+      });
+
+      const result = await tools.exportDataTable({
+        projectId: 'p1',
+        table: 'FIXTURES',
+        outputDirectory: tmpDir,
+      });
+
+      expect(result.csv).toBe('Name\nPar\n');
+      expect(result.totalCharacters).toBe('Name\nPar\n'.length);
+      expect(fs.readFileSync(result.filePath!, 'utf-8')).toBe(withBom);
+    });
+
+    it('mentions that quoted multi-line fields may be split when truncating', async () => {
+      client.exportDataTable.mockResolvedValue({
+        filename: 'big.csv',
+        mimeType: 'text/csv',
+        contentBase64: b64('a\nb\nc\nd\n'),
+        rowCount: 3,
+      });
+
+      const result = await tools.exportDataTable({
+        projectId: 'p1',
+        table: 'LOOKS',
+        maxCharacters: 4,
+      });
+
+      expect(result.note).toMatch(/quoted/i);
+    });
+
+    it('does not overwrite an existing file; adds a numeric suffix instead', async () => {
+      fs.writeFileSync(path.join(tmpDir, 'dup.xlsx'), 'existing');
+      fs.writeFileSync(path.join(tmpDir, 'dup-1.xlsx'), 'existing too');
+      client.exportDataTable.mockResolvedValue({
+        filename: 'dup.xlsx',
+        mimeType: XLSX_MIME,
+        contentBase64: b64('new'),
+        rowCount: 1,
+      });
+
+      const result = await tools.exportDataTable({
+        projectId: 'p1',
+        table: 'FIXTURES',
+        format: 'xlsx',
+        outputDirectory: tmpDir,
+      });
+
+      expect(result.filePath).toBe(path.join(tmpDir, 'dup-2.xlsx'));
+      expect(fs.readFileSync(path.join(tmpDir, 'dup.xlsx'), 'utf-8')).toBe('existing');
+      expect(fs.readFileSync(result.filePath!, 'utf-8')).toBe('new');
+    });
+
+    it('never follows a symlink planted at the target filename', async () => {
+      const victim = path.join(tmpDir, 'victim.txt');
+      fs.writeFileSync(victim, 'keep me');
+      fs.symlinkSync(victim, path.join(tmpDir, 'planted.xlsx'));
+      client.exportDataTable.mockResolvedValue({
+        filename: 'planted.xlsx',
+        mimeType: XLSX_MIME,
+        contentBase64: b64('payload'),
+        rowCount: 1,
+      });
+
+      const result = await tools.exportDataTable({
+        projectId: 'p1',
+        table: 'FIXTURES',
+        format: 'xlsx',
+        outputDirectory: tmpDir,
+      });
+
+      expect(result.filePath).toBe(path.join(tmpDir, 'planted-1.xlsx'));
+      expect(fs.readFileSync(victim, 'utf-8')).toBe('keep me');
+    });
+
+    it('writes export files readable only by the owner', async () => {
+      client.exportDataTable.mockResolvedValue({
+        filename: 'private.xlsx',
+        mimeType: XLSX_MIME,
+        contentBase64: b64('xx'),
+        rowCount: 1,
+      });
+
+      const result = await tools.exportDataTable({
+        projectId: 'p1',
+        table: 'FIXTURES',
+        format: 'xlsx',
+        outputDirectory: tmpDir,
+      });
+
+      expect(fs.statSync(result.filePath!).mode & 0o777).toBe(0o600);
+    });
+
+    describe('file write failures', () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const realFs = require('fs') as typeof fs;
+      const errno = (code: string) => Object.assign(new Error(code), { code });
+
+      beforeEach(() => {
+        client.exportDataTable.mockResolvedValue({
+          filename: 'f.xlsx',
+          mimeType: XLSX_MIME,
+          contentBase64: b64('xx'),
+          rowCount: 1,
+        });
+      });
+
+      it('rethrows write errors other than EEXIST', async () => {
+        const spy = jest.spyOn(realFs, 'writeFileSync').mockImplementation(() => {
+          throw errno('EACCES');
+        });
+        try {
+          await expect(
+            tools.exportDataTable({
+              projectId: 'p1',
+              table: 'FIXTURES',
+              format: 'xlsx',
+              outputDirectory: tmpDir,
+            }),
+          ).rejects.toThrow('EACCES');
+          expect(spy).toHaveBeenCalledTimes(1);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
+      it('gives up after too many filename clashes', async () => {
+        const spy = jest.spyOn(realFs, 'writeFileSync').mockImplementation(() => {
+          throw errno('EEXIST');
+        });
+        try {
+          await expect(
+            tools.exportDataTable({
+              projectId: 'p1',
+              table: 'FIXTURES',
+              format: 'xlsx',
+              outputDirectory: tmpDir,
+            }),
+          ).rejects.toThrow(/Could not find a free filename for f\.xlsx/);
+        } finally {
+          spy.mockRestore();
+        }
+      });
+
+      it('rethrows errors creating the default folder', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const tmpdirSpy = jest
+          .spyOn(require('os') as typeof os, 'tmpdir')
+          .mockReturnValue(path.join(tmpDir, 'does', 'not', 'exist'));
+        try {
+          await expect(
+            tools.exportDataTable({ projectId: 'p1', table: 'FIXTURES', format: 'xlsx' }),
+          ).rejects.toThrow(/ENOENT/);
+        } finally {
+          tmpdirSpy.mockRestore();
+        }
+      });
+
+      it('refuses a default folder path that is a regular file', async () => {
+        fs.writeFileSync(path.join(tmpDir, 'lacylights-exports'), 'not a dir');
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const tmpdirSpy = jest.spyOn(require('os') as typeof os, 'tmpdir').mockReturnValue(tmpDir);
+        try {
+          await expect(
+            tools.exportDataTable({ projectId: 'p1', table: 'FIXTURES', format: 'xlsx' }),
+          ).rejects.toThrow(/not a private directory/);
+        } finally {
+          tmpdirSpy.mockRestore();
+        }
+      });
+    });
 
     it('rejects an unknown format before calling the backend', async () => {
       await expect(

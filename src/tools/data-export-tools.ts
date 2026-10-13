@@ -114,7 +114,9 @@ export class DataExportTools {
     }
 
     const content = Buffer.from(result.contentBase64, 'base64');
-    const text = content.toString('utf-8');
+    // The backend prefixes CSV with a UTF-8 BOM for Excel; drop it from the
+    // inline text (a saved file keeps it).
+    const text = content.toString('utf-8').replace(/^\uFEFF/, '');
     const limit = parsed.maxCharacters ?? DEFAULT_MAX_CSV_CHARACTERS;
     const csv = truncateAtLineBoundary(text, limit);
     const truncated = csv.length < text.length;
@@ -140,7 +142,8 @@ export class DataExportTools {
         `(${result.rowCount} data rows in total). ` +
         (output.filePath
           ? `The full file was saved to ${output.filePath}.`
-          : 'Pass outputDirectory to save the full file, raise maxCharacters, or use format "xlsx".');
+          : 'Pass outputDirectory to save the full file, raise maxCharacters, or use format "xlsx".') +
+        ' The cut is made at a line break where possible, so a quoted field containing line breaks may be split.';
     }
 
     return output;
@@ -212,10 +215,20 @@ function writeExportFile(
   };
 }
 
+/** Highest numeric suffix tried before giving up on finding a free filename. */
+const MAX_FILENAME_ATTEMPTS = 1000;
+
 /**
  * Write `content` into the output directory and return the absolute path.
- * Only the base name of the server-supplied filename is used, so the file can
- * never land outside the chosen directory.
+ *
+ * - Only the base name of the server-supplied filename is used, so the file
+ *   can never land outside the chosen directory.
+ * - Files are created exclusively (O_CREAT | O_EXCL) with mode 0600: an
+ *   existing file is never overwritten and a symlink planted at the target
+ *   name is never followed. On a clash a numeric suffix is added
+ *   (name-1.xlsx, name-2.xlsx, ...).
+ * - The default folder in the shared temp directory is created private
+ *   (0700) and must be a real directory owned by the current user.
  */
 function saveFile(
   content: Buffer,
@@ -223,18 +236,58 @@ function saveFile(
   format: 'csv' | 'xlsx',
   outputDirectory: string | undefined,
 ): string {
-  const dir = path.resolve(
-    outputDirectory ||
-      process.env[DEFAULT_EXPORT_DIR_ENV] ||
-      path.join(os.tmpdir(), 'lacylights-exports'),
-  );
-  fs.mkdirSync(dir, { recursive: true });
+  const configured = outputDirectory || process.env[DEFAULT_EXPORT_DIR_ENV];
+  const dir = configured ? path.resolve(configured) : ensurePrivateDefaultDir();
+  if (configured) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 
   let name = path.basename(serverFilename || '');
   if (!name || name === '.' || name === '..') {
     name = `lacylights-export.${format}`;
   }
-  const filePath = path.join(dir, name);
-  fs.writeFileSync(filePath, content);
-  return filePath;
+  const ext = path.extname(name);
+  const stem = name.slice(0, name.length - ext.length);
+
+  for (let attempt = 0; attempt < MAX_FILENAME_ATTEMPTS; attempt++) {
+    const candidate = path.join(dir, attempt === 0 ? name : `${stem}-${attempt}${ext}`);
+    try {
+      fs.writeFileSync(candidate, content, { flag: 'wx', mode: 0o600 });
+      return candidate;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`Could not find a free filename for ${name} in ${dir}`);
+}
+
+/**
+ * Create (or validate) `<tmpdir>/lacylights-exports` as a directory only the
+ * current user can access, so exports are not readable by other local users
+ * and a pre-created symlink cannot redirect them.
+ */
+function ensurePrivateDefaultDir(): string {
+  const dir = path.join(os.tmpdir(), 'lacylights-exports');
+  try {
+    fs.mkdirSync(dir, { mode: 0o700 });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+      throw error;
+    }
+  }
+  const stat = fs.lstatSync(dir);
+  const ownedByOtherUser =
+    typeof process.getuid === 'function' && stat.uid !== process.getuid();
+  if (!stat.isDirectory() || stat.isSymbolicLink() || ownedByOtherUser) {
+    throw new Error(
+      `Default export folder ${dir} is not a private directory owned by the current user. ` +
+        `Remove it, or pass outputDirectory / set ${DEFAULT_EXPORT_DIR_ENV}.`,
+    );
+  }
+  if ((stat.mode & 0o777) !== 0o700) {
+    fs.chmodSync(dir, 0o700);
+  }
+  return dir;
 }

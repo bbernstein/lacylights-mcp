@@ -347,10 +347,10 @@ Requires LacyLights backend v0.4.0 or newer.`,
             name: "export_data_table",
             description: `Export one data table (fixtures, looks, cue lists, look details, ...) as CSV or Excel.
 
-- format "csv" (default): returns the CSV text inline so you can read it. Large exports are truncated at a line boundary (default ${DEFAULT_MAX_CSV_CHARACTERS} characters) with truncated=true and a note; pass outputDirectory to also save the full file, or raise maxCharacters.
+- format "csv" (default): returns the CSV text inline so you can read it. Large exports are truncated (default ${DEFAULT_MAX_CSV_CHARACTERS} characters), preferably at a line break, with truncated=true and a note. A cut is not guaranteed to fall between complete rows (a very long first line, or a quoted field containing line breaks, may be split); pass outputDirectory to also save the full file, or raise maxCharacters.
 - format "xlsx": writes the Excel file to disk and returns its path, row count and size (no file content in the response).
 
-Files are written to outputDirectory, else the ${DEFAULT_EXPORT_DIR_ENV} environment variable, else a lacylights-exports folder in the system temp directory. Use list_data_export_tables to see the tables and which need scopeId.`,
+Files are written to outputDirectory, else the ${DEFAULT_EXPORT_DIR_ENV} environment variable, else a private lacylights-exports folder in the system temp directory. Existing files are never overwritten; a numeric suffix is added instead. Use list_data_export_tables to see the tables and which need scopeId.`,
             inputSchema: {
               type: "object",
               properties: {
@@ -360,18 +360,7 @@ Files are written to outputDirectory, else the ${DEFAULT_EXPORT_DIR_ENV} environ
                 },
                 table: {
                   type: "string",
-                  description: "Table to export (case-insensitive).",
-                  enum: [
-                    "FIXTURE_TYPES",
-                    "FIXTURE_LIBRARY",
-                    "FIXTURES",
-                    "LOOKS",
-                    "LOOK_DETAILS",
-                    "EFFECTS",
-                    "LOOK_BOARD_ENTRIES",
-                    "CUE_LISTS",
-                    "CUE_LIST_DETAILS",
-                  ],
+                  description: "Table to export (case-insensitive): FIXTURE_TYPES, FIXTURE_LIBRARY, FIXTURES, LOOKS, LOOK_DETAILS, EFFECTS, LOOK_BOARD_ENTRIES, CUE_LISTS or CUE_LIST_DETAILS. See list_data_export_tables for what the connected backend supports.",
                 },
                 format: {
                   type: "string",
@@ -388,8 +377,9 @@ Files are written to outputDirectory, else the ${DEFAULT_EXPORT_DIR_ENV} environ
                   description: "Directory to write the file to (created if missing). For CSV, setting this also saves the full untruncated file.",
                 },
                 maxCharacters: {
-                  type: "number",
-                  description: `CSV only: maximum characters returned inline (default ${DEFAULT_MAX_CSV_CHARACTERS}).`,
+                  type: "integer",
+                  minimum: 1,
+                  description: `CSV only (ignored for xlsx): maximum characters returned inline (default ${DEFAULT_MAX_CSV_CHARACTERS}).`,
                 },
               },
               required: ["table"],
@@ -399,7 +389,7 @@ Files are written to outputDirectory, else the ${DEFAULT_EXPORT_DIR_ENV} environ
             name: "export_data_workbook",
             description: `Export several project tables as one multi-sheet Excel (XLSX) workbook, one sheet per table.
 
-Writes the file to disk and returns its path, total row count and size. Omit tables to export every project-level table. FIXTURE_LIBRARY and scoped tables (LOOK_DETAILS, CUE_LIST_DETAILS, LOOK_BOARD_ENTRIES) cannot be included.`,
+Writes the file to disk and returns its path, total row count and size. Omit tables to export the backend's default set of project-level tables. FIXTURE_LIBRARY and scoped tables (LOOK_DETAILS, CUE_LIST_DETAILS, LOOK_BOARD_ENTRIES) cannot be included.`,
             inputSchema: {
               type: "object",
               properties: {
@@ -411,9 +401,8 @@ Writes the file to disk and returns its path, total row count and size. Omit tab
                   type: "array",
                   items: {
                     type: "string",
-                    enum: ["FIXTURE_TYPES", "FIXTURES", "LOOKS", "EFFECTS", "CUE_LISTS"],
                   },
-                  description: "Tables to include (case-insensitive). Omit for the default set; an empty list is rejected.",
+                  description: "Project-level tables to include (case-insensitive), e.g. FIXTURE_TYPES, FIXTURES, LOOKS, EFFECTS, CUE_LISTS. Omit for the backend's default set; an empty list is rejected.",
                 },
                 outputDirectory: {
                   type: "string",
