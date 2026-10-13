@@ -195,7 +195,12 @@ function truncateAtLineBoundary(text: string, limit: number): string {
   }
   const cut = text.slice(0, limit);
   const lastNewline = cut.lastIndexOf('\n');
-  return lastNewline > 0 ? cut.slice(0, lastNewline + 1) : cut;
+  if (lastNewline > 0) {
+    return cut.slice(0, lastNewline + 1);
+  }
+  // Hard cut: do not leave a lone high surrogate (half of an emoji etc.).
+  const last = cut.charCodeAt(cut.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
 }
 
 function writeExportFile(
@@ -236,7 +241,7 @@ function saveFile(
   format: 'csv' | 'xlsx',
   outputDirectory: string | undefined,
 ): string {
-  const configured = outputDirectory || process.env[DEFAULT_EXPORT_DIR_ENV];
+  const configured = outputDirectory?.trim() || process.env[DEFAULT_EXPORT_DIR_ENV]?.trim();
   const dir = configured ? path.resolve(configured) : ensurePrivateDefaultDir();
   if (configured) {
     fs.mkdirSync(dir, { recursive: true });
@@ -256,7 +261,8 @@ function saveFile(
       return candidate;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-        throw error;
+        // fs always throws Error instances (with an errno code).
+        throw new Error(`Could not write export file to ${dir}: ${(error as Error).message}`);
       }
     }
   }

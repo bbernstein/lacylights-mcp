@@ -364,9 +364,8 @@ Files are written to outputDirectory, else the ${DEFAULT_EXPORT_DIR_ENV} environ
                 },
                 format: {
                   type: "string",
-                  enum: ["csv", "xlsx"],
                   default: "csv",
-                  description: "csv returns text inline; xlsx writes a file and returns its path.",
+                  description: "\"csv\" (default) or \"xlsx\", case-insensitive. csv returns text inline; xlsx writes a file and returns its path.",
                 },
                 scopeId: {
                   type: "string",

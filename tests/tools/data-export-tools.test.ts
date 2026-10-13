@@ -198,6 +198,26 @@ describe('DataExportTools', () => {
       expect(result.truncated).toBe(true);
     });
 
+    it('does not split a surrogate pair when hard-cutting', async () => {
+      // 'x' + an astral character (2 UTF-16 code units) + more text, no newline.
+      const text = 'x\u{1F3AD}yyyy';
+      client.exportDataTable.mockResolvedValue({
+        filename: 'emoji.csv',
+        mimeType: 'text/csv',
+        contentBase64: b64(text),
+        rowCount: 0,
+      });
+
+      const result = await tools.exportDataTable({
+        projectId: 'p1',
+        table: 'LOOKS',
+        maxCharacters: 2,
+      });
+
+      expect(result.csv).toBe('x');
+      expect(result.truncated).toBe(true);
+    });
+
     it('uses the default CSV limit when maxCharacters is omitted', async () => {
       const big = 'a,b\n'.repeat(DEFAULT_MAX_CSV_CHARACTERS / 4 + 10);
       client.exportDataTable.mockResolvedValue({
@@ -302,6 +322,30 @@ describe('DataExportTools', () => {
       });
 
       expect(result.filePath).toBe(path.join(tmpDir, 'env.xlsx'));
+    });
+
+    it('treats a whitespace-only LACYLIGHTS_EXPORT_DIR as unset', async () => {
+      process.env[DEFAULT_EXPORT_DIR_ENV] = '   ';
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const tmpdirSpy = jest.spyOn(require('os') as typeof os, 'tmpdir').mockReturnValue(tmpDir);
+      try {
+        client.exportDataTable.mockResolvedValue({
+          filename: 'ws.xlsx',
+          mimeType: XLSX_MIME,
+          contentBase64: b64('xx'),
+          rowCount: 1,
+        });
+
+        const result = await tools.exportDataTable({
+          projectId: 'p1',
+          table: 'FIXTURES',
+          format: 'xlsx',
+        });
+
+        expect(result.filePath).toBe(path.join(tmpDir, 'lacylights-exports', 'ws.xlsx'));
+      } finally {
+        tmpdirSpy.mockRestore();
+      }
     });
 
     it('falls back to a lacylights-exports folder in the OS temp dir', async () => {
@@ -557,7 +601,7 @@ describe('DataExportTools', () => {
               format: 'xlsx',
               outputDirectory: tmpDir,
             }),
-          ).rejects.toThrow('EACCES');
+          ).rejects.toThrow(`Could not write export file to ${tmpDir}: EACCES`);
           expect(spy).toHaveBeenCalledTimes(1);
         } finally {
           spy.mockRestore();
