@@ -162,6 +162,7 @@ mockFetch.mockResolvedValue({
 | `OPENAI_API_KEY` | For AI features | OpenAI API key for scene generation |
 | `CHROMA_HOST` | No | ChromaDB host for persistent RAG |
 | `CHROMA_PORT` | No | ChromaDB port (default: 8000) |
+| `LACYLIGHTS_EXPORT_DIR` | No | Directory for CSV/XLSX data export files (default: `<tmpdir>/lacylights-exports`) |
 
 ### Module System
 - Uses CommonJS (`module: "commonjs"`) not ESM
@@ -225,3 +226,19 @@ mockFetch.mockResolvedValue({
   `UNPATCHED_CHANNEL`, `FIXTURE_SYNTHESIZED`, `GROUP_AUTO_ASSIGNED`).
 - Implementation: `src/tools/eos-tools.ts` (Zod-validated args) +
   `src/services/graphql-client-simple.ts` (typed GraphQL methods).
+
+### Data Export Tools (CSV / Excel)
+- `list_data_export_tables()` - Tables with columns and scope (none, project,
+  look, cueList, lookBoard), which say whether `projectId`/`scopeId` are needed.
+- `export_data_table(table, projectId?, format?, scopeId?, outputDirectory?, maxCharacters?)` -
+  CSV is returned inline, truncated at a line boundary (default 50,000
+  characters) with `truncated`/`note`; XLSX is written to disk and only the
+  path, row count and size are returned.
+- `export_data_workbook(projectId, tables?, outputDirectory?)` - Multi-sheet
+  XLSX written to disk. Omitting `tables` uses the backend default set.
+- Wraps the read-only `dataExportTables`, `exportDataTable` and
+  `exportDataWorkbook` queries (lacylights-go v0.4.0+). On older backends the
+  `Cannot query field` error (`isUnknownQueryFieldError`) becomes an
+  "update LacyLights" message.
+- Implementation: `src/tools/data-export-tools.ts` +
+  `src/services/graphql-client-simple.ts`.

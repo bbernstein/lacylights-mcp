@@ -111,6 +111,16 @@ Look Boards provide a visual layout system for organizing and triggering looks w
 - **`activate_look_from_board`** - Activate a look from a board (uses board's default fade time)
 - **`create_look_board_with_buttons`** - Create a complete look board with buttons in one command
 
+### Data Export (CSV / Excel)
+
+Requires lacylights-go v0.4.0 or newer; older backends get an "update LacyLights" message.
+
+- **`list_data_export_tables`** - List exportable tables with their columns and scope (which IDs each export needs)
+- **`export_data_table`** - Export one table as CSV (returned inline, truncated with a note when large) or XLSX (written to a file; the path is returned)
+- **`export_data_workbook`** - Export several project tables as one multi-sheet XLSX workbook written to a file
+
+Files are written to the tool's `outputDirectory` argument, else `LACYLIGHTS_EXPORT_DIR`, else `lacylights-exports` in the system temp directory.
+
 ## Installation
 
 1. Install dependencies:
@@ -140,6 +150,7 @@ npm run build
 
 - **`CHROMA_HOST`** - ChromaDB host for enhanced RAG functionality (default: localhost)
 - **`CHROMA_PORT`** - ChromaDB port (default: 8000)
+- **`LACYLIGHTS_EXPORT_DIR`** - Directory for CSV/XLSX data export files (default: `lacylights-exports` in the system temp directory)
 
 ## Running the Server
 

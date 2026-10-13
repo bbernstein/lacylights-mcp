@@ -2843,4 +2843,166 @@ describe('LacyLightsGraphQLClient', () => {
       expect(isUnknownQueryFieldError(undefined, 'x')).toBe(false);
     });
   });
+  describe('data export (CSV / XLSX)', () => {
+    const sentBody = (callIndex: number) =>
+      JSON.parse((mockFetch.mock.calls[callIndex][1] as RequestInit).body as string);
+
+    const exportResult = {
+      filename: 'Show-fixtures-2026-10-13.csv',
+      mimeType: 'text/csv',
+      contentBase64: Buffer.from('Name,Universe\nPar 1,1\n').toString('base64'),
+      rowCount: 1,
+    };
+
+    describe('getDataExportTables', () => {
+      it('queries dataExportTables and returns the table list', async () => {
+        const tables = [
+          { table: 'FIXTURES', label: 'Fixtures', scope: 'project', columns: ['Name', 'Universe'] },
+          { table: 'FIXTURE_LIBRARY', label: 'Fixture Library', scope: 'none', columns: ['Manufacturer'] },
+        ];
+        mockFetch.mockResolvedValueOnce(
+          createMockResponse({ data: { dataExportTables: tables } }) as any,
+        );
+
+        const result = await client.getDataExportTables();
+
+        expect(result).toEqual(tables);
+        const body = sentBody(0);
+        expect(body.query).toMatch(/^\s*query DataExportTables\b/);
+        expect(body.query).toContain('dataExportTables');
+        for (const field of ['table', 'label', 'scope', 'columns']) {
+          expect(body.query).toContain(field);
+        }
+      });
+
+      it('throws when the response is missing dataExportTables', async () => {
+        mockFetch.mockResolvedValueOnce(createMockResponse({ data: {} }) as any);
+
+        await expect(client.getDataExportTables()).rejects.toThrow(
+          'GraphQL response did not include "dataExportTables"',
+        );
+      });
+
+      it('propagates unknown-field errors from older backends unchanged', async () => {
+        mockFetch.mockResolvedValueOnce(
+          createMockResponse(
+            { errors: [{ message: 'Cannot query field "dataExportTables" on type "Query".' }] },
+            { ok: false, status: 422, statusText: 'Unprocessable Entity' },
+          ) as any,
+        );
+
+        const error = await client.getDataExportTables().catch((e) => e);
+
+        expect(isUnknownQueryFieldError(error, 'dataExportTables')).toBe(true);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('exportDataTable', () => {
+      it('sends table, format, projectId and scopeId', async () => {
+        mockFetch.mockResolvedValueOnce(
+          createMockResponse({ data: { exportDataTable: exportResult } }) as any,
+        );
+
+        const result = await client.exportDataTable({
+          projectId: 'p1',
+          table: 'LOOK_DETAILS',
+          format: 'CSV',
+          scopeId: 'look-1',
+        });
+
+        expect(result).toEqual(exportResult);
+        const body = sentBody(0);
+        expect(body.query).toMatch(/^\s*query ExportDataTable\(/);
+        expect(body.query).toContain(
+          'exportDataTable(projectId: $projectId, table: $table, format: $format, scopeId: $scopeId)',
+        );
+        for (const field of ['filename', 'mimeType', 'contentBase64', 'rowCount']) {
+          expect(body.query).toContain(field);
+        }
+        expect(body.variables).toEqual({
+          projectId: 'p1',
+          table: 'LOOK_DETAILS',
+          format: 'CSV',
+          scopeId: 'look-1',
+        });
+      });
+
+      it('sends null projectId and scopeId when omitted (fixture library)', async () => {
+        mockFetch.mockResolvedValueOnce(
+          createMockResponse({ data: { exportDataTable: exportResult } }) as any,
+        );
+
+        await client.exportDataTable({ table: 'FIXTURE_LIBRARY', format: 'XLSX' });
+
+        expect(sentBody(0).variables).toEqual({
+          projectId: null,
+          table: 'FIXTURE_LIBRARY',
+          format: 'XLSX',
+          scopeId: null,
+        });
+      });
+
+      it('throws when the response is missing exportDataTable', async () => {
+        mockFetch.mockResolvedValueOnce(
+          createMockResponse({ data: { exportDataTable: null } }) as any,
+        );
+
+        await expect(
+          client.exportDataTable({ projectId: 'p1', table: 'FIXTURES', format: 'CSV' }),
+        ).rejects.toThrow('GraphQL response did not include "exportDataTable"');
+      });
+
+      it('propagates backend errors', async () => {
+        mockFetch.mockResolvedValueOnce(
+          createMockResponse({ errors: [{ message: 'scopeId is required for LOOK_DETAILS' }] }) as any,
+        );
+
+        await expect(
+          client.exportDataTable({ projectId: 'p1', table: 'LOOK_DETAILS', format: 'CSV' }),
+        ).rejects.toThrow('scopeId is required for LOOK_DETAILS');
+      });
+    });
+
+    describe('exportDataWorkbook', () => {
+      const workbookResult = {
+        ...exportResult,
+        filename: 'Show-2026-10-13.xlsx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        rowCount: 12,
+      };
+
+      it('sends projectId and the requested tables', async () => {
+        mockFetch.mockResolvedValueOnce(
+          createMockResponse({ data: { exportDataWorkbook: workbookResult } }) as any,
+        );
+
+        const result = await client.exportDataWorkbook('p1', ['FIXTURES', 'LOOKS']);
+
+        expect(result).toEqual(workbookResult);
+        const body = sentBody(0);
+        expect(body.query).toMatch(/^\s*query ExportDataWorkbook\(/);
+        expect(body.query).toContain('exportDataWorkbook(projectId: $projectId, tables: $tables)');
+        expect(body.variables).toEqual({ projectId: 'p1', tables: ['FIXTURES', 'LOOKS'] });
+      });
+
+      it('sends null tables when omitted so the backend uses its default set', async () => {
+        mockFetch.mockResolvedValueOnce(
+          createMockResponse({ data: { exportDataWorkbook: workbookResult } }) as any,
+        );
+
+        await client.exportDataWorkbook('p1');
+
+        expect(sentBody(0).variables).toEqual({ projectId: 'p1', tables: null });
+      });
+
+      it('throws when the response is missing exportDataWorkbook', async () => {
+        mockFetch.mockResolvedValueOnce(createMockResponse({ data: null }) as any);
+
+        await expect(client.exportDataWorkbook('p1')).rejects.toThrow(
+          'GraphQL response did not include "exportDataWorkbook"',
+        );
+      });
+    });
+  });
 });

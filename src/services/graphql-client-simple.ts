@@ -147,6 +147,25 @@ export function isUnknownQueryFieldError(error: unknown, field: string): boolean
   return messages.some((m) => m.includes(needle));
 }
 
+const DATA_EXPORT_RESULT_SELECTION = `
+          filename
+          mimeType
+          contentBase64
+          rowCount
+        `;
+
+/**
+ * Return `data[field]`, throwing when it is missing or null. Used for non-null
+ * Query fields where a missing value means a malformed response.
+ */
+function requireQueryField<T>(data: Record<string, unknown> | null | undefined, field: string): T {
+  const value = data?.[field];
+  if (value === undefined || value === null) {
+    throw new Error(`GraphQL response did not include "${field}"`);
+  }
+  return value as T;
+}
+
 export class LacyLightsGraphQLClient {
   private endpoint: string;
   private deviceFingerprint: string | null;
@@ -3513,6 +3532,75 @@ export class LacyLightsGraphQLClient {
     );
   }
 
+  // ============================================================
+  // Data Export (CSV / XLSX)
+  // ============================================================
+
+  /**
+   * List the tables that can be exported as CSV/XLSX, with their scope
+   * requirements. Backends older than lacylights-go v0.4.0 reject the field
+   * (see isUnknownQueryFieldError); that error is propagated unchanged.
+   */
+  async getDataExportTables(): Promise<DataExportTableInfo[]> {
+    const query = `
+      query DataExportTables {
+        dataExportTables {
+          table
+          label
+          scope
+          columns
+        }
+      }
+    `;
+    const data = await this.query(query);
+    return requireQueryField<DataExportTableInfo[]>(data, 'dataExportTables');
+  }
+
+  /**
+   * Export one data table as CSV or XLSX. `projectId` may be omitted only for
+   * FIXTURE_LIBRARY; `scopeId` selects the look / cue list / look board for
+   * scoped tables.
+   */
+  async exportDataTable(args: {
+    projectId?: string;
+    table: string;
+    format: DataExportFormat;
+    scopeId?: string;
+  }): Promise<DataExportResult> {
+    const query = `
+      query ExportDataTable(
+        $projectId: ID
+        $table: DataExportTable!
+        $format: DataExportFormat!
+        $scopeId: ID
+      ) {
+        exportDataTable(projectId: $projectId, table: $table, format: $format, scopeId: $scopeId) {${DATA_EXPORT_RESULT_SELECTION}}
+      }
+    `;
+    const data = await this.query(query, {
+      projectId: args.projectId ?? null,
+      table: args.table,
+      format: args.format,
+      scopeId: args.scopeId ?? null,
+    });
+    return requireQueryField<DataExportResult>(data, 'exportDataTable');
+  }
+
+  /**
+   * Export several project-level tables as one multi-sheet XLSX workbook.
+   * Omitting `tables` sends null so the backend exports its default set (an
+   * explicit empty list is rejected by the backend).
+   */
+  async exportDataWorkbook(projectId: string, tables?: string[]): Promise<DataExportResult> {
+    const query = `
+      query ExportDataWorkbook($projectId: ID!, $tables: [DataExportTable!]) {
+        exportDataWorkbook(projectId: $projectId, tables: $tables) {${DATA_EXPORT_RESULT_SELECTION}}
+      }
+    `;
+    const data = await this.query(query, { projectId, tables: tables ?? null });
+    return requireQueryField<DataExportResult>(data, 'exportDataWorkbook');
+  }
+
   /**
    * Run a read-only Query, falling back to a legacy Mutation when the backend
    * does not know the Query field yet (GraphQL validation error
@@ -3540,11 +3628,7 @@ export class LacyLightsGraphQLClient {
     }
     // The export fields are non-null in the schema, so null is treated the same
     // as missing. Revisit if a field ever becomes nullable (e.g. "not found").
-    const value = data?.[field];
-    if (value === undefined || value === null) {
-      throw new Error(`GraphQL response did not include "${field}"`);
-    }
-    return value as T;
+    return requireQueryField<T>(data, field);
   }
 }
 
@@ -3578,4 +3662,26 @@ export interface EosExportResult {
   asciiContent: string;
   filenameSuffix: string;
   warnings: EosWarning[];
+}
+
+/** File format for data-list exports (GraphQL enum DataExportFormat). */
+export type DataExportFormat = 'CSV' | 'XLSX';
+
+/** One exportable data table (GraphQL type DataExportTableInfo). */
+export interface DataExportTableInfo {
+  /** GraphQL enum DataExportTable value, e.g. FIXTURES or LOOK_DETAILS. */
+  table: string;
+  label: string;
+  /** One of: none, project, look, cueList, lookBoard. */
+  scope: string;
+  columns: string[];
+}
+
+/** A generated export file (GraphQL type DataExportResult). */
+export interface DataExportResult {
+  filename: string;
+  mimeType: string;
+  contentBase64: string;
+  /** Data rows excluding headers; for workbooks, the total across all sheets. */
+  rowCount: number;
 }
