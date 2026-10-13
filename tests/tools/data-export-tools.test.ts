@@ -343,6 +343,7 @@ describe('DataExportTools', () => {
         });
 
         expect(result.filePath).toBe(path.join(tmpDir, 'lacylights-exports', 'ws.xlsx'));
+        expect(fs.existsSync(path.resolve('   '))).toBe(false);
       } finally {
         tmpdirSpy.mockRestore();
       }
@@ -453,6 +454,24 @@ describe('DataExportTools', () => {
       });
 
       expect(result.filePath).toBe(path.join(tmpDir, 'evil.xlsx'));
+    });
+
+    it('replaces backslashes and control characters in the server filename', async () => {
+      client.exportDataTable.mockResolvedValue({
+        filename: '..\\..\\odd\u0007name.xlsx',
+        mimeType: XLSX_MIME,
+        contentBase64: b64('xx'),
+        rowCount: 1,
+      });
+
+      const result = await tools.exportDataTable({
+        projectId: 'p1',
+        table: 'FIXTURES',
+        format: 'xlsx',
+        outputDirectory: tmpDir,
+      });
+
+      expect(result.filePath).toBe(path.join(tmpDir, '.._.._odd_name.xlsx'));
     });
 
     it.each(['', '..', '.', '/'])(

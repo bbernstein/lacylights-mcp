@@ -247,7 +247,10 @@ function saveFile(
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  let name = path.basename(serverFilename || '');
+  // Backslashes (Windows separators) and control characters are replaced so
+  // the name is a plain, printable file name on every platform.
+  // eslint-disable-next-line no-control-regex
+  let name = path.basename(serverFilename || '').replace(/[\\\u0000-\u001f\u007f]/g, '_');
   if (!name || name === '.' || name === '..') {
     name = `lacylights-export.${format}`;
   }

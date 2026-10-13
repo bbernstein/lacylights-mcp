@@ -119,7 +119,7 @@ Requires lacylights-go v0.4.0 or newer; older backends get an "update LacyLights
 - **`export_data_table`** - Export one table as CSV (returned inline, truncated with a note when large) or XLSX (written to a file; the path is returned)
 - **`export_data_workbook`** - Export several project tables as one multi-sheet XLSX workbook written to a file
 
-Files are written to the tool's `outputDirectory` argument, else `LACYLIGHTS_EXPORT_DIR`, else a private (0700) `lacylights-exports` folder in the system temp directory. Files are created with mode 0600 and never overwrite an existing file (a numeric suffix is added). Note that `outputDirectory` is chosen by the AI assistant and can be any directory the MCP server process can write to.
+Files are written to the tool's `outputDirectory` argument, else `LACYLIGHTS_EXPORT_DIR`, else a private (0700) `lacylights-exports` folder in the system temp directory. Files are created with mode 0600 and never overwrite an existing file (a numeric suffix is added). Note that `outputDirectory` is chosen by the AI assistant and can be any directory the MCP server process can write to. Set `LACYLIGHTS_EXPORT_DIR` to give exports a predictable home, and keep the assistant on that default.
 
 ## Installation
 
