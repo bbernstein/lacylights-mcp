@@ -270,6 +270,17 @@ describe('GraphQL Client Integration Contract Tests', () => {
     });
   });
 
+  describe('Device Operations', () => {
+    it('should run the CheckDevice query without schema validation errors', async () => {
+      // The backend validates the full selection set even when auth is disabled
+      // (in which case device is null), so an unknown field such as the old
+      // `lastSeen` (backend field is `lastSeenAt`) makes this call throw.
+      const result = await client.checkDevice('contract-test-fingerprint');
+
+      expect(['PENDING', 'APPROVED', 'REVOKED']).toContain(result.status);
+    });
+  });
+
   describe('Data Export (CSV / XLSX)', () => {
     it('should list exportable tables with scopes and columns', async () => {
       const tables = await client.getDataExportTables();
