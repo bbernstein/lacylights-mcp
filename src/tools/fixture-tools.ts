@@ -691,7 +691,7 @@ export class FixtureTools {
     if (capabilities.hasMovement)
       suitable.push("Follow spots", "Dynamic effects", "Area lighting");
     if (capabilities.hasStrobe)
-      suitable.push("Concert lighting", "Dance scenes", "Special effects");
+      suitable.push("Concert lighting", "Dance looks", "Special effects");
     if (capabilities.hasGobo)
       suitable.push("Texture effects", "Pattern projection", "Atmosphere");
     return suitable;
