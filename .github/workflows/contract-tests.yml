@@ -17,16 +17,16 @@ jobs:
 
     steps:
       - name: Checkout MCP repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Checkout backend repo (lacylights-go)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: bbernstein/lacylights-go
           path: backend
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           # Must satisfy the `go` directive in lacylights-go's go.mod (1.25+).
           go-version: '1.25'
@@ -61,7 +61,7 @@ jobs:
       - name: Setup Node.js
         # Node 22 to match the rest of CI and satisfy codegen toolchain engines
         # (@graphql-codegen/cli v7 pulls listr2, which requires node >=22.13).
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
