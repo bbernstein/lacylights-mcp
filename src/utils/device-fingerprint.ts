@@ -174,3 +174,14 @@ export function clearCachedFingerprint(): void {
     logger.warn('Failed to clear cached device fingerprint', serializeError(error));
   }
 }
+
+/**
+ * Redact a device fingerprint for safe logging.
+ * For fingerprints longer than 12 characters: shows first 8 and last 4 characters.
+ * For shorter fingerprints: shows only first 4 characters followed by '...'.
+ */
+export function redactFingerprint(fingerprint: string | null | undefined): string {
+  if (!fingerprint) return 'unknown';
+  if (fingerprint.length <= 12) return fingerprint.slice(0, 4) + '...';
+  return fingerprint.slice(0, 8) + '...' + fingerprint.slice(-4);
+}

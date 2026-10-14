@@ -182,7 +182,8 @@ mockFetch.mockResolvedValue({
 ## Important Notes
 
 - **Backend Required**: lacylights-go must be running for any MCP operations
-- **OpenAI Required**: For `generate_scene` and `analyze_script` tools
+- **OpenAI Optional**: Only the AI generation tools (`generate_look`, `analyze_script`, ...) need `OPENAI_API_KEY`; the server must start without it (see `src/services/openai-client.ts`, #176)
+- The release tarball must include `run-mcp.js` (guarded by `tests/release-archive.test.ts`)
 - ChromaDB is optional (falls back to in-memory patterns)
 - Use `run-mcp.js` wrapper, not `dist/index.js` directly
 

@@ -6,15 +6,15 @@ import {
   LightingDesignRequest,
 } from "../types/lighting";
 import { RAGService } from "./rag-service-simple";
+import { createOptionalOpenAIClient, requireOpenAIClient } from "./openai-client";
 
 export class AILightingService {
-  private openai: OpenAI;
+  private openai: OpenAI | null;
   private ragService: RAGService;
 
   constructor(ragService: RAGService) {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    // Null when OPENAI_API_KEY is missing; only the AI-backed methods need it (#176).
+    this.openai = createOptionalOpenAIClient();
     this.ragService = ragService;
   }
 
@@ -30,7 +30,7 @@ export class AILightingService {
     // Generate fixture values using AI
     const fixturePrompt = this.buildFixturePrompt(request, recommendations);
 
-    const response = await this.openai.chat.completions.create({
+    const response = await requireOpenAIClient(this.openai).chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: fixturePrompt }],
       temperature: 0.3,
@@ -131,7 +131,7 @@ Consider:
 - Moments that need manual vs automatic advancement
 `;
 
-    const response = await this.openai.chat.completions.create({
+    const response = await requireOpenAIClient(this.openai).chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.4,
@@ -358,7 +358,7 @@ Consider:
 - Standard lighting practices (key, fill, back light)
 `;
 
-    const response = await this.openai.chat.completions.create({
+    const response = await requireOpenAIClient(this.openai).chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
