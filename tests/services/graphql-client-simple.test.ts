@@ -5,6 +5,7 @@ import {
   isUnknownQueryFieldError,
 } from '../../src/services/graphql-client-simple';
 import fetch from 'cross-fetch';
+import { parse, FieldNode, OperationDefinitionNode } from 'graphql';
 
 // Mock cross-fetch
 jest.mock('cross-fetch');
@@ -2318,7 +2319,7 @@ describe('LacyLightsGraphQLClient', () => {
           fingerprint: 'test-fingerprint',
           status: 'APPROVED',
           permissions: 'FULL',
-          lastSeen: '2024-01-01T00:00:00Z',
+          lastSeenAt: '2024-01-01T00:00:00Z',
           createdAt: '2024-01-01T00:00:00Z',
           approvedAt: '2024-01-01T00:00:00Z'
         },
@@ -2345,6 +2346,38 @@ describe('LacyLightsGraphQLClient', () => {
       expect(result.status).toBe('APPROVED');
       expect(result.device?.id).toBe('device-123');
       expect(result.device?.permissions).toBe('FULL');
+      expect(result.device?.lastSeenAt).toBe('2024-01-01T00:00:00Z');
+    });
+
+    it('should select only fields that exist on the backend Device type', async () => {
+      // Regression: the query used to select `lastSeen`, which does not exist on
+      // the lacylights-go `Device` type (the field is `lastSeenAt`). The backend
+      // rejects the whole operation with a validation error, which broke device
+      // status checks / auto-registration at startup when device auth is enabled.
+      mockFetch.mockResolvedValue(
+        createMockResponse({ data: { checkDevice: { status: 'PENDING', device: null, message: null } } }) as any
+      );
+
+      await client.checkDevice('test-fingerprint');
+
+      const body = JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string);
+      const doc = parse(body.query);
+      const op = doc.definitions[0] as OperationDefinitionNode;
+      const checkDeviceField = op.selectionSet.selections[0] as FieldNode;
+      expect(checkDeviceField.name.value).toBe('checkDevice');
+
+      const selectedNames = (field: FieldNode): string[] =>
+        (field.selectionSet?.selections ?? []).map((s) => (s as FieldNode).name.value);
+
+      expect(selectedNames(checkDeviceField).sort()).toEqual(['device', 'message', 'status']);
+
+      const deviceField = checkDeviceField.selectionSet!.selections.find(
+        (s) => (s as FieldNode).name.value === 'device'
+      ) as FieldNode;
+      expect(selectedNames(deviceField).sort()).toEqual(
+        ['approvedAt', 'createdAt', 'fingerprint', 'id', 'lastSeenAt', 'name', 'permissions', 'status'].sort()
+      );
+      expect(selectedNames(deviceField)).not.toContain('lastSeen');
     });
 
     it('should check device and return PENDING status', async () => {
