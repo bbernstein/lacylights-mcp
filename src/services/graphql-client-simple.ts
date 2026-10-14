@@ -84,7 +84,7 @@ export interface DeviceCheckResult {
     fingerprint: string;
     status: DeviceStatus;
     permissions: string;
-    lastSeen?: string;
+    lastSeenAt?: string | null;
     createdAt: string;
     approvedAt?: string;
   } | null;
@@ -301,7 +301,7 @@ export class LacyLightsGraphQLClient {
             fingerprint
             status
             permissions
-            lastSeen
+            lastSeenAt
             createdAt
             approvedAt
           }
