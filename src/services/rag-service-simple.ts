@@ -1,14 +1,14 @@
 import OpenAI from 'openai';
+import { createOptionalOpenAIClient, requireOpenAIClient } from './openai-client';
 import { ScriptAnalysis } from '../types/lighting';
 
 export class RAGService {
-  private openai: OpenAI;
+  private openai: OpenAI | null;
   private patterns: Map<string, any> = new Map();
 
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    // Null when OPENAI_API_KEY is missing; only the AI-backed methods need it (#176).
+    this.openai = createOptionalOpenAIClient();
     this.initializeDefaultPatterns();
   }
 
@@ -65,7 +65,7 @@ Focus on:
 - Explicit lighting cues in the text
 `;
 
-    const response = await this.openai.chat.completions.create({
+    const response = await requireOpenAIClient(this.openai).chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3
@@ -154,7 +154,7 @@ JSON:
 
 Recommend colors and intensities for ${mood} mood.`;
 
-    const response = await this.openai.chat.completions.create({
+    const response = await requireOpenAIClient(this.openai).chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.4

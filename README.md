@@ -141,10 +141,10 @@ npm run build
 
 ## Configuration
 
-### Required Environment Variables
+### Environment Variables
 
-- **`OPENAI_API_KEY`** - OpenAI API key for AI-powered lighting generation
 - **`LACYLIGHTS_GRAPHQL_ENDPOINT`** - GraphQL endpoint for your lacylights-go backend (default: http://localhost:4000/graphql)
+- **`OPENAI_API_KEY`** - OpenAI API key, needed only for the AI-powered generation tools (e.g. `generate_look`, `analyze_script`, `generate_act_cues`). The server starts without it and every other tool works; the AI tools then return an error asking you to set it.
 
 ### Optional Environment Variables
 
@@ -547,8 +547,8 @@ Then iterate with optimize_look using "dramatic_impact" until satisfied
    - Verify your `lacylights-go` backend is running on port 4000
    - Check the `LACYLIGHTS_GRAPHQL_ENDPOINT` environment variable
 
-3. **OpenAI API errors**
-   - Ensure your `OPENAI_API_KEY` is set in the `.env` file
+3. **OpenAI API errors** (e.g. "This tool requires OpenAI, but OPENAI_API_KEY is not set")
+   - Ensure `OPENAI_API_KEY` is set in the `.env` file or in the `env` block of your MCP client configuration
    - Verify the API key has access to GPT-4
 
 4. **MCP connection errors in Claude**
