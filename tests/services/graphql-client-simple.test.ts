@@ -2651,28 +2651,21 @@ describe('LacyLightsGraphQLClient', () => {
       expect(body.variables).toEqual({ projectId: 'p1' });
     });
 
-    it('falls back to the legacy exportProjectToEos mutation on older backends', async () => {
-      mockFetch
-        .mockResolvedValueOnce(
-          createMockResponse({
-            errors: [{ message: 'Cannot query field "projectExportEos" on type "Query".' }],
-          }) as any,
-        )
-        .mockResolvedValueOnce(
-          createMockResponse({ data: { exportProjectToEos: eosResult } }) as any,
-        );
+    it('does not send the removed exportProjectToEos mutation when the query is unknown', async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({
+          errors: [{ message: 'Cannot query field "projectExportEos" on type "Query".' }],
+        }) as any,
+      );
 
-      const result = await client.exportEosAscii('p1');
-
-      expect(result).toEqual(eosResult);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-      const legacyBody = sentBody(1);
-      expect(legacyBody.query).toMatch(/^\s*mutation ExportProjectToEos\(/);
-      expect(legacyBody.query).toContain('exportProjectToEos(projectId: $projectId)');
-      expect(legacyBody.variables).toEqual({ projectId: 'p1' });
+      await expect(client.exportEosAscii('p1')).rejects.toThrow(
+        'Cannot query field "projectExportEos" on type "Query".',
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(sentBody(0).query).not.toContain('exportProjectToEos');
     });
 
-    it('falls back when the backend rejects the query with HTTP 422 (gqlgen validation failure)', async () => {
+    it('propagates the HTTP 422 unknown-field error from pre-v0.4.0 backends unchanged', async () => {
       // Exact body returned by lacylights-go before projectExportEos existed.
       const gqlgen422 = {
         errors: [
@@ -2684,47 +2677,22 @@ describe('LacyLightsGraphQLClient', () => {
         ],
         data: null,
       };
-      mockFetch
-        .mockResolvedValueOnce(
-          createMockResponse(gqlgen422, {
-            ok: false,
-            status: 422,
-            statusText: 'Unprocessable Entity',
-          }) as any,
-        )
-        .mockResolvedValueOnce(
-          createMockResponse({ data: { exportProjectToEos: eosResult } }) as any,
-        );
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse(gqlgen422, {
+          ok: false,
+          status: 422,
+          statusText: 'Unprocessable Entity',
+        }) as any,
+      );
 
-      const result = await client.exportEosAscii('p1');
+      const error = await client.exportEosAscii('p1').catch((e: unknown) => e);
 
-      expect(result).toEqual(eosResult);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(sentBody(1).query).toMatch(/^\s*mutation ExportProjectToEos\(/);
+      expect(error).toBeInstanceOf(GraphQLRequestError);
+      expect(isUnknownQueryFieldError(error, 'projectExportEos')).toBe(true);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('falls back when the unknown-field error is not the first GraphQL error', async () => {
-      mockFetch
-        .mockResolvedValueOnce(
-          createMockResponse(
-            {
-              errors: [
-                { message: 'some other validation error' },
-                { message: 'Cannot query field "projectExportEos" on type "Query".' },
-              ],
-            },
-            { ok: false, status: 422, statusText: 'Unprocessable Entity' },
-          ) as any,
-        )
-        .mockResolvedValueOnce(
-          createMockResponse({ data: { exportProjectToEos: eosResult } }) as any,
-        );
-
-      await expect(client.exportEosAscii('p1')).resolves.toEqual(eosResult);
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not fall back for a non-JSON non-2xx response', async () => {
+    it('rejects a non-JSON non-2xx response with the HTTP status', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 502,
@@ -2745,21 +2713,7 @@ describe('LacyLightsGraphQLClient', () => {
       );
     });
 
-    it('throws a clear error when the legacy response lacks the export field', async () => {
-      mockFetch
-        .mockResolvedValueOnce(
-          createMockResponse({
-            errors: [{ message: 'Cannot query field "projectExportEos" on type "Query".' }],
-          }) as any,
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: { exportProjectToEos: null } }) as any);
-
-      await expect(client.exportEosAscii('p1')).rejects.toThrow(
-        'GraphQL response did not include "exportProjectToEos"',
-      );
-    });
-
-    it('rethrows DeviceNotApprovedError from the query without falling back', async () => {
+    it('rethrows DeviceNotApprovedError from the query', async () => {
       mockFetch.mockResolvedValueOnce(
         createMockResponse({
           errors: [{ message: 'Device not approved', extensions: { code: 'DEVICE_NOT_APPROVED' } }],
@@ -2770,28 +2724,13 @@ describe('LacyLightsGraphQLClient', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('does not fall back for other errors', async () => {
+    it('propagates other GraphQL errors', async () => {
       mockFetch.mockResolvedValueOnce(
         createMockResponse({ errors: [{ message: 'project not found' }] }) as any,
       );
 
       await expect(client.exportEosAscii('missing')).rejects.toThrow('project not found');
       expect(mockFetch).toHaveBeenCalledTimes(1);
-    });
-
-    it('propagates errors from the legacy mutation', async () => {
-      mockFetch
-        .mockResolvedValueOnce(
-          createMockResponse({
-            errors: [{ message: 'Cannot query field "projectExportEos" on type "Query".' }],
-          }) as any,
-        )
-        .mockResolvedValueOnce(
-          createMockResponse({ errors: [{ message: 'access denied' }] }) as any,
-        );
-
-      await expect(client.exportEosAscii('p1')).rejects.toThrow('access denied');
-      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
