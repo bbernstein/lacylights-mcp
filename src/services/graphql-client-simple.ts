@@ -69,9 +69,12 @@ function extractGraphQLErrorMessages(payload: unknown): string[] {
 }
 
 /**
- * Device status as returned by checkDevice query.
+ * Device status as returned by checkDevice query. Mirrors the backend
+ * `DeviceStatus` enum exactly (lacylights-go schema.graphql). There is no
+ * UNKNOWN value: an unregistered fingerprint is reported as PENDING with
+ * `device: null` (see src/services/device-registration.ts).
  */
-export type DeviceStatus = 'PENDING' | 'APPROVED' | 'REVOKED' | 'UNKNOWN';
+export type DeviceStatus = 'PENDING' | 'APPROVED' | 'REVOKED';
 
 /**
  * Result of checking device status.

@@ -279,6 +279,24 @@ describe('GraphQL Client Integration Contract Tests', () => {
 
       expect(['PENDING', 'APPROVED', 'REVOKED']).toContain(result.status);
     });
+
+    it('should report an unknown fingerprint as PENDING with a null device (or APPROVED when device auth is off)', async () => {
+      // The MCP auto-registers a device only when checkDevice returns PENDING with
+      // device == null (#206). The backend has no UNKNOWN status, so this shape is the
+      // only "not registered" signal; pin it so the convention cannot drift silently.
+      // With auth or device auth disabled the backend bypasses checks and returns
+      // APPROVED with device == null, and the MCP skips registration.
+      const unknownFingerprint = `contract-unknown-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const settings = await client.getAuthSettings();
+      const result = await client.checkDevice(unknownFingerprint);
+
+      expect(result.device).toBeNull();
+      if (settings.authEnabled && settings.deviceAuthEnabled) {
+        expect(result.status).toBe('PENDING');
+      } else {
+        expect(result.status).toBe('APPROVED');
+      }
+    });
   });
 
   describe('Data Export (CSV / XLSX)', () => {

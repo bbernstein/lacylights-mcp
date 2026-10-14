@@ -2438,11 +2438,13 @@ describe('LacyLightsGraphQLClient', () => {
       expect(result.status).toBe('REVOKED');
     });
 
-    it('should check device and return UNKNOWN status', async () => {
+    it('should check an unregistered device and return PENDING with a null device', async () => {
+      // lacylights-go has no UNKNOWN DeviceStatus: for a fingerprint it has never
+      // seen, checkDevice returns PENDING with device: null (#206).
       const mockDeviceCheck = {
-        status: 'UNKNOWN',
+        status: 'PENDING',
         device: null,
-        message: 'Device not found'
+        message: 'Device not registered - please register this device'
       };
 
       const mockResponse = {
@@ -2455,8 +2457,9 @@ describe('LacyLightsGraphQLClient', () => {
 
       const result = await client.checkDevice('unknown-fingerprint');
 
-      expect(result.status).toBe('UNKNOWN');
+      expect(result.status).toBe('PENDING');
       expect(result.device).toBeNull();
+      expect(result.message).toBe('Device not registered - please register this device');
     });
 
     it('should handle GraphQL errors', async () => {
