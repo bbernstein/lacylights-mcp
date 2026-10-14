@@ -2354,6 +2354,9 @@ describe('LacyLightsGraphQLClient', () => {
       // the lacylights-go `Device` type (the field is `lastSeenAt`). The backend
       // rejects the whole operation with a validation error, which broke device
       // status checks / auto-registration at startup when device auth is enabled.
+      // The exact selection sets are pinned deliberately: adding or renaming a
+      // field must be a conscious change, cross-checked against the backend
+      // `Device` / `DeviceCheckResult` types, and must update this list.
       mockFetch.mockResolvedValue(
         createMockResponse({ data: { checkDevice: { status: 'PENDING', device: null, message: null } } }) as any
       );
