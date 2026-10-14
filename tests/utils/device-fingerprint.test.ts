@@ -32,6 +32,7 @@ import {
   getDeviceFingerprint,
   getDeviceName,
   clearCachedFingerprint,
+  redactFingerprint,
 } from '../../src/utils/device-fingerprint';
 import { logger } from '../../src/utils/logger';
 
@@ -242,6 +243,22 @@ describe('Device Fingerprint Utility', () => {
         expect.stringContaining('device-id.tmp'),
         expectedPath
       );
+    });
+  });
+
+  describe('redactFingerprint', () => {
+    it('returns "unknown" for a missing fingerprint', () => {
+      expect(redactFingerprint(null)).toBe('unknown');
+      expect(redactFingerprint(undefined)).toBe('unknown');
+      expect(redactFingerprint('')).toBe('unknown');
+    });
+
+    it('shows only the first 4 characters of a short fingerprint', () => {
+      expect(redactFingerprint('abcdef123456')).toBe('abcd...');
+    });
+
+    it('shows the first 8 and last 4 characters of a long fingerprint', () => {
+      expect(redactFingerprint('abcdef0123456789wxyz')).toBe('abcdef01...wxyz');
     });
   });
 });
