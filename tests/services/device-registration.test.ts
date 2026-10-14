@@ -242,6 +242,95 @@ describe('checkDeviceStatus', () => {
     expect(client.registerDevice).toHaveBeenCalledTimes(1);
   });
 
+  it('warns about an unexpected status (naming it) before falling back to registration', async () => {
+    const client = makeClient({
+      checkDevice: jest.fn().mockResolvedValue({
+        status: 'SOMETHING_NEW',
+        device: null,
+        message: 'Some other backend message',
+      }),
+      registerDevice: jest.fn().mockResolvedValue({ success: true, device: null, message: 'ok' }),
+    });
+    const log = makeLogger();
+
+    await checkDeviceStatus(client, log, FINGERPRINT, DEVICE_NAME);
+
+    expect(log.warn).toHaveBeenCalledWith(
+      'Unexpected device status from backend, attempting registration',
+      expect.objectContaining({ status: 'SOMETHING_NEW', message: 'Some other backend message' })
+    );
+    expect(messages(log.info)).not.toContain('Backend reports device is not registered');
+  });
+
+  it('logs the backend "not registered" message for an unregistered device', async () => {
+    const client = makeClient({
+      checkDevice: jest.fn().mockResolvedValue({
+        status: 'PENDING',
+        device: null,
+        message: 'Device not registered - please register this device',
+      }),
+      registerDevice: jest.fn().mockResolvedValue({
+        success: true,
+        device: { id: 'device-1', name: DEVICE_NAME, fingerprint: FINGERPRINT, status: 'PENDING' },
+        message: 'Device registered successfully. Please wait for admin approval.',
+      }),
+    });
+    const log = makeLogger();
+
+    await checkDeviceStatus(client, log, FINGERPRINT, DEVICE_NAME);
+
+    expect(log.info).toHaveBeenCalledWith('Backend reports device is not registered', {
+      message: 'Device not registered - please register this device',
+    });
+    expect(messages(log.warn)).not.toContain(
+      'Unexpected device status from backend, attempting registration'
+    );
+  });
+
+  it('does not claim pending approval when registerDevice returns an already-approved device', async () => {
+    // registerDevice is idempotent: for a fingerprint it already knows (e.g. another
+    // process registered it and an admin approved it between our check and register)
+    // it returns the existing record with success: true.
+    const client = makeClient({
+      checkDevice: jest.fn().mockResolvedValue({ status: 'PENDING', device: null }),
+      registerDevice: jest.fn().mockResolvedValue({
+        success: true,
+        device: { id: 'device-1', name: DEVICE_NAME, fingerprint: FINGERPRINT, status: 'APPROVED' },
+        message: 'Device already registered with status: APPROVED',
+      }),
+    });
+    const log = makeLogger();
+
+    const outcome = await checkDeviceStatus(client, log, FINGERPRINT, DEVICE_NAME);
+
+    expect(outcome).toBe('approved');
+    expect(messages(log.warn)).not.toContain('Device pending approval');
+    expect(messages(log.info)).not.toContain('Device registered successfully');
+    expect(log.info).toHaveBeenCalledWith(
+      'Device already registered and approved',
+      expect.objectContaining({ deviceId: 'device-1' })
+    );
+  });
+
+  it('reports revoked when registerDevice returns an existing revoked device', async () => {
+    const client = makeClient({
+      checkDevice: jest.fn().mockResolvedValue({ status: 'UNKNOWN', device: null }),
+      registerDevice: jest.fn().mockResolvedValue({
+        success: true,
+        device: { id: 'device-1', name: DEVICE_NAME, fingerprint: FINGERPRINT, status: 'REVOKED' },
+        message: 'Device already registered with status: REVOKED',
+      }),
+    });
+    const log = makeLogger();
+
+    const outcome = await checkDeviceStatus(client, log, FINGERPRINT, DEVICE_NAME);
+
+    expect(outcome).toBe('revoked');
+    expect(messages(log.warn)).not.toContain('Device pending approval');
+    expect(messages(log.error)).toContain('Device has been revoked');
+    expect(JSON.stringify(log.error.mock.calls)).not.toContain(FINGERPRINT);
+  });
+
   it('reports a registration the backend rejected (success: false)', async () => {
     const client = makeClient({
       checkDevice: jest.fn().mockResolvedValue({ status: 'PENDING', device: null }),

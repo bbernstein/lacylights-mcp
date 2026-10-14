@@ -107,6 +107,23 @@ async function registerThisDevice(
       log.error('Device registration failed', { message: regResult.message });
       return 'registration-failed';
     }
+    // registerDevice is idempotent: for a fingerprint the backend already knows
+    // (e.g. registered by another process since our check) it returns the
+    // existing record, which may no longer be pending.
+    if (regResult.device?.status === 'APPROVED') {
+      log.info('Device already registered and approved', {
+        deviceId: regResult.device.id,
+        message: regResult.message,
+      });
+      return 'approved';
+    }
+    if (regResult.device?.status === 'REVOKED') {
+      log.error('Device has been revoked', {
+        message: 'This device has been revoked and cannot access the system.',
+        fingerprint: redactFingerprint(fingerprint),
+      });
+      return 'revoked';
+    }
     log.info('Device registered successfully', {
       deviceId: regResult.device?.id,
       message: regResult.message,
@@ -203,7 +220,13 @@ export async function checkDeviceStatus(
         return 'revoked';
 
       case 'register':
-        if (result.message) {
+        if (result.status !== 'PENDING') {
+          // Not in the backend enum: make the fallback visible instead of silent.
+          log.warn('Unexpected device status from backend, attempting registration', {
+            status: result.status,
+            message: result.message,
+          });
+        } else if (result.message) {
           log.info('Backend reports device is not registered', { message: result.message });
         }
         return await registerThisDevice(client, log, fingerprint, deviceName, signal);
