@@ -220,8 +220,9 @@ mockFetch.mockResolvedValue({
   `newProjectName` and `targetProjectId` are mutually exclusive.
 - `export_eos_ascii(projectId)` - Export a project as ETC Eos ASCII text.
 - Import wraps the `importProjectFromEos` mutation; export uses the
-  read-only `projectExportEos` query (falling back to the deprecated
-  `exportProjectToEos` mutation on backends that predate the query).
+  read-only `projectExportEos` query (lacylights-go v0.4.0+). There is no
+  fallback to the removed `exportProjectToEos` mutation: older backends fail
+  with a `Cannot query field "projectExportEos"` error.
   Both surface structured warnings to the agent (e.g. `EFFECT_SKIPPED`,
   `UNPATCHED_CHANNEL`, `FIXTURE_SYNTHESIZED`, `GROUP_AUTO_ASSIGNED`).
 - Implementation: `src/tools/eos-tools.ts` (Zod-validated args) +
