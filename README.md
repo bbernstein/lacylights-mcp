@@ -548,7 +548,7 @@ Then iterate with optimize_look using "dramatic_impact" until satisfied
    - Check the `LACYLIGHTS_GRAPHQL_ENDPOINT` environment variable
 
 3. **OpenAI API errors** (e.g. "This tool requires OpenAI, but OPENAI_API_KEY is not set")
-   - Ensure `OPENAI_API_KEY` is set in the `.env` file or in the `env` block of your MCP client configuration
+   - Set `OPENAI_API_KEY` in the `env` block of your MCP client configuration (or export it in the shell that launches the server), then restart the server. The server does not load a `.env` file by itself
    - Verify the API key has access to GPT-4
 
 4. **MCP connection errors in Claude**
