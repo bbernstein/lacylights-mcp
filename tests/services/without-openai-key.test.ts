@@ -23,11 +23,24 @@ const missingKeyError = () =>
   );
 
 describe('services without OPENAI_API_KEY (#176)', () => {
+  const originalKey = process.env.OPENAI_API_KEY;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // Keep the suite hermetic: a key exported in the developer's shell must
+    // not turn this into the "key set but client failed" path.
+    delete process.env.OPENAI_API_KEY;
     MockOpenAI.mockImplementation(() => {
       throw missingKeyError();
     });
+  });
+
+  afterEach(() => {
+    if (originalKey === undefined) {
+      delete process.env.OPENAI_API_KEY;
+    } else {
+      process.env.OPENAI_API_KEY = originalKey;
+    }
   });
 
   describe('RAGService', () => {

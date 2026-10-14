@@ -40,7 +40,7 @@ describe('openai-client', () => {
       expect(MockOpenAI).toHaveBeenCalledWith({ apiKey: 'sk-test' });
     });
 
-    it('returns null without constructing a client when OPENAI_API_KEY is not set', () => {
+    it('returns null without logging when OPENAI_API_KEY is not set and the constructor throws', () => {
       delete process.env.OPENAI_API_KEY;
       MockOpenAI.mockImplementation(() => {
         throw new Error(
@@ -50,16 +50,18 @@ describe('openai-client', () => {
 
       expect(() => createOptionalOpenAIClient()).not.toThrow();
       expect(createOptionalOpenAIClient()).toBeNull();
-      expect(MockOpenAI).not.toHaveBeenCalled();
       expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    it('treats a blank OPENAI_API_KEY as not set', () => {
+    it('treats a blank OPENAI_API_KEY as not set when the constructor throws', () => {
       process.env.OPENAI_API_KEY = '   ';
+      MockOpenAI.mockImplementation(() => {
+        throw new Error('Missing credentials.');
+      });
 
       expect(createOptionalOpenAIClient()).toBeNull();
-      expect(MockOpenAI).not.toHaveBeenCalled();
       expect(logger.warn).not.toHaveBeenCalled();
+      expect(() => requireOpenAIClient(null)).toThrow(/OPENAI_API_KEY is not set/);
     });
 
     it('returns null but logs the real cause when the key is set and the constructor still throws', () => {

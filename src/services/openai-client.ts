@@ -30,27 +30,28 @@ function hasOpenAIKey(): boolean {
 }
 
 /**
- * Create an OpenAI client from OPENAI_API_KEY, or return null when none can be
- * created.
+ * Create an OpenAI client from OPENAI_API_KEY, or return null when the SDK
+ * refuses to construct one (it throws on a missing key since openai v5).
  *
  * OpenAI is only needed by a handful of AI-backed tools, so a missing key must
  * not prevent the MCP server from starting (bbernstein/lacylights-mcp#176).
- * A missing key is the expected case and returns null silently. Any other
- * constructor failure (for example a malformed OPENAI_BASE_URL) also returns
- * null so startup still succeeds, but the real cause is written to the file
- * logger (stdout is reserved for the MCP protocol).
+ * A missing key is the expected failure and is not logged. Any other
+ * constructor failure while a key is set (for example a malformed
+ * OPENAI_BASE_URL) also returns null so startup still succeeds, but the real
+ * cause is written to the file logger (stdout is reserved for the MCP
+ * protocol) and requireOpenAIClient reports it as an initialization failure
+ * rather than a missing key.
  */
 export function createOptionalOpenAIClient(): OpenAI | null {
-  if (!hasOpenAIKey()) {
-    return null;
-  }
   try {
     return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   } catch (error) {
-    logger.warn(
-      "OpenAI client could not be initialized; AI-backed tools are unavailable",
-      { error: error instanceof Error ? error.message : String(error) },
-    );
+    if (hasOpenAIKey()) {
+      logger.warn(
+        "OpenAI client could not be initialized; AI-backed tools are unavailable",
+        { error: error instanceof Error ? error.message : String(error) },
+      );
+    }
     return null;
   }
 }
