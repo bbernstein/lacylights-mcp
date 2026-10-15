@@ -202,6 +202,63 @@ describe('AILightingService', () => {
     });
   });
 
+  describe('generateLook - channel type notes', () => {
+    const emptyLookResponse = {
+      choices: [{ message: { content: JSON.stringify({ name: 'Look', fixtureValues: [], reasoning: 'r' }) } }]
+    };
+
+    const makeFixture = (id: string, types: ChannelType[]): FixtureInstance => ({
+      ...mockFixture,
+      id,
+      channelCount: types.length,
+      channels: types.map((type, offset) => ({
+        id: `${id}-ch${offset}`, offset, name: type, type, minValue: 0, maxValue: 255, defaultValue: 0,
+      })),
+    });
+
+    const getPrompt = async (fixtures: FixtureInstance[]): Promise<string> => {
+      mockRAGService.generateLightingRecommendations.mockResolvedValue({
+        colorSuggestions: [], intensityLevels: {}, focusAreas: [], reasoning: 'Test'
+      });
+      (mockOpenAI.chat.completions.create as jest.Mock).mockResolvedValue(emptyLookResponse);
+      await aiService.generateLook({
+        scriptContext: '',
+        lookDescription: 'Test look',
+        availableFixtures: fixtures,
+      });
+      const call = (mockOpenAI.chat.completions.create as jest.Mock).mock.calls[0][0];
+      return call.messages[0].content as string;
+    };
+
+    it('should omit channel type notes for plain RGB fixtures', async () => {
+      const prompt = await getPrompt([mockFixture]);
+      expect(prompt).not.toContain('Channel type notes:');
+    });
+
+    it('should describe COLOR_TEMPERATURE, HUE and SATURATION as color controls', async () => {
+      const prompt = await getPrompt([
+        makeFixture('cct', [ChannelType.INTENSITY, ChannelType.COLOR_TEMPERATURE]),
+        makeFixture('hsi', [ChannelType.INTENSITY, ChannelType.HUE, ChannelType.SATURATION]),
+      ]);
+      expect(prompt).toContain('Channel type notes:');
+      expect(prompt).toContain('- COLOR_TEMPERATURE: white point / CCT (color, not brightness)');
+      expect(prompt).toContain('- HUE: selects the color');
+      expect(prompt).toContain('- SATURATION: color saturation (color, not brightness)');
+      expect(prompt).not.toContain('- SPEED:');
+    });
+
+    it('should tell the model SPEED is not intensity or an effect selector', async () => {
+      const prompt = await getPrompt([
+        makeFixture('mover', [ChannelType.PAN, ChannelType.TILT, ChannelType.SPEED, ChannelType.INTENSITY]),
+      ]);
+      expect(prompt).toContain('- SPEED: movement/effect speed, NOT intensity or an effect selector');
+      expect(prompt).not.toContain('- COLOR_TEMPERATURE:');
+      expect(prompt).not.toContain('- HUE:');
+      // Notes must appear before the JSON response instructions
+      expect(prompt.indexOf('Channel type notes:')).toBeLessThan(prompt.indexOf('Return JSON:'));
+    });
+  });
+
   describe('generateCueSequence', () => {
     it('should generate cue sequence', async () => {
       const mockAIResponse = {

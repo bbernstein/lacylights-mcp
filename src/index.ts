@@ -927,7 +927,7 @@ Use list_fixtures instead if you only need basic fixture information.`,
                             },
                             type: {
                               type: "string",
-                              description: 'Channel type (e.g., "INTENSITY", "COLOR", "PAN", "TILT", "STROBE")',
+                              description: 'Channel type (e.g., "INTENSITY", "RED", "COLOR_TEMPERATURE", "HUE", "SATURATION", "PAN", "TILT", "SPEED", "STROBE")',
                             },
                             offset: {
                               type: "number",

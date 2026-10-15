@@ -7,14 +7,20 @@ import { normalizePaginationParams } from "../utils/pagination";
 /**
  * All channel types that are considered color channels.
  * Includes RGB (additive mixing), CMY (subtractive mixing), extended gamut (LIME, INDIGO),
- * dual white temperatures (COLD_WHITE, WARM_WHITE), and traditional colors (WHITE, AMBER, UV).
+ * dual white temperatures (COLD_WHITE, WARM_WHITE), variable color temperature
+ * (COLOR_TEMPERATURE), hue/saturation (HUE, SATURATION), and traditional colors
+ * (WHITE, AMBER, UV).
  *
  * @remarks
  * - RGB: Additive color mixing (Red, Green, Blue)
  * - CMY: Subtractive color mixing (Cyan, Magenta, Yellow) - common in professional lighting
  * - Extended gamut: LIME and INDIGO expand the color space beyond standard RGB
  * - Dual white: COLD_WHITE and WARM_WHITE provide independent color temperature control
+ * - COLOR_TEMPERATURE: A single CCT channel that sets the white point (tunable white)
+ * - HUE / SATURATION: HSI-style color selection (hue angle and color saturation)
  * - COLOR_WHEEL: Used for fixtures with dichroic color wheels
+ *
+ * SPEED is intentionally NOT a color channel; it controls movement/effect timing.
  */
 const COLOR_CHANNEL_TYPES: readonly string[] = [
   "RED",
@@ -30,6 +36,9 @@ const COLOR_CHANNEL_TYPES: readonly string[] = [
   "INDIGO",
   "COLD_WHITE",
   "WARM_WHITE",
+  "COLOR_TEMPERATURE",
+  "HUE",
+  "SATURATION",
   "COLOR_WHEEL",
 ] as const;
 
@@ -195,7 +204,7 @@ const BulkCreateFixtureDefinitionsSchema = z.object({
     type: z.string().describe('Fixture type (e.g., "LED_PAR", "MOVING_HEAD", "STROBE", "DIMMER", "OTHER")'),
     channels: z.array(z.object({
       name: z.string().describe("Channel name (e.g., \"Dimmer\", \"Red\", \"Pan\")"),
-      type: z.string().describe('Channel type (e.g., "INTENSITY", "COLOR", "PAN", "TILT", "STROBE")'),
+      type: z.string().describe('Channel type (e.g., "INTENSITY", "RED", "COLOR_TEMPERATURE", "HUE", "SATURATION", "PAN", "TILT", "SPEED", "STROBE")'),
       offset: z.number().describe("Channel offset from fixture start address (0-based)"),
       minValue: z.number().optional().describe("Minimum DMX value (0-255, default 0)"),
       maxValue: z.number().optional().describe("Maximum DMX value (0-255, default 255)"),
@@ -472,6 +481,8 @@ export class FixtureTools {
       hasWhite: channelTypes.includes("WHITE" as any),
       hasColdWhite: channelTypes.includes("COLD_WHITE" as any),
       hasWarmWhite: channelTypes.includes("WARM_WHITE" as any),
+      hasColorTemperature: channelTypes.includes("COLOR_TEMPERATURE" as any),
+      hasHueSaturation: channelTypes.some((t) => ["HUE", "SATURATION"].includes(t)),
       hasAmber: channelTypes.includes("AMBER" as any),
       hasUV: channelTypes.includes("UV" as any),
       hasLime: channelTypes.includes("LIME" as any),
@@ -490,6 +501,7 @@ export class FixtureTools {
       hasColorWheel: channelTypes.includes("COLOR_WHEEL" as any),
       hasStrobe: channelTypes.includes("STROBE" as any),
       hasEffects: channelTypes.includes("EFFECT" as any),
+      hasSpeed: channelTypes.includes("SPEED" as any),
       hasMacros: channelTypes.includes("MACRO" as any),
       channelTypes: channelTypes,
       channelCount: channelCount,
@@ -512,6 +524,8 @@ export class FixtureTools {
       colorMixingType = "CMY (Subtractive)";
     } else if (capabilities.hasRGB) {
       colorMixingType = "RGB (Additive)";
+    } else if (capabilities.hasHueSaturation) {
+      colorMixingType = "Hue/Saturation (HSI)";
     } else if (capabilities.hasColorWheel) {
       colorMixingType = "Color Wheel";
     }
@@ -522,10 +536,16 @@ export class FixtureTools {
       colorMixingType,
       availableColors: colorChannels.map((ch) => ch.type),
       colorResolution: "8-bit (256 levels)",
-      canMixColors: capabilities.hasRGB || capabilities.hasCMY,
+      canMixColors:
+        capabilities.hasRGB ||
+        capabilities.hasCMY ||
+        capabilities.hasHueSaturation,
+      colorTemperatureControl: capabilities.hasColorTemperature,
       whiteBalance: capabilities.hasWhite
         ? "Dedicated White Channel"
-        : "RGB Mixed",
+        : capabilities.hasColorTemperature
+          ? "Variable Color Temperature (CCT)"
+          : "RGB Mixed",
       specialColors: [
         capabilities.hasAmber && "Amber",
         capabilities.hasUV && "UV",
@@ -533,6 +553,8 @@ export class FixtureTools {
         capabilities.hasIndigo && "Indigo",
         capabilities.hasColdWhite && "Cold White",
         capabilities.hasWarmWhite && "Warm White",
+        capabilities.hasColorTemperature && "Color Temperature",
+        capabilities.hasHueSaturation && "Hue/Saturation",
       ].filter(Boolean),
       recommendedUse: this.getColorRecommendations(capabilities),
     };
@@ -571,6 +593,7 @@ export class FixtureTools {
       zoomControl: capabilities.hasZoom,
       macroEffects: capabilities.hasMacros,
       customEffects: capabilities.hasEffects,
+      speedControl: capabilities.hasSpeed,
       recommendedEffects: this.getEffectRecommendations(capabilities),
     };
   }
@@ -626,6 +649,10 @@ export class FixtureTools {
       recommendations.push("Cool white balance (daylight temperatures)");
     if (capabilities.hasWarmWhite)
       recommendations.push("Warm white balance (tungsten temperatures)");
+    if (capabilities.hasColorTemperature)
+      recommendations.push("Tunable white point (variable color temperature / CCT)");
+    if (capabilities.hasHueSaturation)
+      recommendations.push("Hue/saturation color selection (HSI) for smooth color fades");
     if (capabilities.hasExtendedGamut)
       recommendations.push("Wide color gamut reproduction");
     if (capabilities.hasColorWheel)
@@ -663,6 +690,8 @@ export class FixtureTools {
       recommendations.push("Beam size adjustment, coverage control");
     if (capabilities.hasMacros)
       recommendations.push("Pre-programmed sequences, quick setups");
+    if (capabilities.hasSpeed)
+      recommendations.push("Adjustable movement/effect speed for slow, smooth transitions or fast chases");
     return recommendations;
   }
 
@@ -674,6 +703,8 @@ export class FixtureTools {
     if (capabilities.hasMovement) return "Moving spotlight";
     if (capabilities.hasCMY) return "CMY color wash light";
     if (capabilities.hasRGB) return "RGB color wash light";
+    if (capabilities.hasHueSaturation) return "HSI color wash light";
+    if (capabilities.hasColorTemperature) return "Tunable white light";
     if (capabilities.hasIntensity) return "Intensity dimmer";
     return "Specialty fixture";
   }
@@ -686,8 +717,14 @@ export class FixtureTools {
       suitable.push("Professional color mixing", "Broadcast lighting", "Theatre productions");
     if (capabilities.hasExtendedGamut)
       suitable.push("High-end color reproduction", "Wide gamut applications");
-    if (capabilities.hasColdWhite || capabilities.hasWarmWhite)
+    if (
+      capabilities.hasColdWhite ||
+      capabilities.hasWarmWhite ||
+      capabilities.hasColorTemperature
+    )
       suitable.push("Color temperature control", "White balance tuning");
+    if (capabilities.hasHueSaturation)
+      suitable.push("Color washes", "Smooth color transitions");
     if (capabilities.hasMovement)
       suitable.push("Follow spots", "Dynamic effects", "Area lighting");
     if (capabilities.hasStrobe)
@@ -717,6 +754,12 @@ export class FixtureTools {
       strengths.push("Extended color gamut beyond standard RGB");
     if (capabilities.hasColdWhite && capabilities.hasWarmWhite)
       strengths.push("Independent dual white temperature control");
+    if (capabilities.hasColorTemperature)
+      strengths.push("Single-channel color temperature (CCT) control");
+    if (capabilities.hasHueSaturation)
+      strengths.push("Intuitive hue/saturation color control");
+    if (capabilities.hasSpeed && (capabilities.hasMovement || capabilities.hasEffects))
+      strengths.push("Adjustable movement/effect speed");
     if (capabilities.hasMovement && capabilities.hasColor)
       strengths.push("Dynamic color positioning");
     if (capabilities.hasStrobe && capabilities.hasColor)
@@ -745,8 +788,14 @@ export class FixtureTools {
           totalFixtures,
           rgbCapable: rgbCount,
           cmyCapable: cmyCount,
+          hueSaturationCapable: analysis.filter(
+            (a) => a.colorMixingType === "Hue/Saturation (HSI)",
+          ).length,
           colorWheelFixtures: analysis.filter(
             (a) => a.colorMixingType === "Color Wheel",
+          ).length,
+          colorTemperatureFixtures: analysis.filter(
+            (a) => a.colorTemperatureControl,
           ).length,
           whiteLights: analysis.filter(
             (a) => a.whiteBalance === "Dedicated White Channel",
