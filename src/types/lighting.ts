@@ -19,7 +19,19 @@ export interface FixtureDefinition {
   channels: ChannelDefinition[];
   modes: FixtureMode[];
   isBuiltIn: boolean;
+  /**
+   * Where the definition came from. Undefined when the backend predates
+   * fixture sources (lacylights-go before the GDTF import work).
+   */
+  source?: FixtureSource;
+  /** Identifier within the source (OFL key, GDTF FixtureTypeID, ...). */
+  sourceId?: string | null;
+  /** Version of the source library or file when imported. */
+  sourceVersion?: string | null;
 }
+
+/** Where a fixture definition came from (GraphQL enum FixtureSource). */
+export type FixtureSource = 'BUILTIN' | 'OFL' | 'GDTF' | 'EOS' | 'USER' | 'SYNTHESIZED';
 
 export interface FixtureInstance {
   id: string;

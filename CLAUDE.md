@@ -228,6 +228,23 @@ mockFetch.mockResolvedValue({
 - Implementation: `src/tools/eos-tools.ts` (Zod-validated args) +
   `src/services/graphql-client-simple.ts` (typed GraphQL methods).
 
+### GDTF Fixture Import Tool
+- `import_gdtf_fixtures(paths, onExisting?)` - Reads `.gdtf` files, `.zip`
+  archives and folders on the MCP host, extracts each `description.xml` with
+  `fflate` and sends them to the `importGdtfFixtures` mutation in batches of
+  25 (and at most 64 MB). Extraction mirrors lacylights-go
+  `internal/services/gdtf/archive.go`: ≤2000 entries per archive,
+  description.xml ≤32 MB, nesting depth ≤2, `__MACOSX/` and `._*` skipped,
+  nested names like `outer.zip/dir/Foo.gdtf`, per-file errors reported.
+- Folder walks skip hidden entries and never follow symlinks out of the folder.
+- Implementation: `src/utils/gdtf-archive.ts` (extraction),
+  `src/tools/gdtf-tools.ts` (batching and summary),
+  `src/services/graphql-client-simple.ts` (`importGdtfFixtures`).
+- `getFixtureDefinitions` selects `source`/`sourceId`/`sourceVersion`; on a
+  backend that rejects `source` (`isUnknownFieldError(err, 'source',
+  'FixtureDefinition')`) it retries without them once and remembers that for
+  the client's lifetime.
+
 ### Data Export Tools (CSV / Excel)
 - `list_data_export_tables()` - Tables with columns and scope (none, project,
   look, cueList, lookBoard), which say whether `projectId`/`scopeId` are needed.

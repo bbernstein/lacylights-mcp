@@ -680,6 +680,12 @@ export type FixtureDefinition = {
   manufacturer: Scalars['String']['output'];
   model: Scalars['String']['output'];
   modes: Array<FixtureMode>;
+  /** Where this definition came from */
+  source: FixtureSource;
+  /** Identifier within the source (OFL key, GDTF FixtureTypeID, ...) */
+  sourceId?: Maybe<Scalars['String']['output']>;
+  /** Version of the source library or file when imported */
+  sourceVersion?: Maybe<Scalars['String']['output']>;
   type: FixtureType;
 };
 
@@ -688,6 +694,7 @@ export type FixtureDefinitionFilter = {
   isBuiltIn?: InputMaybe<Scalars['Boolean']['input']>;
   manufacturer?: InputMaybe<Scalars['String']['input']>;
   model?: InputMaybe<Scalars['String']['input']>;
+  source?: InputMaybe<FixtureSource>;
   type?: InputMaybe<FixtureType>;
 };
 
@@ -785,6 +792,25 @@ export type FixtureSpecInput = {
   name: Scalars['String']['input'];
 };
 
+/**
+ * Where a fixture definition came from. When several definitions share a
+ * manufacturer and model, the configured source precedence decides which one
+ * is preferred.
+ */
+export type FixtureSource =
+  /** Shipped with LacyLights */
+  | 'BUILTIN'
+  /** Imported from a user-supplied Eos fixture library (reserved) */
+  | 'EOS'
+  /** Imported from a user-supplied GDTF file */
+  | 'GDTF'
+  /** Imported from the Open Fixture Library */
+  | 'OFL'
+  /** Synthesized from an Eos ASCII show file personality */
+  | 'SYNTHESIZED'
+  /** Created or edited by a user */
+  | 'USER';
+
 export type FixtureType =
   | 'DIMMER'
   | 'LED_PAR'
@@ -827,6 +853,58 @@ export type FixtureValueInput = {
 };
 
 /** Global playback status - returns which cue list is currently playing or paused (if any) */
+export type GdtfExistingPolicy =
+  /** Keep the existing definition unchanged */
+  | 'SKIP'
+  /** Rebuild the existing definition in place, keeping its ID */
+  | 'UPDATE';
+
+/**
+ * One GDTF fixture type to import: the description.xml of a .gdtf file.
+ * Clients unzip the .gdtf (or a .zip of them) and send only description.xml.
+ */
+export type GdtfFileInput = {
+  /** Contents of the .gdtf's description.xml (at most 32 MB) */
+  descriptionXml: Scalars['String']['input'];
+  /** Original file name, e.g. Foo.gdtf or archive.zip/inner/Foo.gdtf */
+  fileName: Scalars['String']['input'];
+};
+
+export type GdtfImportFileResult = {
+  __typename?: 'GdtfImportFileResult';
+  /** The created, updated or existing definition; null when FAILED */
+  definition?: Maybe<FixtureDefinition>;
+  error?: Maybe<Scalars['String']['output']>;
+  fileName: Scalars['String']['output'];
+  manufacturer?: Maybe<Scalars['String']['output']>;
+  modeCount?: Maybe<Scalars['Int']['output']>;
+  model?: Maybe<Scalars['String']['output']>;
+  status: GdtfImportStatus;
+  warnings: Array<Scalars['String']['output']>;
+};
+
+export type GdtfImportOptions = {
+  /** What to do when the same FixtureTypeID was imported before and changed */
+  onExisting?: InputMaybe<GdtfExistingPolicy>;
+};
+
+export type GdtfImportResult = {
+  __typename?: 'GdtfImportResult';
+  createdCount: Scalars['Int']['output'];
+  failedCount: Scalars['Int']['output'];
+  results: Array<GdtfImportFileResult>;
+  skippedCount: Scalars['Int']['output'];
+  unchangedCount: Scalars['Int']['output'];
+  updatedCount: Scalars['Int']['output'];
+};
+
+export type GdtfImportStatus =
+  | 'CREATED'
+  | 'FAILED'
+  | 'SKIPPED'
+  | 'UNCHANGED'
+  | 'UPDATED';
+
 export type GlobalPlaybackStatus = {
   __typename?: 'GlobalPlaybackStatus';
   /** Total number of cues in the playing cue list (null if not playing) */
@@ -1146,6 +1224,11 @@ export type Mutation = {
   fadeToBlack: Scalars['Boolean']['output'];
   forgetWiFiNetwork: Scalars['Boolean']['output'];
   goToCue: Scalars['Boolean']['output'];
+  /**
+   * Import GDTF fixture types (description.xml contents). Each file is imported
+   * in its own transaction; a failed file does not fail the others.
+   */
+  importGdtfFixtures: GdtfImportResult;
   importOFLFixture: FixtureDefinition;
   importProject: ImportResult;
   importProjectFromQLC: QlcImportResult;
@@ -1175,6 +1258,11 @@ export type Mutation = {
   resumeCueList: Scalars['Boolean']['output'];
   setArtNetEnabled: ArtNetStatus;
   setChannelValue: Scalars['Boolean']['output'];
+  /**
+   * Set the fixture source preference order, highest first. Sources left out
+   * are appended in default order. Returns the stored order.
+   */
+  setFixtureSourcePrecedence: Array<FixtureSource>;
   /** Set the grand master level (0.0-1.0) */
   setGrandMaster: Scalars['Boolean']['output'];
   setLookLive: Scalars['Boolean']['output'];
@@ -1536,6 +1624,12 @@ export type MutationGoToCueArgs = {
 };
 
 
+export type MutationImportGdtfFixturesArgs = {
+  files: Array<GdtfFileInput>;
+  options?: InputMaybe<GdtfImportOptions>;
+};
+
+
 export type MutationImportOflFixtureArgs = {
   input: ImportOflFixtureInput;
 };
@@ -1654,6 +1748,11 @@ export type MutationSetChannelValueArgs = {
   channel: Scalars['Int']['input'];
   universe: Scalars['Int']['input'];
   value: Scalars['Int']['input'];
+};
+
+
+export type MutationSetFixtureSourcePrecedenceArgs = {
+  order: Array<FixtureSource>;
 };
 
 
@@ -2148,6 +2247,8 @@ export type Query = {
   fixtureDefinitionsByIds: Array<FixtureDefinition>;
   fixtureInstance?: Maybe<FixtureInstance>;
   fixtureInstances: FixtureInstancePage;
+  /** Fixture sources in preference order, highest first */
+  fixtureSourcePrecedence: Array<FixtureSource>;
   fixtureUsage: FixtureUsage;
   fixturesByIds: Array<FixtureInstance>;
   getQLCFixtureMappingSuggestions: QlcFixtureMappingResult;
