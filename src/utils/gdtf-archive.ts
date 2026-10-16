@@ -73,6 +73,8 @@ interface ZipEntry {
   /** 0 = stored, 8 = deflate. */
   compression: number;
   compressedSize: number;
+  /** General-purpose bit 0: the entry is encrypted. */
+  encrypted: boolean;
   /** Uncompressed size declared by the header. Not trusted. */
   originalSize: number;
   dataStart: number;
@@ -163,7 +165,7 @@ function readCentralDirectory(data: Uint8Array): ZipEntry[] {
     if (localOffset + 30 > data.length || u32(data, localOffset) !== 0x04034b50) throw corrupt();
     const dataStart = localOffset + 30 + u16(data, localOffset + 26) + u16(data, localOffset + 28);
     if (dataStart + compressedSize > data.length) throw corrupt();
-    entries.push({ name, compression, compressedSize, originalSize, dataStart });
+    entries.push({ name, compression, compressedSize, encrypted: (flags & 0x1) !== 0, originalSize, dataStart });
     o = extraStart + extraLen + commentLen;
   }
   return entries;
@@ -177,6 +179,9 @@ function readCentralDirectory(data: Uint8Array): ZipEntry[] {
  * or hide output.
  */
 function readEntryBytes(data: Uint8Array, entry: ZipEntry, limit: number): Uint8Array {
+  if (entry.encrypted) {
+    throw new Error('encrypted zip entries are not supported');
+  }
   const raw = data.subarray(entry.dataStart, entry.dataStart + entry.compressedSize);
   let out: Uint8Array;
   if (entry.compression === 0) {
@@ -348,7 +353,8 @@ function isCandidateFile(name: string): boolean {
 
 function isInside(root: string, target: string): boolean {
   const rel = path.relative(root, target);
-  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  // A child may itself be named "..foo"; only ".." as a whole segment leaves root.
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
 }
 
 interface DiskFile {

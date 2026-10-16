@@ -276,6 +276,18 @@ describe('entry names', () => {
   });
 });
 
+describe('encrypted entries', () => {
+  it('reports an encrypted description.xml clearly', () => {
+    const zip = gdtf('Locked');
+    const view = new DataView(zip.buffer);
+    for (let o = 0; o + 46 <= zip.length; o++) {
+      if (view.getUint32(o, true) === 0x02014b50) view.setUint16(o + 8, view.getUint16(o + 8, true) | 0x1, true);
+    }
+    const res = extractGdtfDescriptions(zip, 'Locked.gdtf');
+    expect(res.errors).toEqual([{ fileName: 'Locked.gdtf', error: 'encrypted zip entries are not supported' }]);
+  });
+});
+
 describe('iterateGdtfDescriptions', () => {
   it('yields descriptions one at a time, in archive order', () => {
     const zip = zipSync({ 'A.gdtf': gdtf('A'), 'B.gdtf': gdtf('B'), 'broken.gdtf': strToU8('x') });
@@ -350,6 +362,17 @@ describe('collectGdtfFiles', () => {
     const res = await collectGdtfFiles([root]);
     expect(res.errors).toEqual([]);
     expect(res.files.map((f) => f.fileName).sort()).toEqual(['lib/In.gdtf', 'lib/real/R.gdtf']);
+  });
+
+  it('follows a symlink into a child whose name starts with ".."', async () => {
+    const root = path.join(tmp, 'lib');
+    // "..foo" is hidden (not walked) but is inside the folder, unlike "..".
+    await write('lib/..foo/F.gdtf', gdtf('F'));
+    await fs.symlink(path.join(root, '..foo', 'F.gdtf'), path.join(root, 'Link.gdtf'));
+
+    const res = await collectGdtfFiles([root]);
+    expect(res.errors).toEqual([]);
+    expect(res.files.map((f) => f.fileName)).toEqual(['lib/Link.gdtf']);
   });
 
   it('reads the same file only once', async () => {
