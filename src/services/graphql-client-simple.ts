@@ -154,7 +154,7 @@ export function isUnknownFieldError(error: unknown, field: string, typeName: str
   }
   const needle = `Cannot query field "${field}" on type "${typeName}"`;
   // For a GraphQLRequestError only trust the parsed GraphQL error messages, so a
-  // non-GraphQL body (HTML error page, proxy text) can never trigger a fallback.
+  // non-GraphQL body (HTML error page, proxy text) is never read as this error.
   const messages =
     error instanceof GraphQLRequestError ? error.graphQLErrorMessages : [error.message];
   return messages.some((m) => m.includes(needle));
@@ -3536,16 +3536,20 @@ export class LacyLightsGraphQLClient {
   }
 
   /**
-   * Export a project as ETC Eos ASCII.
+   * Export a project as ETC Eos ASCII via the read-only `projectExportEos`
+   * Query (lacylights-go v0.4.0+). Backends older than v0.4.0 reject the field
+   * (see isUnknownQueryFieldError); that error is propagated unchanged, since
+   * the deprecated `exportProjectToEos` Mutation fallback was removed
+   * (bbernstein/lacylights-go#87).
    *
-   * Uses the read-only `projectExportEos` Query. Backends that predate it only
-   * offer the deprecated `exportProjectToEos` Mutation, so if the server rejects
-   * the Query field as unknown we retry once with the Mutation. The MCP server
-   * and the backend are versioned and updated independently (e.g. lacylights-mac
-   * updates each component separately), so the MCP may run against an older backend.
+   * Requests go straight through fetch with no client-side cache, so the client
+   * keeps no copy of large export payloads after returning them (the parsed
+   * response still lives in memory for the caller).
    */
   async exportEosAscii(projectId: string): Promise<EosExportResult> {
-    const selection = `
+    const query = `
+      query ProjectExportEos($projectId: ID!) {
+        projectExportEos(projectId: $projectId) {
           projectId
           projectName
           asciiContent
@@ -3556,23 +3560,13 @@ export class LacyLightsGraphQLClient {
             message
             context { key value }
           }
-    `;
-    const exportQuery = `
-      query ProjectExportEos($projectId: ID!) {
-        projectExportEos(projectId: $projectId) {${selection}}
+        }
       }
     `;
-    const legacyMutation = `
-      mutation ExportProjectToEos($projectId: ID!) {
-        exportProjectToEos(projectId: $projectId) {${selection}}
-      }
-    `;
-
-    return this.queryWithLegacyMutationFallback<EosExportResult>(
-      { document: exportQuery, field: 'projectExportEos' },
-      { document: legacyMutation, field: 'exportProjectToEos' },
-      { projectId },
-    );
+    const data = await this.query(query, { projectId });
+    // The export field is non-null in the schema, so null is treated the same
+    // as missing. Revisit if the field ever becomes nullable (e.g. "not found").
+    return requireQueryField<EosExportResult>(data, 'projectExportEos');
   }
 
   // ============================================================
@@ -3690,36 +3684,6 @@ export class LacyLightsGraphQLClient {
     `;
     const data = await this.query(query, { projectId, tables: tables ?? null });
     return requireQueryField<DataExportResult>(data, 'exportDataWorkbook');
-  }
-
-  /**
-   * Run a read-only Query, falling back to a legacy Mutation when the backend
-   * does not know the Query field yet (GraphQL validation error
-   * `Cannot query field "<field>" on type "Query"`). Any other error is rethrown.
-   *
-   * Requests go straight through fetch with no client-side cache, so the client
-   * keeps no copy of large export payloads after returning them (the parsed
-   * response still lives in memory for the caller).
-   */
-  private async queryWithLegacyMutationFallback<T>(
-    primary: { document: string; field: string },
-    legacy: { document: string; field: string },
-    variables: Record<string, unknown>,
-  ): Promise<T> {
-    let data: Record<string, unknown> | null | undefined;
-    let field = primary.field;
-    try {
-      data = await this.query(primary.document, variables);
-    } catch (error) {
-      if (!isUnknownQueryFieldError(error, primary.field)) {
-        throw error;
-      }
-      field = legacy.field;
-      data = await this.query(legacy.document, variables);
-    }
-    // The export fields are non-null in the schema, so null is treated the same
-    // as missing. Revisit if a field ever becomes nullable (e.g. "not found").
-    return requireQueryField<T>(data, field);
   }
 }
 
