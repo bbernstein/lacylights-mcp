@@ -482,7 +482,11 @@ export class FixtureTools {
       hasColdWhite: channelTypes.includes("COLD_WHITE" as any),
       hasWarmWhite: channelTypes.includes("WARM_WHITE" as any),
       hasColorTemperature: channelTypes.includes("COLOR_TEMPERATURE" as any),
-      hasHueSaturation: channelTypes.some((t) => ["HUE", "SATURATION"].includes(t)),
+      // HSI color selection needs both channels; a lone HUE or SATURATION
+      // still counts toward hasColor.
+      hasHueSaturation: ["HUE", "SATURATION"].every((t) =>
+        channelTypes.includes(t as any),
+      ),
       hasAmber: channelTypes.includes("AMBER" as any),
       hasUV: channelTypes.includes("UV" as any),
       hasLime: channelTypes.includes("LIME" as any),

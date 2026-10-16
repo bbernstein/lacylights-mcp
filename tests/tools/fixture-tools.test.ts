@@ -1180,16 +1180,55 @@ describe('FixtureTools', () => {
         expect((result.summary as any).rgbCapable).toBe(0);
       });
 
-      it('should treat a lone HUE or SATURATION channel as hue/saturation capable', async () => {
+      it('should require both HUE and SATURATION for hue/saturation capability', async () => {
         mockFixtureWithChannels('fixture-hue', [makeChannel('ch1', 'Hue', ChannelType.HUE, 0)]);
 
         const result = await fixtureTools.getFixtureInventory({ includeDefinitions: false });
-        expect(result.fixtures[0].capabilities.hasHueSaturation).toBe(true);
+        expect(result.fixtures[0].capabilities.hasHueSaturation).toBe(false);
         expect(result.fixtures[0].capabilities.hasColor).toBe(true);
 
         mockFixtureWithChannels('fixture-sat', [makeChannel('ch1', 'Sat', ChannelType.SATURATION, 0)]);
         const result2 = await fixtureTools.getFixtureInventory({ includeDefinitions: false });
-        expect(result2.fixtures[0].capabilities.hasHueSaturation).toBe(true);
+        expect(result2.fixtures[0].capabilities.hasHueSaturation).toBe(false);
+        expect(result2.fixtures[0].capabilities.hasColor).toBe(true);
+      });
+
+      it('should not report HSI mixing for intensity + saturation without hue', async () => {
+        mockFixtureWithChannels('fixture-int-sat', [
+          makeChannel('ch1', 'Dimmer', ChannelType.INTENSITY, 0),
+          makeChannel('ch2', 'Sat', ChannelType.SATURATION, 1),
+        ]);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-int-sat',
+          analysisType: 'color_mixing',
+        });
+
+        const color = result.fixtures[0] as any;
+        expect(color.colorMixingType).toBe('None');
+        expect(color.canMixColors).toBe(false);
+        expect(color.specialColors).not.toContain('Hue/Saturation');
+        expect(color.recommendedUse).not.toContain('Hue/saturation color selection (HSI) for smooth color fades');
+        expect((result.summary as any).hueSaturationCapable).toBe(0);
+      });
+
+      it('should classify color wheel + saturation as a color wheel fixture', async () => {
+        mockFixtureWithChannels('fixture-wheel-sat', [
+          makeChannel('ch1', 'Dimmer', ChannelType.INTENSITY, 0),
+          makeChannel('ch2', 'Color Wheel', ChannelType.COLOR_WHEEL, 1),
+          makeChannel('ch3', 'Sat', ChannelType.SATURATION, 2),
+        ]);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-wheel-sat',
+          analysisType: 'color_mixing',
+        });
+
+        const color = result.fixtures[0] as any;
+        expect(color.colorMixingType).toBe('Color Wheel');
+        expect(color.canMixColors).toBe(false);
+        expect((result.summary as any).colorWheelFixtures).toBe(1);
+        expect((result.summary as any).hueSaturationCapable).toBe(0);
       });
 
       it('should describe an HSI fixture in general analysis', async () => {
