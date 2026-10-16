@@ -856,7 +856,7 @@ export type FixtureValueInput = {
   lookOrder?: InputMaybe<Scalars['Int']['input']>;
 };
 
-/** Global playback status - returns which cue list is currently playing or paused (if any) */
+/** What to do when a GDTF FixtureTypeID was imported before and its description changed */
 export type GdtfExistingPolicy =
   /** Keep the existing definition unchanged */
   | 'SKIP'
@@ -909,6 +909,7 @@ export type GdtfImportStatus =
   | 'UNCHANGED'
   | 'UPDATED';
 
+/** Global playback status - returns which cue list is currently playing or paused (if any) */
 export type GlobalPlaybackStatus = {
   __typename?: 'GlobalPlaybackStatus';
   /** Total number of cues in the playing cue list (null if not playing) */
