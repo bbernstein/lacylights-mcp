@@ -300,7 +300,7 @@ For each fixture, provide channels as an array of {offset, value} objects:
     }
     if (present.has("SPEED")) {
       notes.push(
-        "- SPEED: movement/effect speed, NOT intensity or an effect selector; omit it unless the look needs specific motion or effect timing",
+        "- SPEED: movement/effect speed, NOT intensity or an effect selector; set it only when the look needs specific motion or effect timing, otherwise leave it out so the fixture keeps its default speed",
       );
     }
     if (notes.length === 0) return "";
