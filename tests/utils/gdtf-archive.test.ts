@@ -5,6 +5,7 @@ import { zipSync, strToU8, Zippable } from 'fflate';
 import {
   collectGdtfFiles,
   extractGdtfDescriptions,
+  iterateGdtfDescriptions,
   MAX_ARCHIVE_ENTRIES,
   MAX_DESCRIPTION_BYTES,
 } from '../../src/utils/gdtf-archive';
@@ -130,6 +131,141 @@ describe('extractGdtfDescriptions', () => {
     const res = extractGdtfDescriptions(zipSync(entries), 'max.zip');
     expect(res.errors).toEqual([]);
     expect(res.files).toHaveLength(1);
+  });
+});
+
+/** Overwrite the uncompressed size of every central-directory entry. */
+function withDeclaredSize(zip: Uint8Array, size: number): Uint8Array {
+  const out = zip.slice();
+  const view = new DataView(out.buffer);
+  for (let o = 0; o + 46 <= out.length; o++) {
+    if (view.getUint32(o, true) === 0x02014b50) {
+      view.setUint32(o + 24, size, true);
+      o += 45;
+    }
+  }
+  return out;
+}
+
+describe('understated zip headers', () => {
+  it('rejects an oversized description.xml whose header claims a small size', () => {
+    // Valid XML followed by whitespace well past the 32 MB limit; deflates to a few KB.
+    const xml = descriptionXml('Padded') + ' '.repeat(MAX_DESCRIPTION_BYTES + 1024);
+    const data = withDeclaredSize(zipSync({ 'description.xml': strToU8(xml) }), 200);
+    const res = extractGdtfDescriptions(data, 'Padded.gdtf');
+    expect(res.files).toEqual([]);
+    expect(res.errors).toEqual([{ fileName: 'Padded.gdtf', error: expect.stringMatching(/larger than 32 MB/) }]);
+  });
+
+  it('rejects a description.xml whose size does not match its header', () => {
+    const data = withDeclaredSize(gdtf('Short'), 10);
+    const res = extractGdtfDescriptions(data, 'Short.gdtf');
+    expect(res.errors).toEqual([
+      { fileName: 'Short.gdtf', error: 'decompressed size does not match the archive header' },
+    ]);
+  });
+
+  it('applies the check to nested archives too', () => {
+    // Only the outer archive's entry for inner.zip is understated (inner.zip is deflated, so its
+    // own headers are not visible to withDeclaredSize).
+    const outer = withDeclaredSize(zipSync({ 'inner.zip': zipSync({ 'A.gdtf': gdtf('A') }) }), 5);
+    const res = extractGdtfDescriptions(outer, 'outer.zip');
+    expect(res.files).toEqual([]);
+    expect(res.errors[0]).toEqual({
+      fileName: 'outer.zip/inner.zip',
+      error: expect.stringMatching(/does not match the archive header/),
+    });
+  });
+
+  it('rejects a stored entry whose size does not match its header', () => {
+    const stored = zipSync({ 'description.xml': [strToU8(descriptionXml('S')), { level: 0 }] });
+    const res = extractGdtfDescriptions(withDeclaredSize(stored, 3), 'S.gdtf');
+    expect(res.errors[0].error).toMatch(/does not match the archive header/);
+  });
+});
+
+describe('corrupt archives', () => {
+  it('reports a truncated central directory', () => {
+    const zip = gdtf('T');
+    const view = new DataView(zip.buffer);
+    let eocd = zip.length - 22;
+    while (view.getUint32(eocd, true) !== 0x06054b50) eocd--;
+    // Point the central directory past the end of the data.
+    view.setUint32(eocd + 16, zip.length + 100, true);
+    const res = extractGdtfDescriptions(zip, 'T.gdtf');
+    expect(res.errors[0].error).toMatch(/not a zip archive: corrupt zip archive/);
+  });
+
+  it('reports an unsupported compression method', () => {
+    const zip = gdtf('M');
+    const view = new DataView(zip.buffer);
+    for (let o = 0; o + 46 <= zip.length; o++) {
+      if (view.getUint32(o, true) === 0x02014b50) view.setUint16(o + 10, 12, true); // bzip2
+    }
+    const res = extractGdtfDescriptions(zip, 'M.gdtf');
+    expect(res.errors[0].error).toMatch(/unsupported compression method 12/);
+  });
+});
+
+/**
+ * A one-entry stored zip written with ZIP64 records: the central directory
+ * sizes and offset are 0xFFFFFFFF with the real values in a ZIP64 extra
+ * field, and a ZIP64 end-of-central-directory record and locator precede
+ * the classic one.
+ */
+function zip64Stored(name: string, content: Uint8Array): Uint8Array {
+  const nameBytes = strToU8(name);
+  const parts: number[] = [];
+  const u16 = (v: number) => parts.push(v & 0xff, (v >>> 8) & 0xff);
+  const u32 = (v: number) => {
+    u16(v & 0xffff);
+    u16(Math.floor(v / 0x10000) & 0xffff);
+  };
+  const u64 = (v: number) => {
+    u32(v % 0x100000000);
+    u32(Math.floor(v / 0x100000000));
+  };
+  const bytes = (b: Uint8Array) => parts.push(...b);
+
+  // Local file header + data
+  u32(0x04034b50); u16(45); u16(0); u16(0); u16(0); u16(0); u32(0);
+  u32(content.length); u32(content.length); u16(nameBytes.length); u16(0);
+  bytes(nameBytes);
+  bytes(content);
+
+  const cdOffset = parts.length;
+  u32(0x02014b50); u16(45); u16(45); u16(0); u16(0); u16(0); u16(0); u32(0);
+  u32(0xffffffff); u32(0xffffffff); u16(nameBytes.length); u16(28); u16(0);
+  u16(0); u16(0); u32(0); u32(0xffffffff);
+  bytes(nameBytes);
+  u16(1); u16(24); u64(content.length); u64(content.length); u64(0);
+  const cdSize = parts.length - cdOffset;
+
+  const z64Offset = parts.length;
+  u32(0x06064b50); u64(44); u16(45); u16(45); u32(0); u32(0);
+  u64(1); u64(1); u64(cdSize); u64(cdOffset);
+  u32(0x07064b50); u32(0); u64(z64Offset); u32(1);
+  u32(0x06054b50); u16(0); u16(0); u16(0xffff); u16(0xffff);
+  u32(0xffffffff); u32(0xffffffff); u16(0);
+  return new Uint8Array(parts);
+}
+
+describe('ZIP64 archives', () => {
+  it('reads sizes and offsets from ZIP64 records', () => {
+    const data = zip64Stored('description.xml', strToU8(descriptionXml('Z64')));
+    const res = extractGdtfDescriptions(data, 'Z64.gdtf');
+    expect(res.errors).toEqual([]);
+    expect(res.files[0].descriptionXml).toBe(descriptionXml('Z64'));
+  });
+});
+
+describe('iterateGdtfDescriptions', () => {
+  it('yields descriptions one at a time, in archive order', () => {
+    const zip = zipSync({ 'A.gdtf': gdtf('A'), 'B.gdtf': gdtf('B'), 'broken.gdtf': strToU8('x') });
+    const it = iterateGdtfDescriptions(zip, 'pack.zip');
+    const first = it.next();
+    expect(first.value).toEqual({ kind: 'file', file: { fileName: 'pack.zip/A.gdtf', descriptionXml: descriptionXml('A') } });
+    expect([...it].map((i) => i.kind)).toEqual(['file', 'error']);
   });
 });
 

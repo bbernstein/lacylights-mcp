@@ -1,3 +1,4 @@
+import * as fsModule from 'fs';
 import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -130,6 +131,23 @@ describe('GdtfTools.importGdtfFixtures', () => {
       source: 'GDTF',
     });
     expect(out.truncated).toBeUndefined();
+  });
+
+  it('sends each batch before reading the remaining files', async () => {
+    const root = await writeGdtfs(GDTF_IMPORT_BATCH_SIZE + 5);
+    const readFile = jest.spyOn(fsModule.promises, 'readFile');
+    const readsAtCall: number[] = [];
+    client.importGdtfFixtures.mockImplementation(async (files) => {
+      readsAtCall.push(readFile.mock.calls.length);
+      return createdResult(files);
+    });
+    try {
+      await tools.importGdtfFixtures({ paths: [root] });
+    } finally {
+      readFile.mockRestore();
+    }
+    // The first batch goes out when file 26 is read, not after all 30.
+    expect(readsAtCall).toEqual([GDTF_IMPORT_BATCH_SIZE + 1, GDTF_IMPORT_BATCH_SIZE + 5]);
   });
 
   it('passes onExisting through', async () => {

@@ -236,6 +236,12 @@ mockFetch.mockResolvedValue({
   `internal/services/gdtf/archive.go`: ≤2000 entries per archive,
   description.xml ≤32 MB, nesting depth ≤2, `__MACOSX/` and `._*` skipped,
   nested names like `outer.zip/dir/Foo.gdtf`, per-file errors reported.
+- Extraction is a generator (`iterateGdtfFiles` / `iterateGdtfDescriptions`)
+  and the tool sends each batch as it fills, so memory stays bounded however
+  many files are given. Zip entries are read with a small central-directory
+  reader and streamed `Inflate`, counting actual output bytes: an entry that
+  passes its limit or doesn't match its header's size is rejected (never
+  trust fflate `unzipSync`'s header-sized buffer for limits).
 - Folder walks skip hidden entries and never follow symlinks out of the folder.
 - Implementation: `src/utils/gdtf-archive.ts` (extraction),
   `src/tools/gdtf-tools.ts` (batching and summary),

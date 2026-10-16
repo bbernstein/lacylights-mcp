@@ -6,7 +6,7 @@ import {
   GdtfImportStatus,
   isUnknownFieldError,
 } from '../services/graphql-client-simple';
-import { collectGdtfFiles } from '../utils/gdtf-archive';
+import { iterateGdtfFiles } from '../utils/gdtf-archive';
 
 /** Most files sent in one importGdtfFixtures request. */
 export const GDTF_IMPORT_BATCH_SIZE = 25;
@@ -63,6 +63,15 @@ export interface GdtfImportSummary {
 }
 
 /**
+ * Whether a file of `size` bytes must start a new batch after `count` files
+ * totalling `bytes`. A single file larger than `maxBytes` still gets a batch
+ * of its own.
+ */
+function startsNewBatch(count: number, bytes: number, size: number, maxFiles: number, maxBytes: number): boolean {
+  return count > 0 && (count >= maxFiles || bytes + size > maxBytes);
+}
+
+/**
  * Split files into request batches of at most `maxFiles` files and
  * `maxBytes` description bytes (a single larger file gets a batch of its own).
  */
@@ -76,7 +85,7 @@ export function batchGdtfFiles(
   let currentBytes = 0;
   for (const file of files) {
     const size = Buffer.byteLength(file.descriptionXml, 'utf8');
-    if (current.length > 0 && (current.length >= maxFiles || currentBytes + size > maxBytes)) {
+    if (startsNewBatch(current.length, currentBytes, size, maxFiles, maxBytes)) {
       batches.push(current);
       current = [];
       currentBytes = 0;
@@ -134,30 +143,30 @@ export class GdtfTools {
    */
   async importGdtfFixtures(args: ImportGdtfFixturesArgs): Promise<GdtfImportSummary> {
     const parsed = ImportGdtfFixturesSchema.parse(args);
-    const { files, errors } = await collectGdtfFiles(parsed.paths);
-
-    if (files.length === 0 && errors.length === 0) {
-      throw new Error('No .gdtf or .zip files found in the given paths');
-    }
+    const options = parsed.onExisting ? { onExisting: parsed.onExisting } : undefined;
 
     const counts = { created: 0, updated: 0, unchanged: 0, skipped: 0, failed: 0 };
-    const results: GdtfImportFileSummary[] = errors.map((e) => ({
-      fileName: e.fileName,
-      status: 'FAILED' as const,
-      error: e.error,
-    }));
-    counts.failed += errors.length;
+    const results: GdtfImportFileSummary[] = [];
+    let filesSent = 0;
+    let readErrors = 0;
 
-    const options = parsed.onExisting ? { onExisting: parsed.onExisting } : undefined;
-    for (const batch of batchGdtfFiles(files)) {
+    // Descriptions are imported as they are extracted, so at most one batch
+    // (plus the archive being read) is held in memory.
+    let batch: GdtfFileInput[] = [];
+    let batchBytes = 0;
+    const sendBatch = async () => {
+      if (batch.length === 0) return;
+      const files = batch;
+      batch = [];
+      batchBytes = 0;
       try {
-        const res = await this.graphqlClient.importGdtfFixtures(batch, options);
+        const res = await this.graphqlClient.importGdtfFixtures(files, options);
         counts.created += res.createdCount;
         counts.updated += res.updatedCount;
         counts.unchanged += res.unchangedCount;
         counts.skipped += res.skippedCount;
         counts.failed += res.failedCount;
-        results.push(...res.results.map(summarizeResult));
+        for (const r of res.results) results.push(summarizeResult(r));
       } catch (error) {
         if (isUnknownFieldError(error, 'importGdtfFixtures', 'Mutation')) {
           throw new Error(
@@ -166,15 +175,34 @@ export class GdtfTools {
           );
         }
         const message = `import request failed: ${errorMessage(error)}`;
-        counts.failed += batch.length;
-        results.push(
-          ...batch.map((f) => ({ fileName: f.fileName, status: 'FAILED' as const, error: message })),
-        );
+        counts.failed += files.length;
+        for (const f of files) results.push({ fileName: f.fileName, status: 'FAILED', error: message });
       }
+    };
+
+    for await (const item of iterateGdtfFiles(parsed.paths)) {
+      if (item.kind === 'error') {
+        readErrors++;
+        counts.failed++;
+        results.push({ fileName: item.error.fileName, status: 'FAILED', error: item.error.error });
+        continue;
+      }
+      const size = Buffer.byteLength(item.file.descriptionXml, 'utf8');
+      if (startsNewBatch(batch.length, batchBytes, size, GDTF_IMPORT_BATCH_SIZE, GDTF_IMPORT_BATCH_MAX_BYTES)) {
+        await sendBatch();
+      }
+      batch.push(item.file);
+      batchBytes += size;
+      filesSent++;
+    }
+    await sendBatch();
+
+    if (filesSent === 0 && readErrors === 0) {
+      throw new Error('No .gdtf or .zip files found in the given paths');
     }
 
     const output: GdtfImportSummary = {
-      summary: { filesSent: files.length, ...counts },
+      summary: { filesSent, ...counts },
       results,
     };
     if (results.length > MAX_LISTED_RESULTS) {
