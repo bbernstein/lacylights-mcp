@@ -155,6 +155,9 @@ export enum ChannelType {
   INDIGO = 'INDIGO',
   COLD_WHITE = 'COLD_WHITE',
   WARM_WHITE = 'WARM_WHITE',
+  COLOR_TEMPERATURE = 'COLOR_TEMPERATURE',
+  HUE = 'HUE',
+  SATURATION = 'SATURATION',
   PAN = 'PAN',
   TILT = 'TILT',
   ZOOM = 'ZOOM',
@@ -163,6 +166,7 @@ export enum ChannelType {
   GOBO = 'GOBO',
   COLOR_WHEEL = 'COLOR_WHEEL',
   EFFECT = 'EFFECT',
+  SPEED = 'SPEED',
   STROBE = 'STROBE',
   MACRO = 'MACRO',
   OTHER = 'OTHER'
