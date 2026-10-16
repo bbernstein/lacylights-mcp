@@ -380,6 +380,8 @@ export class FixtureTools {
               model: d.model,
               type: d.type,
               isBuiltIn: d.isBuiltIn,
+              // Undefined (omitted) on backends that predate fixture sources
+              source: d.source,
               channelTypes: d.channels.map((ch) => ch.type),
               modes: d.modes.length,
             }))

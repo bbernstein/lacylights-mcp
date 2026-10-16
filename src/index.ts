@@ -19,6 +19,7 @@ import { LookBoardTools } from "./tools/look-board-tools";
 import { UndoRedoTools } from "./tools/undo-redo-tools";
 import { GroupTools } from "./tools/group-tools";
 import { EosTools } from "./tools/eos-tools";
+import { GdtfTools } from "./tools/gdtf-tools";
 import {
   DataExportTools,
   DEFAULT_EXPORT_DIR_ENV,
@@ -42,6 +43,7 @@ class LacyLightsMCPServer {
   private undoRedoTools: UndoRedoTools;
   private groupTools: GroupTools;
   private eosTools: EosTools;
+  private gdtfTools: GdtfTools;
   private dataExportTools: DataExportTools;
 
   constructor() {
@@ -91,6 +93,7 @@ class LacyLightsMCPServer {
     this.undoRedoTools = new UndoRedoTools(this.graphqlClient);
     this.groupTools = new GroupTools(this.graphqlClient);
     this.eosTools = new EosTools(this.graphqlClient);
+    this.gdtfTools = new GdtfTools(this.graphqlClient);
     this.dataExportTools = new DataExportTools(this.graphqlClient);
 
     this.setupHandlers();
@@ -313,6 +316,37 @@ Output is deterministic: the same project produces byte-identical output across 
                 },
               },
               required: ["projectId"],
+            },
+          },
+          {
+            name: "import_gdtf_fixtures",
+            description: `Import GDTF (.gdtf) fixture types into the LacyLights fixture library from files on this computer (the MCP host).
+
+Each path may be a .gdtf file, a .zip of .gdtf files (nested zips up to 2 levels), or a folder searched recursively for .gdtf and .zip files (hidden folders and other files are ignored; symlinks leading out of the folder are not followed). Only each fixture's description.xml is sent to the backend, in batches of up to 25 files.
+
+Only import files the user supplies; this tool never downloads from GDTF Share.
+
+Returns:
+- summary: filesSent plus created / updated / unchanged / skipped / failed counts
+- results: per file status, manufacturer, model, mode count, definitionId, source, warnings and error (long lists are capped, failures first)
+
+Unreadable files (not a zip, no description.xml, larger than 32 MB, nested too deep) are reported as FAILED and do not stop the others. Imported definitions have source GDTF.`,
+            inputSchema: {
+              type: "object",
+              properties: {
+                paths: {
+                  type: "array",
+                  items: { type: "string" },
+                  minItems: 1,
+                  description: "Absolute paths to .gdtf files, .zip archives or folders on the MCP host.",
+                },
+                onExisting: {
+                  type: "string",
+                  enum: ["UPDATE", "SKIP"],
+                  description: "When a fixture type (same GDTF FixtureTypeID) was imported before and has changed: UPDATE rebuilds it in place keeping its ID (default), SKIP keeps the existing definition.",
+                },
+              },
+              required: ["paths"],
             },
           },
           // Data Export Tools (CSV / Excel)
@@ -3479,6 +3513,20 @@ Returns:
                   type: "text",
                   text: JSON.stringify(
                     await this.eosTools.exportEosAscii(args as any),
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+
+          case "import_gdtf_fixtures":
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify(
+                    await this.gdtfTools.importGdtfFixtures(args as any),
                     null,
                     2,
                   ),

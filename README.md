@@ -30,7 +30,8 @@ The system uses AI to understand artistic intent and translate it into precise D
 
 ### Fixture Management
 
-- **`get_fixture_inventory`** - Query available fixtures and their capabilities
+- **`get_fixture_inventory`** - Query available fixtures and their capabilities (definitions include `source`: BUILTIN, OFL, GDTF, EOS, USER or SYNTHESIZED, when the backend reports it)
+- **`import_gdtf_fixtures`** - Import GDTF fixture types from `.gdtf` files, `.zip` archives of them, or folders on the MCP host (see below)
 - **`analyze_fixture_capabilities`** - Deep analysis of fixture capabilities (color mixing, positioning, effects). Capability flags include `hasColorTemperature` (COLOR_TEMPERATURE channel), `hasHueSaturation` (both HUE and SATURATION, reported as "Hue/Saturation (HSI)" mixing) and `hasSpeed` (SPEED channel; positioning analysis reports it as `speedControl`)
 - **`create_fixture_instance`** - Add a new fixture to a project with manufacturer/model details
 - **`get_channel_map`** - View DMX channel usage map for a project
@@ -110,6 +111,12 @@ Look Boards provide a visual layout system for organizing and triggering looks w
 #### Look Board Playback
 - **`activate_look_from_board`** - Activate a look from a board (uses board's default fade time)
 - **`create_look_board_with_buttons`** - Create a complete look board with buttons in one command
+
+### GDTF Fixture Import
+
+- **`import_gdtf_fixtures({ paths, onExisting? })`** - Reads each path on the computer running the MCP server: a `.gdtf`, a `.zip` of `.gdtf` files (nested zips up to 2 levels), or a folder searched recursively (hidden folders and non-GDTF files ignored, symlinks leading out of the folder not followed). Only each fixture's `description.xml` is sent to the backend's `importGdtfFixtures` mutation, in batches of up to 25 files. `onExisting` is `UPDATE` (default) or `SKIP` for fixture types imported before. Returns created/updated/unchanged/skipped/failed counts and a per-file list (capped at 100, failures first).
+
+Limits match the backend: at most 2000 entries per archive, `description.xml` at most 32 MB, `__MACOSX/` and `._*` entries skipped. Unreadable files are reported as FAILED and never stop the others. Only import files you supply; the tool never downloads from GDTF Share.
 
 ### Data Export (CSV / Excel)
 

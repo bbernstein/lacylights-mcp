@@ -13,7 +13,8 @@ import {
   LookFixtureSummary,
   LookSortField,
   LookBoard,
-  LookBoardButton
+  LookBoardButton,
+  FixtureSource
 } from '../types/lighting';
 import { PaginatedResponse } from '../types/pagination';
 import { normalizePaginationParams } from '../utils/pagination';
@@ -139,10 +140,19 @@ function validateFingerprint(fingerprint: string | undefined | null): string | n
  * type, which is how older backends reject newly added Query fields.
  */
 export function isUnknownQueryFieldError(error: unknown, field: string): boolean {
+  return isUnknownFieldError(error, field, 'Query');
+}
+
+/**
+ * True when a GraphQL error says the server does not know `field` on
+ * `typeName` (e.g. "Mutation" or "FixtureDefinition"), which is how older
+ * backends reject newly added fields.
+ */
+export function isUnknownFieldError(error: unknown, field: string, typeName: string): boolean {
   if (!(error instanceof Error)) {
     return false;
   }
-  const needle = `Cannot query field "${field}" on type "Query"`;
+  const needle = `Cannot query field "${field}" on type "${typeName}"`;
   // For a GraphQLRequestError only trust the parsed GraphQL error messages, so a
   // non-GraphQL body (HTML error page, proxy text) can never trigger a fallback.
   const messages =
@@ -172,6 +182,11 @@ function requireQueryField<T>(data: Record<string, unknown> | null | undefined, 
 export class LacyLightsGraphQLClient {
   private endpoint: string;
   private deviceFingerprint: string | null;
+  /**
+   * Whether the backend knows FixtureDefinition.source. Assumed until the
+   * server rejects the field, then remembered for this client's lifetime.
+   */
+  private fixtureSourceSupported = true;
 
   constructor(endpoint: string = 'http://localhost:4000/graphql', deviceFingerprint?: string) {
     this.endpoint = endpoint;
@@ -552,15 +567,43 @@ export class LacyLightsGraphQLClient {
   }
 
 
+  /**
+   * List all fixture definitions, including where each came from (`source`,
+   * `sourceId`, `sourceVersion`). Backends older than the fixture-source
+   * change reject those fields; the request is then retried once without
+   * them and later calls on this client skip them (`source` stays undefined).
+   */
   async getFixtureDefinitions(): Promise<FixtureDefinition[]> {
-    const query = `
+    if (this.fixtureSourceSupported) {
+      try {
+        const data = await this.query(this.fixtureDefinitionsQuery(true));
+        return data.fixtureDefinitions;
+      } catch (error) {
+        if (!isUnknownFieldError(error, 'source', 'FixtureDefinition')) {
+          throw error;
+        }
+        this.fixtureSourceSupported = false;
+      }
+    }
+    const data = await this.query(this.fixtureDefinitionsQuery(false));
+    return data.fixtureDefinitions;
+  }
+
+  private fixtureDefinitionsQuery(withSource: boolean): string {
+    const sourceSelection = withSource
+      ? `
+          source
+          sourceId
+          sourceVersion`
+      : '';
+    return `
       query GetFixtureDefinitions {
         fixtureDefinitions {
           id
           manufacturer
           model
           type
-          isBuiltIn
+          isBuiltIn${sourceSelection}
           createdAt
           channels {
             id
@@ -580,9 +623,6 @@ export class LacyLightsGraphQLClient {
         }
       }
     `;
-
-    const data = await this.query(query);
-    return data.fixtureDefinitions;
   }
 
   /**
@@ -3536,6 +3576,54 @@ export class LacyLightsGraphQLClient {
   }
 
   // ============================================================
+  // GDTF Fixture Import
+  // ============================================================
+
+  /**
+   * Import GDTF fixture types. Each entry carries the description.xml of one
+   * .gdtf; the caller unzips (see src/utils/gdtf-archive.ts) and batches.
+   * The backend imports each file in its own transaction, so one failed file
+   * is reported in `results` and does not fail the request. Backends without
+   * GDTF support reject the field (see isUnknownFieldError with "Mutation").
+   */
+  async importGdtfFixtures(
+    files: GdtfFileInput[],
+    options?: { onExisting?: GdtfExistingPolicy },
+  ): Promise<GdtfImportResult> {
+    const mutation = `
+      mutation ImportGdtfFixtures($files: [GdtfFileInput!]!, $options: GdtfImportOptions) {
+        importGdtfFixtures(files: $files, options: $options) {
+          results {
+            fileName
+            status
+            definition {
+              id
+              manufacturer
+              model
+              source
+            }
+            manufacturer
+            model
+            modeCount
+            warnings
+            error
+          }
+          createdCount
+          updatedCount
+          unchangedCount
+          skippedCount
+          failedCount
+        }
+      }
+    `;
+    const data = await this.query(mutation, {
+      files,
+      options: options?.onExisting ? { onExisting: options.onExisting } : null,
+    });
+    return requireQueryField<GdtfImportResult>(data, 'importGdtfFixtures');
+  }
+
+  // ============================================================
   // Data Export (CSV / XLSX)
   // ============================================================
 
@@ -3665,6 +3753,48 @@ export interface EosExportResult {
   asciiContent: string;
   filenameSuffix: string;
   warnings: EosWarning[];
+}
+
+/** One GDTF description to import (GraphQL input GdtfFileInput). */
+export interface GdtfFileInput {
+  /** Original file name, e.g. Foo.gdtf or archive.zip/inner/Foo.gdtf. */
+  fileName: string;
+  /** Contents of the .gdtf's description.xml. */
+  descriptionXml: string;
+}
+
+/** What to do with a FixtureTypeID imported before (GraphQL enum GdtfExistingPolicy). */
+export type GdtfExistingPolicy = 'UPDATE' | 'SKIP';
+
+/** Outcome of one GDTF file (GraphQL enum GdtfImportStatus). */
+export type GdtfImportStatus = 'CREATED' | 'UPDATED' | 'UNCHANGED' | 'SKIPPED' | 'FAILED';
+
+/** Per-file result (GraphQL type GdtfImportFileResult). */
+export interface GdtfImportFileResult {
+  fileName: string;
+  status: GdtfImportStatus;
+  /** The created, updated or existing definition; null when FAILED. */
+  definition: {
+    id: string;
+    manufacturer: string;
+    model: string;
+    source: FixtureSource;
+  } | null;
+  manufacturer: string | null;
+  model: string | null;
+  modeCount: number | null;
+  warnings: string[];
+  error: string | null;
+}
+
+/** Result of one importGdtfFixtures call (GraphQL type GdtfImportResult). */
+export interface GdtfImportResult {
+  results: GdtfImportFileResult[];
+  createdCount: number;
+  updatedCount: number;
+  unchangedCount: number;
+  skippedCount: number;
+  failedCount: number;
 }
 
 /** File format for data-list exports (GraphQL enum DataExportFormat). */
