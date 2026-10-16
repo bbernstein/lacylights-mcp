@@ -1087,6 +1087,236 @@ describe('FixtureTools', () => {
       expect(result.analysisType).toBe('positioning');
       expect(result.fixtures).toHaveLength(1);
     });
+
+    describe('color temperature, hue/saturation and speed channels', () => {
+      const makeChannel = (id: string, name: string, type: ChannelType, offset: number) => ({
+        id, name, type, offset, minValue: 0, maxValue: 255, defaultValue: 0,
+      });
+
+      const mockFixtureWithChannels = (id: string, channels: any[]) => {
+        mockGraphQLClient.getProjects.mockResolvedValue([{
+          ...mockProject,
+          fixtures: [{
+            ...mockProject.fixtures[0],
+            id,
+            name: `Fixture ${id}`,
+            channelCount: channels.length,
+            channels,
+          }],
+        }] as any);
+      };
+
+      const tunableWhiteChannels = [
+        makeChannel('ch1', 'Dimmer', ChannelType.INTENSITY, 0),
+        makeChannel('ch2', 'CCT', ChannelType.COLOR_TEMPERATURE, 1),
+      ];
+
+      const hsiChannels = [
+        makeChannel('ch1', 'Dimmer', ChannelType.INTENSITY, 0),
+        makeChannel('ch2', 'Hue', ChannelType.HUE, 1),
+        makeChannel('ch3', 'Saturation', ChannelType.SATURATION, 2),
+      ];
+
+      const movingSpeedChannels = [
+        makeChannel('ch1', 'Pan', ChannelType.PAN, 0),
+        makeChannel('ch2', 'Tilt', ChannelType.TILT, 1),
+        makeChannel('ch3', 'Pan/Tilt Speed', ChannelType.SPEED, 2),
+        makeChannel('ch4', 'Dimmer', ChannelType.INTENSITY, 3),
+      ];
+
+      it('should report color temperature as a color capability (tunable white)', async () => {
+        mockFixtureWithChannels('fixture-cct', tunableWhiteChannels);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-cct',
+          analysisType: 'color_mixing',
+        });
+
+        const color = result.fixtures[0] as any;
+        expect(color.availableColors).toEqual(['COLOR_TEMPERATURE']);
+        expect(color.colorTemperatureControl).toBe(true);
+        expect(color.whiteBalance).toBe('Variable Color Temperature (CCT)');
+        expect(color.canMixColors).toBe(false);
+        expect(color.colorMixingType).toBe('None');
+        expect(color.specialColors).toContain('Color Temperature');
+        expect(color.recommendedUse).toContain('Tunable white point (variable color temperature / CCT)');
+        expect((result.summary as any).colorTemperatureFixtures).toBe(1);
+      });
+
+      it('should describe a tunable white fixture in general analysis', async () => {
+        mockFixtureWithChannels('fixture-cct', tunableWhiteChannels);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-cct',
+          analysisType: 'general',
+        });
+
+        const general = result.fixtures[0] as any;
+        expect(general.primaryFunction).toBe('Tunable white light');
+        expect(general.suitableFor).toEqual(
+          expect.arrayContaining(['Color temperature control', 'White balance tuning'])
+        );
+        expect(general.strengths).toContain('Single-channel color temperature (CCT) control');
+        expect(general.limitations).not.toContain('No color mixing capability');
+      });
+
+      it('should detect hue/saturation (HSI) color mixing', async () => {
+        mockFixtureWithChannels('fixture-hsi', hsiChannels);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-hsi',
+          analysisType: 'color_mixing',
+        });
+
+        const color = result.fixtures[0] as any;
+        expect(color.colorMixingType).toBe('Hue/Saturation (HSI)');
+        expect(color.canMixColors).toBe(true);
+        expect(color.availableColors).toEqual(['HUE', 'SATURATION']);
+        expect(color.specialColors).toContain('Hue/Saturation');
+        expect(color.colorTemperatureControl).toBe(false);
+        expect(color.whiteBalance).toBe('RGB Mixed');
+        expect(color.recommendedUse).toContain('Hue/saturation color selection (HSI) for smooth color fades');
+        expect((result.summary as any).hueSaturationCapable).toBe(1);
+        expect((result.summary as any).rgbCapable).toBe(0);
+      });
+
+      it('should require both HUE and SATURATION for hue/saturation capability', async () => {
+        mockFixtureWithChannels('fixture-hue', [makeChannel('ch1', 'Hue', ChannelType.HUE, 0)]);
+
+        const result = await fixtureTools.getFixtureInventory({ includeDefinitions: false });
+        expect(result.fixtures[0].capabilities.hasHueSaturation).toBe(false);
+        expect(result.fixtures[0].capabilities.hasColor).toBe(true);
+
+        mockFixtureWithChannels('fixture-sat', [makeChannel('ch1', 'Sat', ChannelType.SATURATION, 0)]);
+        const result2 = await fixtureTools.getFixtureInventory({ includeDefinitions: false });
+        expect(result2.fixtures[0].capabilities.hasHueSaturation).toBe(false);
+        expect(result2.fixtures[0].capabilities.hasColor).toBe(true);
+      });
+
+      it('should not report HSI mixing for intensity + saturation without hue', async () => {
+        mockFixtureWithChannels('fixture-int-sat', [
+          makeChannel('ch1', 'Dimmer', ChannelType.INTENSITY, 0),
+          makeChannel('ch2', 'Sat', ChannelType.SATURATION, 1),
+        ]);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-int-sat',
+          analysisType: 'color_mixing',
+        });
+
+        const color = result.fixtures[0] as any;
+        expect(color.colorMixingType).toBe('None');
+        expect(color.canMixColors).toBe(false);
+        expect(color.specialColors).not.toContain('Hue/Saturation');
+        expect(color.recommendedUse).not.toContain('Hue/saturation color selection (HSI) for smooth color fades');
+        expect((result.summary as any).hueSaturationCapable).toBe(0);
+      });
+
+      it('should classify color wheel + saturation as a color wheel fixture', async () => {
+        mockFixtureWithChannels('fixture-wheel-sat', [
+          makeChannel('ch1', 'Dimmer', ChannelType.INTENSITY, 0),
+          makeChannel('ch2', 'Color Wheel', ChannelType.COLOR_WHEEL, 1),
+          makeChannel('ch3', 'Sat', ChannelType.SATURATION, 2),
+        ]);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-wheel-sat',
+          analysisType: 'color_mixing',
+        });
+
+        const color = result.fixtures[0] as any;
+        expect(color.colorMixingType).toBe('Color Wheel');
+        expect(color.canMixColors).toBe(false);
+        expect((result.summary as any).colorWheelFixtures).toBe(1);
+        expect((result.summary as any).hueSaturationCapable).toBe(0);
+      });
+
+      it('should describe an HSI fixture in general analysis', async () => {
+        mockFixtureWithChannels('fixture-hsi', hsiChannels);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-hsi',
+          analysisType: 'general',
+        });
+
+        const general = result.fixtures[0] as any;
+        expect(general.primaryFunction).toBe('HSI color wash light');
+        expect(general.suitableFor).toEqual(
+          expect.arrayContaining(['Color washes', 'Smooth color transitions'])
+        );
+        expect(general.strengths).toContain('Intuitive hue/saturation color control');
+      });
+
+      it('should report speed control without treating it as an effect or color', async () => {
+        mockFixtureWithChannels('fixture-speed', movingSpeedChannels);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-speed',
+          analysisType: 'effects',
+        });
+
+        const effects = result.fixtures[0] as any;
+        expect(effects.speedControl).toBe(true);
+        expect(effects.customEffects).toBe(false);
+        expect(effects.recommendedEffects).toContain(
+          'Adjustable movement/effect speed for slow, smooth transitions or fast chases'
+        );
+      });
+
+      it('should expose new capability flags in fixture inventory', async () => {
+        mockFixtureWithChannels('fixture-speed', movingSpeedChannels);
+
+        const result = await fixtureTools.getFixtureInventory({ includeDefinitions: false });
+        const caps = result.fixtures[0].capabilities;
+        expect(caps.hasSpeed).toBe(true);
+        expect(caps.hasEffects).toBe(false);
+        expect(caps.hasColor).toBe(false);
+        expect(caps.hasColorTemperature).toBe(false);
+        expect(caps.hasHueSaturation).toBe(false);
+        expect(caps.hasMovement).toBe(true);
+      });
+
+      it('should list speed as a strength only with movement or effects', async () => {
+        mockFixtureWithChannels('fixture-speed', movingSpeedChannels);
+        const moving = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-speed',
+          analysisType: 'general',
+        });
+        expect((moving.fixtures[0] as any).strengths).toContain('Adjustable movement/effect speed');
+
+        mockFixtureWithChannels('fixture-speed-only', [
+          makeChannel('ch1', 'Dimmer', ChannelType.INTENSITY, 0),
+          makeChannel('ch2', 'Speed', ChannelType.SPEED, 1),
+        ]);
+        const fixed = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-speed-only',
+          analysisType: 'general',
+        });
+        expect((fixed.fixtures[0] as any).strengths).not.toContain('Adjustable movement/effect speed');
+        expect((fixed.fixtures[0] as any).limitations).toContain('No color mixing capability');
+      });
+
+      it('should prefer RGB mixing type and dedicated white over HSI/CCT when both present', async () => {
+        mockFixtureWithChannels('fixture-rgbw-cct', [
+          makeChannel('ch1', 'Red', ChannelType.RED, 0),
+          makeChannel('ch2', 'Green', ChannelType.GREEN, 1),
+          makeChannel('ch3', 'Blue', ChannelType.BLUE, 2),
+          makeChannel('ch4', 'White', ChannelType.WHITE, 3),
+          makeChannel('ch5', 'CCT', ChannelType.COLOR_TEMPERATURE, 4),
+          makeChannel('ch6', 'Hue', ChannelType.HUE, 5),
+        ]);
+
+        const result = await fixtureTools.analyzeFixtureCapabilities({
+          fixtureId: 'fixture-rgbw-cct',
+          analysisType: 'color_mixing',
+        });
+
+        const color = result.fixtures[0] as any;
+        expect(color.colorMixingType).toBe('RGB (Additive)');
+        expect(color.whiteBalance).toBe('Dedicated White Channel');
+        expect(color.colorTemperatureControl).toBe(true);
+      });
+    });
   });
 
   describe('bulkUpdateFixtures', () => {

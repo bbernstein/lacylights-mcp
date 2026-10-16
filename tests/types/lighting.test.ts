@@ -42,9 +42,9 @@ describe('Lighting Types', () => {
       expect(ChannelType.TILT).toBe('TILT');
     });
 
-    it('should have 25 channel types', () => {
+    it('should have 29 channel types', () => {
       const types = Object.values(ChannelType);
-      expect(types).toHaveLength(25);
+      expect(types).toHaveLength(29);
     });
 
     it('should include all CMY color channels', () => {
@@ -56,6 +56,24 @@ describe('Lighting Types', () => {
     it('should include extended gamut channels', () => {
       expect(ChannelType.LIME).toBe('LIME');
       expect(ChannelType.INDIGO).toBe('INDIGO');
+    });
+
+    it('should include color temperature and hue/saturation channels', () => {
+      expect(ChannelType.COLOR_TEMPERATURE).toBe('COLOR_TEMPERATURE');
+      expect(ChannelType.HUE).toBe('HUE');
+      expect(ChannelType.SATURATION).toBe('SATURATION');
+    });
+
+    it('should include speed channel', () => {
+      expect(ChannelType.SPEED).toBe('SPEED');
+    });
+
+    it('should order channel types to match the GraphQL schema', () => {
+      const types = Object.values(ChannelType);
+      expect(types.indexOf(ChannelType.COLOR_TEMPERATURE)).toBe(types.indexOf(ChannelType.WARM_WHITE) + 1);
+      expect(types.indexOf(ChannelType.HUE)).toBe(types.indexOf(ChannelType.COLOR_TEMPERATURE) + 1);
+      expect(types.indexOf(ChannelType.SATURATION)).toBe(types.indexOf(ChannelType.HUE) + 1);
+      expect(types.indexOf(ChannelType.SPEED)).toBe(types.indexOf(ChannelType.EFFECT) + 1);
     });
 
     it('should include dual white temperature channels', () => {

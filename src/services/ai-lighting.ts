@@ -244,6 +244,8 @@ IMPORTANT: Include values for ALL ${limitedFixtures.length} fixtures above.
 `;
     }
 
+    prompt += this.buildChannelTypeNotes(limitedFixtures.map((f) => f.channels));
+
     prompt += `
 Return JSON:
 {
@@ -262,6 +264,50 @@ For each fixture, provide channels as an array of {offset, value} objects:
 `;
 
     return prompt;
+  }
+
+  /**
+   * Builds short guidance for channel types whose meaning is not obvious from
+   * the name alone. Only emitted when a listed fixture actually has one of these
+   * channels, to keep the prompt small for typical RGB/dimmer rigs.
+   *
+   * - COLOR_TEMPERATURE / HUE / SATURATION are color controls (not intensity).
+   * - SPEED is a timing control for movement/effects; it is neither brightness
+   *   nor an effect selector, so the model is told to leave it alone unless the
+   *   look explicitly calls for motion or effect timing.
+   *
+   * @param channelLists Comma-separated channel type lists, one per fixture
+   */
+  private buildChannelTypeNotes(channelLists: string[]): string {
+    const present = new Set(
+      channelLists.flatMap((list) => list.split(",").map((t) => t.trim())),
+    );
+    const notes: string[] = [];
+    if (present.has("COLOR_TEMPERATURE")) {
+      notes.push(
+        "- COLOR_TEMPERATURE: white point / CCT (color, not brightness); lower values are typically warmer, higher cooler",
+      );
+    }
+    if (present.has("HUE")) {
+      notes.push(
+        "- HUE: selects the color around the color wheel (color, not brightness)",
+      );
+    }
+    if (present.has("SATURATION")) {
+      notes.push(
+        "- SATURATION: color saturation (color, not brightness); typically 0 = unsaturated/white, 255 = fully saturated",
+      );
+    }
+    if (present.has("SPEED")) {
+      notes.push(
+        "- SPEED: movement/effect speed, NOT intensity or an effect selector; set it only when the look needs specific motion or effect timing, otherwise leave it out so the fixture keeps its default speed",
+      );
+    }
+    if (notes.length === 0) return "";
+    return `
+Channel type notes:
+${notes.join("\n")}
+`;
   }
 
   async optimizeLookForFixtures(

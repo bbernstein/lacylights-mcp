@@ -196,6 +196,7 @@ mockFetch.mockResolvedValue({
 ### Fixture Tools
 - `list_fixtures`, `get_fixture`, `create_fixture_instance`
 - `get_fixture_inventory`, `analyze_fixture_capabilities`
+  - Capability flags: `hasColorTemperature`, `hasHueSaturation` (needs both HUE and SATURATION; a lone one still sets `hasColor`), `hasSpeed` / `speedControl`
 - `get_channel_map`, `suggest_channel_assignment`
 
 ### Look Tools

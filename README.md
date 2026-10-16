@@ -31,7 +31,7 @@ The system uses AI to understand artistic intent and translate it into precise D
 ### Fixture Management
 
 - **`get_fixture_inventory`** - Query available fixtures and their capabilities
-- **`analyze_fixture_capabilities`** - Deep analysis of fixture capabilities (color mixing, positioning, effects)
+- **`analyze_fixture_capabilities`** - Deep analysis of fixture capabilities (color mixing, positioning, effects). Capability flags include `hasColorTemperature` (COLOR_TEMPERATURE channel), `hasHueSaturation` (both HUE and SATURATION, reported as "Hue/Saturation (HSI)" mixing) and `hasSpeed` (SPEED channel; positioning analysis reports it as `speedControl`)
 - **`create_fixture_instance`** - Add a new fixture to a project with manufacturer/model details
 - **`get_channel_map`** - View DMX channel usage map for a project
 - **`suggest_channel_assignment`** - Get optimal channel assignments for multiple fixtures
