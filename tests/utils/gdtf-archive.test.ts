@@ -375,6 +375,18 @@ describe('collectGdtfFiles', () => {
     expect(res.files.map((f) => f.fileName)).toEqual(['lib/Link.gdtf']);
   });
 
+  it('rejects files without a zip signature before reading them', async () => {
+    const file = await write('lib/Text.gdtf', strToU8('hello, not a zip'));
+    const readFile = jest.spyOn(fs, 'readFile');
+    try {
+      const res = await collectGdtfFiles([file]);
+      expect(res.errors).toEqual([{ fileName: 'Text.gdtf', error: 'not a zip archive (no "PK" signature)' }]);
+      expect(readFile).not.toHaveBeenCalled();
+    } finally {
+      readFile.mockRestore();
+    }
+  });
+
   it('reads the same file only once', async () => {
     const file = await write('lib/Once.gdtf', gdtf('Once'));
     const res = await collectGdtfFiles([file, path.join(tmp, 'lib'), file]);

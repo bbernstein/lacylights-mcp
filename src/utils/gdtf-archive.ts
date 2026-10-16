@@ -191,6 +191,7 @@ function readEntryBytes(data: Uint8Array, entry: ZipEntry, limit: number): Uint8
     const chunks: Uint8Array[] = [];
     let total = 0;
     let done = false;
+    // Throwing from the callback aborts push(); the inflater is then discarded.
     const inflater = new Inflate((chunk, final) => {
       total += chunk.length;
       if (total > limit) throw new SizeLimitExceeded();
@@ -417,6 +418,18 @@ async function walkFolder(
   }
 }
 
+/** Whether a file starts with "PK", so large non-zip files are never read in full. */
+async function startsWithZipSignature(file: string): Promise<boolean> {
+  const handle = await fs.open(file, 'r');
+  try {
+    const head = Buffer.alloc(2);
+    const { bytesRead } = await handle.read(head, 0, 2, 0);
+    return bytesRead === 2 && head[0] === 0x50 && head[1] === 0x4b;
+  } finally {
+    await handle.close();
+  }
+}
+
 /**
  * Read GDTF descriptions from paths on this host, one at a time. Each path
  * may be a .gdtf, a .zip of them, or a folder searched recursively for both
@@ -466,7 +479,12 @@ export async function* iterateGdtfFiles(paths: string[]): AsyncGenerator<GdtfExt
         yield failure(candidate.label, `file is larger than ${MAX_INPUT_FILE_BYTES / MB} MB`);
         continue;
       }
-      data = new Uint8Array(await fs.readFile(candidate.realPath));
+      if (!(await startsWithZipSignature(candidate.realPath))) {
+        yield failure(candidate.label, 'not a zip archive (no "PK" signature)');
+        continue;
+      }
+      // Buffer is a Uint8Array: no copy.
+      data = await fs.readFile(candidate.realPath);
     } catch (error) {
       yield failure(candidate.label, `could not read file: ${message(error)}`);
       continue;
