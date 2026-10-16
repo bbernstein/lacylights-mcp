@@ -168,6 +168,8 @@ export class GdtfTools {
         counts.failed += res.failedCount;
         for (const r of res.results) results.push(summarizeResult(r));
       } catch (error) {
+        // An unsupported backend fails the first request, so no earlier
+        // results are lost by throwing here.
         if (isUnknownFieldError(error, 'importGdtfFixtures', 'Mutation')) {
           throw new Error(
             'This LacyLights server does not support GDTF import (the "importGdtfFixtures" mutation is missing). ' +

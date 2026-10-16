@@ -259,6 +259,23 @@ describe('ZIP64 archives', () => {
   });
 });
 
+describe('entry names', () => {
+  it('reads names without the UTF-8 flag as Latin-1', () => {
+    // fflate sets the UTF-8 flag only for non-ASCII names; clear it and use a
+    // Latin-1 byte (0xE9, "é") in the stored name.
+    const zip = zipSync({ 'Caf_.gdtf': gdtf('Cafe') });
+    const view = new DataView(zip.buffer);
+    for (let o = 0; o + 46 <= zip.length; o++) {
+      if (view.getUint32(o, true) === 0x02014b50) {
+        view.setUint16(o + 8, view.getUint16(o + 8, true) & ~0x800, true);
+        zip[o + 46 + 3] = 0xe9;
+      }
+    }
+    const res = extractGdtfDescriptions(zip, 'pack.zip');
+    expect(res.files.map((f) => f.fileName)).toEqual(['pack.zip/Café.gdtf']);
+  });
+});
+
 describe('iterateGdtfDescriptions', () => {
   it('yields descriptions one at a time, in archive order', () => {
     const zip = zipSync({ 'A.gdtf': gdtf('A'), 'B.gdtf': gdtf('B'), 'broken.gdtf': strToU8('x') });

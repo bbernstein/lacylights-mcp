@@ -237,8 +237,9 @@ mockFetch.mockResolvedValue({
   description.xml ≤32 MB, nesting depth ≤2, `__MACOSX/` and `._*` skipped,
   nested names like `outer.zip/dir/Foo.gdtf`, per-file errors reported.
 - Extraction is a generator (`iterateGdtfFiles` / `iterateGdtfDescriptions`)
-  and the tool sends each batch as it fills, so memory stays bounded however
-  many files are given. Zip entries are read with a small central-directory
+  and the tool sends each batch as it fills, so memory does not grow with the
+  number of files: at most one input file (≤512 MB), one nested archive per
+  level (≤512 MB each) and one batch (≤64 MB) are held at a time. Zip entries are read with a small central-directory
   reader and streamed `Inflate`, counting actual output bytes: an entry that
   passes its limit or doesn't match its header's size is rejected (never
   trust fflate `unzipSync`'s header-sized buffer for limits).
