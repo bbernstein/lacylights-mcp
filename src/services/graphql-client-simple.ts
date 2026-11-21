@@ -2599,9 +2599,14 @@ export class LacyLightsGraphQLClient {
       }
     `;
 
-    const info = await this.query(infoQuery);
-    const setting = await this.getSetting('fade_update_rate_hz');
+    // The two lookups are independent, so run them concurrently.
+    const [info, setting] = await Promise.all([
+      this.query(infoQuery),
+      this.getSetting('fade_update_rate_hz'),
+    ]);
     return {
+      // rateHz is the live engine value; isDefault only reflects whether a saved
+      // setting exists, so the two can differ if the engine rate changed another way.
       rateHz: info.systemInfo.fadeUpdateRateHz,
       isDefault: setting === null,
     };

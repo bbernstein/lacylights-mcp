@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
 import { LookBoardButton } from '../types/lighting';
+import { buildBulkDeleteResult } from '../utils/bulk-delete';
 
 // ============================================================================
 // Look Board Schemas
@@ -423,26 +424,7 @@ export class LookBoardTools {
     try {
       const result = await this.graphqlClient.bulkDeleteLookBoards(lookBoardIds);
 
-      // Go returns only the IDs it deleted; anything else was not deleted.
-      const deleted = new Set(result.deletedIds);
-      const notDeletedIds = lookBoardIds.filter(id => !deleted.has(id));
-
-      // Note: 'success' is true if at least one deletion succeeded, even if some were not deleted.
-      // Partial successes are possible; see 'deletedIds' and 'notDeletedIds' for details.
-      return {
-        success: result.deletedCount > 0,
-        deletedCount: result.deletedCount,
-        deletedIds: result.deletedIds,
-        notDeletedIds,
-        summary: {
-          totalRequested: lookBoardIds.length,
-          deletedCount: result.deletedCount,
-          notDeletedCount: notDeletedIds.length,
-        },
-        message: notDeletedIds.length === 0
-          ? `Successfully deleted ${result.deletedCount} look boards`
-          : `Deleted ${result.deletedCount} look boards, ${notDeletedIds.length} not deleted`,
-      };
+      return buildBulkDeleteResult(lookBoardIds, result, 'look boards');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to bulk delete look boards: ${message}`);
@@ -647,26 +629,7 @@ export class LookBoardTools {
     try {
       const result = await this.graphqlClient.bulkDeleteLookBoardButtons(buttonIds);
 
-      // Go returns only the IDs it deleted; anything else was not deleted.
-      const deleted = new Set(result.deletedIds);
-      const notDeletedIds = buttonIds.filter(id => !deleted.has(id));
-
-      // Note: 'success' is true if at least one deletion succeeded, even if some were not deleted.
-      // Partial successes are possible; see 'deletedIds' and 'notDeletedIds' for details.
-      return {
-        success: result.deletedCount > 0,
-        deletedCount: result.deletedCount,
-        deletedIds: result.deletedIds,
-        notDeletedIds,
-        summary: {
-          totalRequested: buttonIds.length,
-          deletedCount: result.deletedCount,
-          notDeletedCount: notDeletedIds.length,
-        },
-        message: notDeletedIds.length === 0
-          ? `Successfully deleted ${result.deletedCount} buttons`
-          : `Deleted ${result.deletedCount} buttons, ${notDeletedIds.length} not deleted`,
-      };
+      return buildBulkDeleteResult(buttonIds, result, 'buttons');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to bulk delete buttons: ${message}`);

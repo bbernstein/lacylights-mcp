@@ -3,6 +3,7 @@ import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
 import { FixtureDefinition, FixtureInstance, Look, FixtureValue, FixtureType } from "../types/lighting";
 import { logger } from "../utils/logger";
 import { normalizePaginationParams } from "../utils/pagination";
+import { buildBulkDeleteResult } from '../utils/bulk-delete';
 
 /**
  * All channel types that are considered color channels.
@@ -1824,31 +1825,14 @@ export class FixtureTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteFixtures(fixtureIds);
 
-      // Go returns only the IDs it deleted; anything else was not deleted.
-      const deleted = new Set(result.deletedIds);
-      const notDeletedIds = fixtureIds.filter(id => !deleted.has(id));
+      const output = buildBulkDeleteResult(fixtureIds, result, 'fixtures');
 
       logger.info('Bulk delete completed', {
-        deletedCount: result.deletedCount,
-        notDeletedCount: notDeletedIds.length
+        deletedCount: output.deletedCount,
+        notDeletedCount: output.summary.notDeletedCount
       });
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some were not deleted.
-      // Partial successes are possible; see 'deletedIds' and 'notDeletedIds' for details.
-      return {
-        success: result.deletedCount > 0,
-        deletedCount: result.deletedCount,
-        deletedIds: result.deletedIds,
-        notDeletedIds,
-        summary: {
-          totalRequested: fixtureIds.length,
-          deletedCount: result.deletedCount,
-          notDeletedCount: notDeletedIds.length,
-        },
-        message: notDeletedIds.length === 0
-          ? `Successfully deleted ${result.deletedCount} fixtures`
-          : `Deleted ${result.deletedCount} fixtures, ${notDeletedIds.length} not deleted`,
-      };
+      return output;
     } catch (error) {
       logger.error('Failed to bulk delete fixtures', {
         error: error instanceof Error ? error.message : String(error),
