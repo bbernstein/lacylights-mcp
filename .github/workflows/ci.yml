@@ -13,7 +13,7 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
+        node-version: [26.x]
 
     steps:
       - name: Checkout code
@@ -38,12 +38,12 @@ jobs:
         run: npm test
 
       - name: Run tests with coverage
-        if: matrix.node-version == '24.x'
+        if: matrix.node-version == '26.x'
         run: npm run test:coverage
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v7
-        if: matrix.node-version == '24.x'
+        if: matrix.node-version == '26.x'
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
@@ -60,7 +60,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24.x'
+          node-version: '26.x'
           cache: 'npm'
 
       - name: Install dependencies
@@ -91,7 +91,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24.x'
+          node-version: '26.x'
           cache: 'npm'
 
       - name: Install dependencies
