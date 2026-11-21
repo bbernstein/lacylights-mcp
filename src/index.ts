@@ -2612,12 +2612,12 @@ Typical values:
 
 The fade update rate controls how frequently the fade engine updates DMX channel values during look transitions.
 
-Valid range: 10-120 Hz
+Valid range: 1-240 Hz
 
 Guidelines:
-- 10-30Hz: Lower CPU usage, adequate for simple fades
+- 1-30Hz: Lower CPU usage, adequate for simple fades
 - 30-60Hz: Good balance of smoothness and efficiency
-- 60-120Hz: Maximum smoothness for professional applications
+- 60-240Hz: Maximum smoothness for professional applications
 
 Note: Changes take effect immediately for new look transitions.`,
             inputSchema: {
@@ -2625,9 +2625,9 @@ Note: Changes take effect immediately for new look transitions.`,
               properties: {
                 rateHz: {
                   type: "number",
-                  description: "Update rate in Hz (10-120)",
-                  minimum: 10,
-                  maximum: 120,
+                  description: "Update rate in Hz (1-240)",
+                  minimum: 1,
+                  maximum: 240,
                 },
               },
               required: ["rateHz"],

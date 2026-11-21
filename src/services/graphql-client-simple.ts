@@ -2569,23 +2569,42 @@ export class LacyLightsGraphQLClient {
   }
 
   /**
-   * Set a setting value by key
-   * @param key Setting key (e.g., "fade_update_rate")
-   * @param value Setting value (e.g., "60")
-   * @returns Updated setting value
+   * Set the fade engine update rate (Hz). The backend validates the range
+   * (1-240) and applies it to the live engine as well as persisting it.
+   * @param rateHz Update rate in Hz
+   * @returns true on success; backend range errors are thrown
    */
-  async setSetting(key: string, value: string): Promise<string> {
+  async updateFadeUpdateRate(rateHz: number): Promise<boolean> {
     const mutation = `
-      mutation SetSetting($key: String!, $value: String!) {
-        setSetting(key: $key, value: $value) {
-          key
-          value
+      mutation UpdateFadeUpdateRate($rateHz: Int!) {
+        updateFadeUpdateRate(rateHz: $rateHz)
+      }
+    `;
+
+    const data = await this.query(mutation, { rateHz });
+    return data.updateFadeUpdateRate;
+  }
+
+  /**
+   * Get the fade engine update rate. The rate is the live engine value from
+   * systemInfo; isDefault is true when the fade_update_rate_hz setting has
+   * never been saved.
+   */
+  async getFadeUpdateRate(): Promise<{ rateHz: number; isDefault: boolean }> {
+    const infoQuery = `
+      query GetFadeUpdateRate {
+        systemInfo {
+          fadeUpdateRateHz
         }
       }
     `;
 
-    const data = await this.query(mutation, { key, value });
-    return data.setSetting.value;
+    const info = await this.query(infoQuery);
+    const setting = await this.getSetting('fade_update_rate_hz');
+    return {
+      rateHz: info.systemInfo.fadeUpdateRateHz,
+      isDefault: setting === null,
+    };
   }
 
   /**
