@@ -2624,7 +2624,7 @@ Note: Changes take effect immediately for new look transitions.`,
               type: "object",
               properties: {
                 rateHz: {
-                  type: "number",
+                  type: "integer",
                   description: "Update rate in Hz. The backend enforces the valid range of 1-240 and returns an error otherwise.",
                 },
               },

@@ -34,6 +34,12 @@ describe('buildBulkDeleteResult', () => {
     expect(r.summary.notDeletedCount).toBe(2);
   });
 
+  it('does not flag a duplicated requested ID that the backend deleted', () => {
+    const r = buildBulkDeleteResult(['a', 'a'], { deletedCount: 1, deletedIds: ['a'] }, 'looks');
+    expect(r.notDeletedIds).toEqual([]);
+    expect(r.summary).toEqual({ totalRequested: 2, deletedCount: 1, notDeletedCount: 0 });
+  });
+
   it('ignores IDs returned by the backend that were not requested', () => {
     const r = buildBulkDeleteResult(['a', 'b'], { deletedCount: 2, deletedIds: ['a', 'zzz'] }, 'projects');
     expect(r.deletedIds).toEqual(['a', 'zzz']);

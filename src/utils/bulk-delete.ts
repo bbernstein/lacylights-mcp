@@ -16,8 +16,11 @@ export interface BulkDeleteBackendResult {
  *
  * Semantics:
  * - `notDeletedIds` preserves request order.
- * - Duplicate requested IDs are kept as-is (one entry per occurrence), so
- *   `summary.totalRequested` always equals `requestedIds.length`.
+ * - Duplicate requested IDs are not de-duplicated: `summary.totalRequested` is
+ *   `requestedIds.length`. An ID is "not deleted" only if it is absent from `deletedIds`,
+ *   so a duplicated ID that was deleted is never flagged (all its occurrences count as
+ *   deleted), while a duplicated ID that was not deleted appears once per occurrence.
+ *   `deletedCount` is the backend's count, so totals may not sum when duplicates are sent.
  * - IDs the backend returns that were never requested are ignored for `notDeletedIds`.
  * - `success` is true if at least one deletion succeeded (partial success is possible).
  *

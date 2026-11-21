@@ -2551,7 +2551,7 @@ export class LacyLightsGraphQLClient {
 
   /**
    * Get a setting value by key
-   * @param key Setting key (e.g., "fade_update_rate")
+   * @param key Setting key (e.g., "fade_update_rate_hz")
    * @returns Setting value or null if not found
    */
   async getSetting(key: string): Promise<string | null> {
@@ -2603,14 +2603,17 @@ export class LacyLightsGraphQLClient {
     const [info, setting] = await Promise.all([
       this.query(infoQuery),
       // isDefault is informational: if the setting lookup fails, still report the live
-      // rate and conservatively say it is not the default rather than failing the tool.
-      this.getSetting('fade_update_rate_hz').catch(() => 'unknown' as string | null),
+      // rate and conservatively treat it as "not default" rather than failing the tool.
+      this.getSetting('fade_update_rate_hz').then(
+        (value): { value: string | null; failed: boolean } => ({ value, failed: false }),
+        (): { value: string | null; failed: boolean } => ({ value: null, failed: true })
+      ),
     ]);
     return {
       // rateHz is the live engine value; isDefault only reflects whether a saved
       // setting exists, so the two can differ if the engine rate changed another way.
       rateHz: info.systemInfo.fadeUpdateRateHz,
-      isDefault: setting === null,
+      isDefault: !setting.failed && setting.value === null,
     };
   }
 
