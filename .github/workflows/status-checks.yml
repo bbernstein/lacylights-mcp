@@ -62,16 +62,28 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26.x'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=moderate
+
   # Combine all checks into a single status check
   all-checks:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [lint, type-check, test, test-coverage]
+    needs: [lint, type-check, test, test-coverage, security-audit]
     if: always()
     steps:
       - name: Check all jobs
         run: |
-          if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.type-check.result }}" == "failure" || "${{ needs.test.result }}" == "failure" || "${{ needs.test-coverage.result }}" == "failure" ]]; then
+          if [[ "${{ needs.lint.result }}" == "failure" || "${{ needs.type-check.result }}" == "failure" || "${{ needs.test.result }}" == "failure" || "${{ needs.test-coverage.result }}" == "failure" || "${{ needs.security-audit.result }}" == "failure" ]]; then
             echo "One or more checks failed"
             exit 1
           else
