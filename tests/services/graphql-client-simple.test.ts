@@ -2024,6 +2024,17 @@ describe('LacyLightsGraphQLClient', () => {
 
       expect(await client.getFadeUpdateRate()).toEqual({ rateHz: 60, isDefault: true });
     });
+
+    it('getFadeUpdateRate still returns the live rate when the setting lookup fails', async () => {
+      mockFetch
+        .mockResolvedValueOnce(ok({ systemInfo: { fadeUpdateRateHz: 75 } }) as any)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue({ errors: [{ message: 'setting unavailable' }] }),
+        } as any);
+
+      expect(await client.getFadeUpdateRate()).toEqual({ rateHz: 75, isDefault: false });
+    });
   });
 
   describe('getBuildInfo', () => {

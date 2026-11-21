@@ -2626,8 +2626,6 @@ Note: Changes take effect immediately for new look transitions.`,
                 rateHz: {
                   type: "number",
                   description: "Update rate in Hz. The backend enforces the valid range of 1-240 and returns an error otherwise.",
-                  minimum: 1,
-                  maximum: 240,
                 },
               },
               required: ["rateHz"],
