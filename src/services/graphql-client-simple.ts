@@ -1604,12 +1604,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkCreateFixtures;
   }
 
-  async bulkDeleteFixtures(fixtureIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteFixtures(fixtureIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteFixtures($fixtureIds: [ID!]!) {
         bulkDeleteFixtures(fixtureIds: $fixtureIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -1693,12 +1693,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkUpdateLooks;
   }
 
-  async bulkDeleteLooks(lookIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteLooks(lookIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteLooks($lookIds: [ID!]!) {
         bulkDeleteLooks(lookIds: $lookIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -1743,12 +1743,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkCreateCues;
   }
 
-  async bulkDeleteCues(cueIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteCues(cueIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteCues($cueIds: [ID!]!) {
         bulkDeleteCues(cueIds: $cueIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -1818,12 +1818,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkUpdateCueLists;
   }
 
-  async bulkDeleteCueLists(cueListIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteCueLists(cueListIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteCueLists($cueListIds: [ID!]!) {
         bulkDeleteCueLists(cueListIds: $cueListIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -1858,12 +1858,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkCreateProjects;
   }
 
-  async bulkDeleteProjects(projectIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteProjects(projectIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteProjects($projectIds: [ID!]!) {
         bulkDeleteProjects(projectIds: $projectIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -2867,14 +2867,14 @@ export class LacyLightsGraphQLClient {
    * Bulk delete multiple look boards
    */
   async bulkDeleteLookBoards(lookBoardIds: string[]): Promise<{
-    successCount: number;
-    failedIds: string[];
+    deletedCount: number;
+    deletedIds: string[];
   }> {
     const mutation = `
       mutation BulkDeleteLookBoards($lookBoardIds: [ID!]!) {
         bulkDeleteLookBoards(lookBoardIds: $lookBoardIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -3081,14 +3081,14 @@ export class LacyLightsGraphQLClient {
    * Bulk delete multiple buttons
    */
   async bulkDeleteLookBoardButtons(buttonIds: string[]): Promise<{
-    successCount: number;
-    failedIds: string[];
+    deletedCount: number;
+    deletedIds: string[];
   }> {
     const mutation = `
       mutation BulkDeleteLookBoardButtons($buttonIds: [ID!]!) {
         bulkDeleteLookBoardButtons(buttonIds: $buttonIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;

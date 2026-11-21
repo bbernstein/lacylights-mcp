@@ -1749,11 +1749,28 @@ describe('LacyLightsGraphQLClient', () => {
       });
     });
 
+    describe('bulkDeleteLooks document (mcp#209)', () => {
+      it('selects deletedCount and deletedIds, not successCount', async () => {
+        mockFetch.mockResolvedValue(createMockResponse({
+          data: { bulkDeleteLooks: { deletedCount: 1, deletedIds: ['look-1'] } }
+        }) as any);
+
+        const result = await client.bulkDeleteLooks(['look-1', 'look-2']);
+
+        expect(result).toEqual({ deletedCount: 1, deletedIds: ['look-1'] });
+        const body = JSON.parse((mockFetch.mock.calls[0][1] as any).body);
+        expect(body.query).toContain('deletedCount');
+        expect(body.query).toContain('deletedIds');
+        expect(body.query).not.toContain('successCount');
+        expect(body.query).not.toContain('failedIds');
+      });
+    });
+
     describe('bulkDeleteLookBoards', () => {
       it('should delete multiple look boards', async () => {
         const mockResult = {
-          successCount: 2,
-          failedIds: []
+          deletedCount: 2,
+          deletedIds: ['board-1', 'board-2']
         };
 
         const mockResponse = {
@@ -1911,8 +1928,8 @@ describe('LacyLightsGraphQLClient', () => {
     describe('bulkDeleteLookBoardButtons', () => {
       it('should delete multiple buttons', async () => {
         const mockResult = {
-          successCount: 2,
-          failedIds: []
+          deletedCount: 2,
+          deletedIds: ['button-1', 'button-2']
         };
 
         const mockResponse = {

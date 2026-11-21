@@ -235,8 +235,8 @@ describe('LookBoardTools', () => {
   describe('bulkDeleteLookBoards', () => {
     it('should delete multiple look boards', async () => {
       mockGraphQLClient.bulkDeleteLookBoards.mockResolvedValue({
-        successCount: 2,
-        failedIds: []
+        deletedCount: 2,
+        deletedIds: ['board-1', 'board-2']
       });
 
       const result = await lookBoardTools.bulkDeleteLookBoards({
@@ -246,13 +246,13 @@ describe('LookBoardTools', () => {
 
       expect(result.success).toBe(true);
       expect(result.deletedCount).toBe(2);
-      expect(result.failedIds).toHaveLength(0);
+      expect(result.notDeletedIds).toHaveLength(0);
     });
 
     it('should handle partial failures', async () => {
       mockGraphQLClient.bulkDeleteLookBoards.mockResolvedValue({
-        successCount: 1,
-        failedIds: ['board-2']
+        deletedCount: 1,
+        deletedIds: ['board-1']
       });
 
       const result = await lookBoardTools.bulkDeleteLookBoards({
@@ -262,7 +262,7 @@ describe('LookBoardTools', () => {
 
       expect(result.success).toBe(true);
       expect(result.deletedCount).toBe(1);
-      expect(result.failedIds).toEqual(['board-2']);
+      expect(result.notDeletedIds).toEqual(['board-2']);
     });
   });
 
@@ -387,8 +387,8 @@ describe('LookBoardTools', () => {
   describe('bulkDeleteLookBoardButtons', () => {
     it('should delete multiple buttons', async () => {
       mockGraphQLClient.bulkDeleteLookBoardButtons.mockResolvedValue({
-        successCount: 2,
-        failedIds: []
+        deletedCount: 2,
+        deletedIds: ['button-1', 'button-2']
       });
 
       const result = await lookBoardTools.bulkDeleteLookBoardButtons({

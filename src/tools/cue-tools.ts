@@ -1182,20 +1182,25 @@ export class CueTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteCues(cueIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
+      // Go returns only the IDs it deleted; anything else was not deleted.
+      const deleted = new Set(result.deletedIds);
+      const notDeletedIds = cueIds.filter(id => !deleted.has(id));
+
+      // Note: 'success' is true if at least one deletion succeeded, even if some were not deleted.
+      // Partial successes are possible; see 'deletedIds' and 'notDeletedIds' for details.
       return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
+        success: result.deletedCount > 0,
+        deletedCount: result.deletedCount,
+        deletedIds: result.deletedIds,
+        notDeletedIds,
         summary: {
           totalRequested: cueIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length,
+          deletedCount: result.deletedCount,
+          notDeletedCount: notDeletedIds.length,
         },
-        message: result.failedIds.length === 0
-          ? `Successfully deleted ${result.successCount} cues`
-          : `Deleted ${result.successCount} cues, ${result.failedIds.length} failed`,
+        message: notDeletedIds.length === 0
+          ? `Successfully deleted ${result.deletedCount} cues`
+          : `Deleted ${result.deletedCount} cues, ${notDeletedIds.length} not deleted`,
       };
     } catch (error) {
       throw new Error(`Failed to bulk delete cues: ${error}`);
@@ -1285,20 +1290,25 @@ export class CueTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteCueLists(cueListIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
+      // Go returns only the IDs it deleted; anything else was not deleted.
+      const deleted = new Set(result.deletedIds);
+      const notDeletedIds = cueListIds.filter(id => !deleted.has(id));
+
+      // Note: 'success' is true if at least one deletion succeeded, even if some were not deleted.
+      // Partial successes are possible; see 'deletedIds' and 'notDeletedIds' for details.
       return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
+        success: result.deletedCount > 0,
+        deletedCount: result.deletedCount,
+        deletedIds: result.deletedIds,
+        notDeletedIds,
         summary: {
           totalRequested: cueListIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length,
+          deletedCount: result.deletedCount,
+          notDeletedCount: notDeletedIds.length,
         },
-        message: result.failedIds.length === 0
-          ? `Successfully deleted ${result.successCount} cue lists`
-          : `Deleted ${result.successCount} cue lists, ${result.failedIds.length} failed`,
+        message: notDeletedIds.length === 0
+          ? `Successfully deleted ${result.deletedCount} cue lists`
+          : `Deleted ${result.deletedCount} cue lists, ${notDeletedIds.length} not deleted`,
       };
     } catch (error) {
       throw new Error(`Failed to bulk delete cue lists: ${error}`);

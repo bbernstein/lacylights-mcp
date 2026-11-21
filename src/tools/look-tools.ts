@@ -1095,20 +1095,25 @@ export class LookTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteLooks(lookIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
+      // Go returns only the IDs it deleted; anything else was not deleted.
+      const deleted = new Set(result.deletedIds);
+      const notDeletedIds = lookIds.filter(id => !deleted.has(id));
+
+      // Note: 'success' is true if at least one deletion succeeded, even if some were not deleted.
+      // Partial successes are possible; see 'deletedIds' and 'notDeletedIds' for details.
       return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
+        success: result.deletedCount > 0,
+        deletedCount: result.deletedCount,
+        deletedIds: result.deletedIds,
+        notDeletedIds,
         summary: {
           totalRequested: lookIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length,
+          deletedCount: result.deletedCount,
+          notDeletedCount: notDeletedIds.length,
         },
-        message: result.failedIds.length === 0
-          ? `Successfully deleted ${result.successCount} looks`
-          : `Deleted ${result.successCount} looks, ${result.failedIds.length} failed`,
+        message: notDeletedIds.length === 0
+          ? `Successfully deleted ${result.deletedCount} looks`
+          : `Deleted ${result.deletedCount} looks, ${notDeletedIds.length} not deleted`,
       };
     } catch (error) {
       throw new Error(`Failed to bulk delete looks: ${error}`);

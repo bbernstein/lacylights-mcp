@@ -423,18 +423,25 @@ export class LookBoardTools {
     try {
       const result = await this.graphqlClient.bulkDeleteLookBoards(lookBoardIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
+      // Go returns only the IDs it deleted; anything else was not deleted.
+      const deleted = new Set(result.deletedIds);
+      const notDeletedIds = lookBoardIds.filter(id => !deleted.has(id));
+
+      // Note: 'success' is true if at least one deletion succeeded, even if some were not deleted.
+      // Partial successes are possible; see 'deletedIds' and 'notDeletedIds' for details.
       return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
+        success: result.deletedCount > 0,
+        deletedCount: result.deletedCount,
+        deletedIds: result.deletedIds,
+        notDeletedIds,
         summary: {
           totalRequested: lookBoardIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length
+          deletedCount: result.deletedCount,
+          notDeletedCount: notDeletedIds.length,
         },
-        message: `Successfully deleted ${result.successCount} look boards${result.failedIds.length > 0 ? `, ${result.failedIds.length} failed` : ''}`
+        message: notDeletedIds.length === 0
+          ? `Successfully deleted ${result.deletedCount} look boards`
+          : `Deleted ${result.deletedCount} look boards, ${notDeletedIds.length} not deleted`,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -640,18 +647,25 @@ export class LookBoardTools {
     try {
       const result = await this.graphqlClient.bulkDeleteLookBoardButtons(buttonIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
+      // Go returns only the IDs it deleted; anything else was not deleted.
+      const deleted = new Set(result.deletedIds);
+      const notDeletedIds = buttonIds.filter(id => !deleted.has(id));
+
+      // Note: 'success' is true if at least one deletion succeeded, even if some were not deleted.
+      // Partial successes are possible; see 'deletedIds' and 'notDeletedIds' for details.
       return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
+        success: result.deletedCount > 0,
+        deletedCount: result.deletedCount,
+        deletedIds: result.deletedIds,
+        notDeletedIds,
         summary: {
           totalRequested: buttonIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length
+          deletedCount: result.deletedCount,
+          notDeletedCount: notDeletedIds.length,
         },
-        message: `Successfully deleted ${result.successCount} buttons${result.failedIds.length > 0 ? `, ${result.failedIds.length} failed` : ''}`
+        message: notDeletedIds.length === 0
+          ? `Successfully deleted ${result.deletedCount} buttons`
+          : `Deleted ${result.deletedCount} buttons, ${notDeletedIds.length} not deleted`,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

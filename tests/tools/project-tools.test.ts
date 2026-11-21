@@ -605,8 +605,8 @@ describe('ProjectTools', () => {
     describe('bulkDeleteProjects', () => {
       it('should delete multiple projects successfully', async () => {
         mockGraphQLClient.bulkDeleteProjects = jest.fn().mockResolvedValue({
-          successCount: 2,
-          failedIds: []
+          deletedCount: 2,
+          deletedIds: ['project-1', 'project-2']
         });
 
         const result = await projectTools.bulkDeleteProjects({
@@ -617,16 +617,16 @@ describe('ProjectTools', () => {
         expect(mockGraphQLClient.bulkDeleteProjects).toHaveBeenCalledWith(['project-1', 'project-2']);
         expect(result.success).toBe(true);
         expect(result.deletedCount).toBe(2);
-        expect(result.failedIds).toHaveLength(0);
+        expect(result.notDeletedIds).toHaveLength(0);
         expect(result.summary.totalRequested).toBe(2);
-        expect(result.summary.successCount).toBe(2);
+        expect(result.summary.deletedCount).toBe(2);
         expect(result.message).toContain('Successfully deleted 2 projects');
       });
 
       it('should handle partial deletion failures', async () => {
         mockGraphQLClient.bulkDeleteProjects = jest.fn().mockResolvedValue({
-          successCount: 1,
-          failedIds: ['project-2']
+          deletedCount: 1,
+          deletedIds: ['project-1']
         });
 
         const result = await projectTools.bulkDeleteProjects({
@@ -636,9 +636,9 @@ describe('ProjectTools', () => {
 
         expect(result.success).toBe(true);
         expect(result.deletedCount).toBe(1);
-        expect(result.failedIds).toContain('project-2');
-        expect(result.summary.failureCount).toBe(1);
-        expect(result.message).toContain('1 failed');
+        expect(result.notDeletedIds).toContain('project-2');
+        expect(result.summary.notDeletedCount).toBe(1);
+        expect(result.message).toContain('1 not deleted');
       });
 
       it('should require confirmDelete to be true', async () => {
