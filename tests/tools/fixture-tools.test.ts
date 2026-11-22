@@ -2126,8 +2126,8 @@ describe('FixtureTools', () => {
   describe('bulkDeleteFixtures', () => {
     it('should successfully bulk delete fixtures', async () => {
       mockGraphQLClient.bulkDeleteFixtures = jest.fn().mockResolvedValue({
-        successCount: 3,
-        failedIds: []
+        deletedCount: 3,
+        deletedIds: ['fixture-1', 'fixture-2', 'fixture-3']
       });
 
       const result = await fixtureTools.bulkDeleteFixtures({
@@ -2137,18 +2137,18 @@ describe('FixtureTools', () => {
 
       expect(result.success).toBe(true);
       expect(result.deletedCount).toBe(3);
-      expect(result.failedIds).toEqual([]);
+      expect(result.notDeletedIds).toEqual([]);
       expect(result.summary.totalRequested).toBe(3);
-      expect(result.summary.successCount).toBe(3);
-      expect(result.summary.failureCount).toBe(0);
+      expect(result.summary.deletedCount).toBe(3);
+      expect(result.summary.notDeletedCount).toBe(0);
       expect(result.message).toBe('Successfully deleted 3 fixtures');
       expect(mockGraphQLClient.bulkDeleteFixtures).toHaveBeenCalledWith(['fixture-1', 'fixture-2', 'fixture-3']);
     });
 
     it('should handle partial deletion failures', async () => {
       mockGraphQLClient.bulkDeleteFixtures = jest.fn().mockResolvedValue({
-        successCount: 2,
-        failedIds: ['fixture-3']
+        deletedCount: 2,
+        deletedIds: ['fixture-1', 'fixture-2']
       });
 
       const result = await fixtureTools.bulkDeleteFixtures({
@@ -2158,9 +2158,9 @@ describe('FixtureTools', () => {
 
       expect(result.success).toBe(true);
       expect(result.deletedCount).toBe(2);
-      expect(result.failedIds).toEqual(['fixture-3']);
-      expect(result.summary.failureCount).toBe(1);
-      expect(result.message).toBe('Deleted 2 fixtures, 1 failed');
+      expect(result.notDeletedIds).toEqual(['fixture-3']);
+      expect(result.summary.notDeletedCount).toBe(1);
+      expect(result.message).toBe('Deleted 2 fixtures, 1 not deleted');
     });
 
     it('should require confirmDelete to be true', async () => {
@@ -2188,8 +2188,8 @@ describe('FixtureTools', () => {
 
     it('should return success: false when all deletions fail', async () => {
       mockGraphQLClient.bulkDeleteFixtures = jest.fn().mockResolvedValue({
-        successCount: 0,
-        failedIds: ['fixture-1', 'fixture-2']
+        deletedCount: 0,
+        deletedIds: []
       });
 
       const result = await fixtureTools.bulkDeleteFixtures({
@@ -2199,7 +2199,7 @@ describe('FixtureTools', () => {
 
       expect(result.success).toBe(false);
       expect(result.deletedCount).toBe(0);
-      expect(result.failedIds).toEqual(['fixture-1', 'fixture-2']);
+      expect(result.notDeletedIds).toEqual(['fixture-1', 'fixture-2']);
     });
   });
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
+import { buildBulkDeleteResult } from '../utils/bulk-delete';
 // Project type not currently used in this file
 
 const ListProjectsSchema = z.object({
@@ -285,21 +286,7 @@ export class ProjectTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteProjects(projectIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
-      return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
-        summary: {
-          totalRequested: projectIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length,
-        },
-        message: result.failedIds.length === 0
-          ? `Successfully deleted ${result.successCount} projects`
-          : `Deleted ${result.successCount} projects, ${result.failedIds.length} failed`,
-      };
+      return buildBulkDeleteResult(projectIds, result, 'projects');
     } catch (error) {
       throw new Error(`Failed to bulk delete projects: ${error}`);
     }

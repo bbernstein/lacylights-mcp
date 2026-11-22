@@ -3,6 +3,7 @@ import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
 import { RAGService } from "../services/rag-service-simple";
 import { AILightingService } from "../services/ai-lighting";
 import { GeneratedLook } from "../types/lighting";
+import { buildBulkDeleteResult } from '../utils/bulk-delete';
 
 /**
  * Type for paginated cue format returned by getCueListWithPagination
@@ -1182,21 +1183,7 @@ export class CueTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteCues(cueIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
-      return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
-        summary: {
-          totalRequested: cueIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length,
-        },
-        message: result.failedIds.length === 0
-          ? `Successfully deleted ${result.successCount} cues`
-          : `Deleted ${result.successCount} cues, ${result.failedIds.length} failed`,
-      };
+      return buildBulkDeleteResult(cueIds, result, 'cues');
     } catch (error) {
       throw new Error(`Failed to bulk delete cues: ${error}`);
     }
@@ -1285,21 +1272,7 @@ export class CueTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteCueLists(cueListIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
-      return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
-        summary: {
-          totalRequested: cueListIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length,
-        },
-        message: result.failedIds.length === 0
-          ? `Successfully deleted ${result.successCount} cue lists`
-          : `Deleted ${result.successCount} cue lists, ${result.failedIds.length} failed`,
-      };
+      return buildBulkDeleteResult(cueListIds, result, 'cue lists');
     } catch (error) {
       throw new Error(`Failed to bulk delete cue lists: ${error}`);
     }

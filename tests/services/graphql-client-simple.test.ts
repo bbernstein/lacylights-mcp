@@ -1749,11 +1749,28 @@ describe('LacyLightsGraphQLClient', () => {
       });
     });
 
+    describe('bulkDeleteLooks document (mcp#209)', () => {
+      it('selects deletedCount and deletedIds, not successCount', async () => {
+        mockFetch.mockResolvedValue(createMockResponse({
+          data: { bulkDeleteLooks: { deletedCount: 1, deletedIds: ['look-1'] } }
+        }) as any);
+
+        const result = await client.bulkDeleteLooks(['look-1', 'look-2']);
+
+        expect(result).toEqual({ deletedCount: 1, deletedIds: ['look-1'] });
+        const body = JSON.parse((mockFetch.mock.calls[0][1] as any).body);
+        expect(body.query).toContain('deletedCount');
+        expect(body.query).toContain('deletedIds');
+        expect(body.query).not.toContain('successCount');
+        expect(body.query).not.toContain('failedIds');
+      });
+    });
+
     describe('bulkDeleteLookBoards', () => {
       it('should delete multiple look boards', async () => {
         const mockResult = {
-          successCount: 2,
-          failedIds: []
+          deletedCount: 2,
+          deletedIds: ['board-1', 'board-2']
         };
 
         const mockResponse = {
@@ -1911,8 +1928,8 @@ describe('LacyLightsGraphQLClient', () => {
     describe('bulkDeleteLookBoardButtons', () => {
       it('should delete multiple buttons', async () => {
         const mockResult = {
-          successCount: 2,
-          failedIds: []
+          deletedCount: 2,
+          deletedIds: ['button-1', 'button-2']
         };
 
         const mockResponse = {
@@ -1957,6 +1974,66 @@ describe('LacyLightsGraphQLClient', () => {
 
         expect(result).toBe(true);
       });
+    });
+  });
+
+  describe('fade update rate', () => {
+    const ok = (data: any) => ({ ok: true, json: jest.fn().mockResolvedValue({ data }) });
+
+    it('updateFadeUpdateRate sends the Int! mutation and returns the boolean', async () => {
+      mockFetch.mockResolvedValue(ok({ updateFadeUpdateRate: true }) as any);
+
+      const result = await client.updateFadeUpdateRate(120);
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      expect(body.query).toContain('updateFadeUpdateRate(rateHz: $rateHz)');
+      expect(body.query).toContain('$rateHz: Int!');
+      expect(body.variables).toEqual({ rateHz: 120 });
+      expect(result).toBe(true);
+    });
+
+    it('updateFadeUpdateRate propagates backend range errors', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          errors: [{ message: 'fade update rate must be between 1 and 240 Hz' }],
+        }),
+      } as any);
+
+      await expect(client.updateFadeUpdateRate(241)).rejects.toThrow('between 1 and 240');
+    });
+
+    it('getFadeUpdateRate uses systemInfo and isDefault=false when the setting exists', async () => {
+      mockFetch
+        .mockResolvedValueOnce(ok({ systemInfo: { fadeUpdateRateHz: 90 } }) as any)
+        .mockResolvedValueOnce(ok({ setting: { key: 'fade_update_rate_hz', value: '90' } }) as any);
+
+      const result = await client.getFadeUpdateRate();
+
+      expect(result).toEqual({ rateHz: 90, isDefault: false });
+      const q1 = JSON.parse(mockFetch.mock.calls[0][1]?.body as string).query;
+      const body2 = JSON.parse(mockFetch.mock.calls[1][1]?.body as string);
+      expect(q1).toContain('fadeUpdateRateHz');
+      expect(body2.variables).toEqual({ key: 'fade_update_rate_hz' });
+    });
+
+    it('getFadeUpdateRate reports isDefault=true when the setting is absent', async () => {
+      mockFetch
+        .mockResolvedValueOnce(ok({ systemInfo: { fadeUpdateRateHz: 60 } }) as any)
+        .mockResolvedValueOnce(ok({ setting: null }) as any);
+
+      expect(await client.getFadeUpdateRate()).toEqual({ rateHz: 60, isDefault: true });
+    });
+
+    it('getFadeUpdateRate still returns the live rate when the setting lookup fails', async () => {
+      mockFetch
+        .mockResolvedValueOnce(ok({ systemInfo: { fadeUpdateRateHz: 75 } }) as any)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: jest.fn().mockResolvedValue({ errors: [{ message: 'setting unavailable' }] }),
+        } as any);
+
+      expect(await client.getFadeUpdateRate()).toEqual({ rateHz: 75, isDefault: false });
     });
   });
 

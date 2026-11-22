@@ -13,8 +13,8 @@ describe('SettingsTools', () => {
     jest.clearAllMocks();
 
     mockGraphQLClient = {
-      getSetting: jest.fn(),
-      setSetting: jest.fn(),
+      getFadeUpdateRate: jest.fn(),
+      updateFadeUpdateRate: jest.fn(),
       getBuildInfo: jest.fn(),
     } as any;
 
@@ -23,25 +23,23 @@ describe('SettingsTools', () => {
   });
 
   describe('getFadeUpdateRate', () => {
-    it('should get the current fade update rate', async () => {
-      mockGraphQLClient.getSetting.mockResolvedValue('60');
+    it('reports the live engine rate when the setting is present', async () => {
+      mockGraphQLClient.getFadeUpdateRate.mockResolvedValue({ rateHz: 90, isDefault: false });
 
       const result = await settingsTools.getFadeUpdateRate({});
 
-      expect(mockGraphQLClient.getSetting).toHaveBeenCalledWith('fade_update_rate');
       expect(result).toEqual({
-        rateHz: 60,
+        rateHz: 90,
         isDefault: false,
-        message: 'Current fade update rate is 60Hz',
+        message: 'Current fade update rate is 90Hz',
       });
     });
 
-    it('should return default when setting is not found', async () => {
-      mockGraphQLClient.getSetting.mockResolvedValue(null);
+    it('reports isDefault when the setting is absent', async () => {
+      mockGraphQLClient.getFadeUpdateRate.mockResolvedValue({ rateHz: 60, isDefault: true });
 
       const result = await settingsTools.getFadeUpdateRate({});
 
-      expect(mockGraphQLClient.getSetting).toHaveBeenCalledWith('fade_update_rate');
       expect(result).toEqual({
         rateHz: 60,
         isDefault: true,
@@ -49,24 +47,8 @@ describe('SettingsTools', () => {
       });
     });
 
-    it('should handle different rate values', async () => {
-      mockGraphQLClient.getSetting.mockResolvedValue('120');
-
-      const result = await settingsTools.getFadeUpdateRate({});
-
-      expect(result.rateHz).toBe(120);
-      expect(result.isDefault).toBe(false);
-    });
-
-    it('should throw error for invalid rate value', async () => {
-      mockGraphQLClient.getSetting.mockResolvedValue('invalid');
-
-      await expect(settingsTools.getFadeUpdateRate({}))
-        .rejects.toThrow('Failed to get fade update rate');
-    });
-
     it('should handle GraphQL client errors', async () => {
-      mockGraphQLClient.getSetting.mockRejectedValue(new Error('GraphQL error'));
+      mockGraphQLClient.getFadeUpdateRate.mockRejectedValue(new Error('GraphQL error'));
 
       await expect(settingsTools.getFadeUpdateRate({}))
         .rejects.toThrow('Failed to get fade update rate: Error: GraphQL error');
@@ -74,62 +56,51 @@ describe('SettingsTools', () => {
   });
 
   describe('setFadeUpdateRate', () => {
-    it('should set the fade update rate', async () => {
-      mockGraphQLClient.setSetting.mockResolvedValue('60');
+    it('calls updateFadeUpdateRate and reports success', async () => {
+      mockGraphQLClient.updateFadeUpdateRate.mockResolvedValue(true);
 
-      const result = await settingsTools.setFadeUpdateRate({ rateHz: 60 });
+      const result = await settingsTools.setFadeUpdateRate({ rateHz: 120 });
 
-      expect(mockGraphQLClient.setSetting).toHaveBeenCalledWith('fade_update_rate', '60');
+      expect(mockGraphQLClient.updateFadeUpdateRate).toHaveBeenCalledWith(120);
       expect(result).toEqual({
-        rateHz: 60,
+        rateHz: 120,
         success: true,
-        message: 'Fade update rate set to 60Hz',
+        message: 'Fade update rate set to 120Hz',
         hint: 'Higher rates (e.g., 120Hz) provide smoother fades but use more CPU. Lower rates (e.g., 30Hz) are more efficient.',
       });
     });
 
-    it('should set different rate values', async () => {
-      mockGraphQLClient.setSetting.mockResolvedValue('30');
+    it('accepts the backend limits 1 and 240', async () => {
+      mockGraphQLClient.updateFadeUpdateRate.mockResolvedValue(true);
 
-      const result = await settingsTools.setFadeUpdateRate({ rateHz: 30 });
+      await settingsTools.setFadeUpdateRate({ rateHz: 1 });
+      await settingsTools.setFadeUpdateRate({ rateHz: 240 });
 
-      expect(mockGraphQLClient.setSetting).toHaveBeenCalledWith('fade_update_rate', '30');
-      expect(result.rateHz).toBe(30);
-      expect(result.success).toBe(true);
+      expect(mockGraphQLClient.updateFadeUpdateRate).toHaveBeenCalledWith(1);
+      expect(mockGraphQLClient.updateFadeUpdateRate).toHaveBeenCalledWith(240);
     });
 
-    it('should set maximum allowed rate', async () => {
-      mockGraphQLClient.setSetting.mockResolvedValue('120');
+    it.each([0, 241])('surfaces the backend range error for %d and does not report success', async (rateHz) => {
+      mockGraphQLClient.updateFadeUpdateRate.mockRejectedValue(
+        new Error('rate must be between 1 and 240'),
+      );
 
-      const result = await settingsTools.setFadeUpdateRate({ rateHz: 120 });
-
-      expect(mockGraphQLClient.setSetting).toHaveBeenCalledWith('fade_update_rate', '120');
-      expect(result.rateHz).toBe(120);
+      await expect(settingsTools.setFadeUpdateRate({ rateHz }))
+        .rejects.toThrow('rate must be between 1 and 240');
+      expect(mockGraphQLClient.updateFadeUpdateRate).toHaveBeenCalledWith(rateHz);
     });
 
-    it('should set minimum allowed rate', async () => {
-      mockGraphQLClient.setSetting.mockResolvedValue('10');
+    it('throws when the backend returns false', async () => {
+      mockGraphQLClient.updateFadeUpdateRate.mockResolvedValue(false);
 
-      const result = await settingsTools.setFadeUpdateRate({ rateHz: 10 });
-
-      expect(mockGraphQLClient.setSetting).toHaveBeenCalledWith('fade_update_rate', '10');
-      expect(result.rateHz).toBe(10);
-    });
-
-    it('should validate rate is within range - too low', async () => {
-      await expect(settingsTools.setFadeUpdateRate({ rateHz: 5 }))
-        .rejects.toThrow();
-    });
-
-    // Note: The implementation enforces a maximum of 120 Hz (10-120 Hz range)
-    it('should validate rate is within range (10-120 Hz) - too high', async () => {
-      await expect(settingsTools.setFadeUpdateRate({ rateHz: 150 }))
-        .rejects.toThrow();
+      await expect(settingsTools.setFadeUpdateRate({ rateHz: 60 }))
+        .rejects.toThrow('Failed to set fade update rate');
     });
 
     it('should validate rate is an integer', async () => {
       await expect(settingsTools.setFadeUpdateRate({ rateHz: 60.5 } as any))
         .rejects.toThrow();
+      expect(mockGraphQLClient.updateFadeUpdateRate).not.toHaveBeenCalled();
     });
 
     it('should require rateHz parameter', async () => {
@@ -138,22 +109,10 @@ describe('SettingsTools', () => {
     });
 
     it('should handle GraphQL client errors', async () => {
-      mockGraphQLClient.setSetting.mockRejectedValue(new Error('GraphQL error'));
+      mockGraphQLClient.updateFadeUpdateRate.mockRejectedValue(new Error('GraphQL error'));
 
       await expect(settingsTools.setFadeUpdateRate({ rateHz: 60 }))
         .rejects.toThrow('Failed to set fade update rate: Error: GraphQL error');
-    });
-
-    it('should convert rate to string when calling GraphQL', async () => {
-      mockGraphQLClient.setSetting.mockResolvedValue('90');
-
-      await settingsTools.setFadeUpdateRate({ rateHz: 90 });
-
-      expect(mockGraphQLClient.setSetting).toHaveBeenCalledWith('fade_update_rate', '90');
-      expect(mockGraphQLClient.setSetting).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(String)
-      );
     });
   });
 

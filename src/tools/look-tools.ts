@@ -3,6 +3,7 @@ import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
 import { RAGService } from '../services/rag-service-simple';
 import { AILightingService } from '../services/ai-lighting';
 import { LightingDesignRequest, LookSortField } from '../types/lighting';
+import { buildBulkDeleteResult } from '../utils/bulk-delete';
 
 // Sparse channel value schema
 const channelValueSchema = z.object({
@@ -1095,21 +1096,7 @@ export class LookTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteLooks(lookIds);
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
-      return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
-        summary: {
-          totalRequested: lookIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length,
-        },
-        message: result.failedIds.length === 0
-          ? `Successfully deleted ${result.successCount} looks`
-          : `Deleted ${result.successCount} looks, ${result.failedIds.length} failed`,
-      };
+      return buildBulkDeleteResult(lookIds, result, 'looks');
     } catch (error) {
       throw new Error(`Failed to bulk delete looks: ${error}`);
     }

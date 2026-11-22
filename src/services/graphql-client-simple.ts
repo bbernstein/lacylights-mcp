@@ -1604,12 +1604,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkCreateFixtures;
   }
 
-  async bulkDeleteFixtures(fixtureIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteFixtures(fixtureIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteFixtures($fixtureIds: [ID!]!) {
         bulkDeleteFixtures(fixtureIds: $fixtureIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -1693,12 +1693,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkUpdateLooks;
   }
 
-  async bulkDeleteLooks(lookIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteLooks(lookIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteLooks($lookIds: [ID!]!) {
         bulkDeleteLooks(lookIds: $lookIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -1743,12 +1743,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkCreateCues;
   }
 
-  async bulkDeleteCues(cueIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteCues(cueIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteCues($cueIds: [ID!]!) {
         bulkDeleteCues(cueIds: $cueIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -1818,12 +1818,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkUpdateCueLists;
   }
 
-  async bulkDeleteCueLists(cueListIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteCueLists(cueListIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteCueLists($cueListIds: [ID!]!) {
         bulkDeleteCueLists(cueListIds: $cueListIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -1858,12 +1858,12 @@ export class LacyLightsGraphQLClient {
     return data.bulkCreateProjects;
   }
 
-  async bulkDeleteProjects(projectIds: string[]): Promise<{ successCount: number; failedIds: string[] }> {
+  async bulkDeleteProjects(projectIds: string[]): Promise<{ deletedCount: number; deletedIds: string[] }> {
     const mutation = `
       mutation BulkDeleteProjects($projectIds: [ID!]!) {
         bulkDeleteProjects(projectIds: $projectIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -2551,7 +2551,7 @@ export class LacyLightsGraphQLClient {
 
   /**
    * Get a setting value by key
-   * @param key Setting key (e.g., "fade_update_rate")
+   * @param key Setting key (e.g., "fade_update_rate_hz")
    * @returns Setting value or null if not found
    */
   async getSetting(key: string): Promise<string | null> {
@@ -2569,23 +2569,52 @@ export class LacyLightsGraphQLClient {
   }
 
   /**
-   * Set a setting value by key
-   * @param key Setting key (e.g., "fade_update_rate")
-   * @param value Setting value (e.g., "60")
-   * @returns Updated setting value
+   * Set the fade engine update rate (Hz). The backend validates the range
+   * (1-240) and applies it to the live engine as well as persisting it.
+   * @param rateHz Update rate in Hz
+   * @returns true on success; backend range errors are thrown
    */
-  async setSetting(key: string, value: string): Promise<string> {
+  async updateFadeUpdateRate(rateHz: number): Promise<boolean> {
     const mutation = `
-      mutation SetSetting($key: String!, $value: String!) {
-        setSetting(key: $key, value: $value) {
-          key
-          value
+      mutation UpdateFadeUpdateRate($rateHz: Int!) {
+        updateFadeUpdateRate(rateHz: $rateHz)
+      }
+    `;
+
+    const data = await this.query(mutation, { rateHz });
+    return data.updateFadeUpdateRate;
+  }
+
+  /**
+   * Get the fade engine update rate. The rate is the live engine value from
+   * systemInfo; isDefault is true when the fade_update_rate_hz setting has
+   * never been saved.
+   */
+  async getFadeUpdateRate(): Promise<{ rateHz: number; isDefault: boolean }> {
+    const infoQuery = `
+      query GetFadeUpdateRate {
+        systemInfo {
+          fadeUpdateRateHz
         }
       }
     `;
 
-    const data = await this.query(mutation, { key, value });
-    return data.setSetting.value;
+    // The two lookups are independent, so run them concurrently.
+    const [info, setting] = await Promise.all([
+      this.query(infoQuery),
+      // isDefault is informational: if the setting lookup fails, still report the live
+      // rate and conservatively treat it as "not default" rather than failing the tool.
+      this.getSetting('fade_update_rate_hz').then(
+        (value): { value: string | null; failed: boolean } => ({ value, failed: false }),
+        (): { value: string | null; failed: boolean } => ({ value: null, failed: true })
+      ),
+    ]);
+    return {
+      // rateHz is the live engine value; isDefault only reflects whether a saved
+      // setting exists, so the two can differ if the engine rate changed another way.
+      rateHz: info.systemInfo.fadeUpdateRateHz,
+      isDefault: !setting.failed && setting.value === null,
+    };
   }
 
   /**
@@ -2867,14 +2896,14 @@ export class LacyLightsGraphQLClient {
    * Bulk delete multiple look boards
    */
   async bulkDeleteLookBoards(lookBoardIds: string[]): Promise<{
-    successCount: number;
-    failedIds: string[];
+    deletedCount: number;
+    deletedIds: string[];
   }> {
     const mutation = `
       mutation BulkDeleteLookBoards($lookBoardIds: [ID!]!) {
         bulkDeleteLookBoards(lookBoardIds: $lookBoardIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;
@@ -3081,14 +3110,14 @@ export class LacyLightsGraphQLClient {
    * Bulk delete multiple buttons
    */
   async bulkDeleteLookBoardButtons(buttonIds: string[]): Promise<{
-    successCount: number;
-    failedIds: string[];
+    deletedCount: number;
+    deletedIds: string[];
   }> {
     const mutation = `
       mutation BulkDeleteLookBoardButtons($buttonIds: [ID!]!) {
         bulkDeleteLookBoardButtons(buttonIds: $buttonIds) {
-          successCount
-          failedIds
+          deletedCount
+          deletedIds
         }
       }
     `;

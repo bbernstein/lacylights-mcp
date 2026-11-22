@@ -112,6 +112,15 @@ Look Boards provide a visual layout system for organizing and triggering looks w
 - **`activate_look_from_board`** - Activate a look from a board (uses board's default fade time)
 - **`create_look_board_with_buttons`** - Create a complete look board with buttons in one command
 
+#### Bulk delete output
+
+All `bulk_delete_*` tools (fixtures, looks, cues, cue lists, projects, look boards, look board buttons) return the backend's `BulkDeleteResult` fields: `success` (true if at least one item was deleted), `deletedCount`, `deletedIds`, and `notDeletedIds` (requested IDs the backend did not delete, in request order). `summary` holds `totalRequested`, `deletedCount` and `notDeletedCount`. The `message` reads "Successfully deleted N ..." or "Deleted N ..., M not deleted". Requires lacylights-go v0.1.3 or newer.
+
+#### Fade update rate
+
+- **`get_fade_update_rate`** - Returns `rateHz` (the live engine value) and `isDefault` (true when no saved setting exists). Requires lacylights-go v0.2.3 or newer.
+- **`set_fade_update_rate`** - Set the fade engine rate in Hz. The backend enforces the valid range of 1-240 Hz and its error is returned as-is for out-of-range values.
+
 ### GDTF Fixture Import
 
 - **`import_gdtf_fixtures({ paths, onExisting? })`** - Reads each path on the computer running the MCP server: a `.gdtf`, a `.zip` of `.gdtf` files (nested zips up to 2 levels), or a folder searched recursively (hidden folders and non-GDTF files ignored, symlinks leading out of the folder not followed). Only each fixture's `description.xml` is sent to the backend's `importGdtfFixtures` mutation, in batches of up to 25 files. `onExisting` is `UPDATE` (default) or `SKIP` for fixture types imported before. Returns created/updated/unchanged/skipped/failed counts and a per-file list (capped at 100, failures first).

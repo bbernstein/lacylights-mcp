@@ -4,9 +4,10 @@ import { LacyLightsGraphQLClient } from '../services/graphql-client-simple';
 // Schema for get_fade_update_rate
 const GetFadeUpdateRateSchema = z.object({});
 
-// Schema for set_fade_update_rate with validation
+// Schema for set_fade_update_rate. The 1-240 Hz range is enforced by the backend,
+// whose error is surfaced to the caller.
 const SetFadeUpdateRateSchema = z.object({
-  rateHz: z.number().int().min(10).max(120),
+  rateHz: z.number().int(),
 });
 
 // Schema for get_build_info
@@ -26,27 +27,14 @@ export class SettingsTools {
     GetFadeUpdateRateSchema.parse(args);
 
     try {
-      const value = await this.graphqlClient.getSetting('fade_update_rate');
-
-      if (value === null) {
-        // Return default if not set
-        return {
-          rateHz: 60,
-          isDefault: true,
-          message: 'Using default fade update rate (60Hz)',
-        };
-      }
-
-      const rateHz = parseInt(value, 10);
-
-      if (isNaN(rateHz)) {
-        throw new Error(`Invalid fade update rate value: ${value}`);
-      }
+      const { rateHz, isDefault } = await this.graphqlClient.getFadeUpdateRate();
 
       return {
         rateHz,
-        isDefault: false,
-        message: `Current fade update rate is ${rateHz}Hz`,
+        isDefault,
+        message: isDefault
+          ? `Using default fade update rate (${rateHz}Hz)`
+          : `Current fade update rate is ${rateHz}Hz`,
       };
     } catch (error) {
       throw new Error(`Failed to get fade update rate: ${error}`);
@@ -55,7 +43,7 @@ export class SettingsTools {
 
   /**
    * Set the fade engine update rate in Hz
-   * Valid range: 10-120 Hz
+   * Valid range: 1-240 Hz (enforced by the backend)
    * @param rateHz Update rate in Hz
    * @returns Updated rate
    */
@@ -63,8 +51,10 @@ export class SettingsTools {
     const { rateHz } = SetFadeUpdateRateSchema.parse(args);
 
     try {
-      // Set the setting value as a string
-      await this.graphqlClient.setSetting('fade_update_rate', rateHz.toString());
+      const ok = await this.graphqlClient.updateFadeUpdateRate(rateHz);
+      if (!ok) {
+        throw new Error('backend did not apply the fade update rate');
+      }
 
       return {
         rateHz,

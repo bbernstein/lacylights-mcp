@@ -1611,8 +1611,8 @@ describe('CueTools', () => {
     describe('bulkDeleteCues', () => {
       it('should delete multiple cues successfully', async () => {
         mockGraphQLClient.bulkDeleteCues = jest.fn().mockResolvedValue({
-          successCount: 2,
-          failedIds: []
+          deletedCount: 2,
+          deletedIds: ['cue-1', 'cue-2']
         });
 
         const result = await cueTools.bulkDeleteCues({
@@ -1623,15 +1623,15 @@ describe('CueTools', () => {
         expect(mockGraphQLClient.bulkDeleteCues).toHaveBeenCalledWith(['cue-1', 'cue-2']);
         expect(result.success).toBe(true);
         expect(result.deletedCount).toBe(2);
-        expect(result.failedIds).toHaveLength(0);
+        expect(result.notDeletedIds).toHaveLength(0);
         expect(result.summary.totalRequested).toBe(2);
         expect(result.message).toContain('Successfully deleted 2 cues');
       });
 
       it('should handle partial deletion failures', async () => {
         mockGraphQLClient.bulkDeleteCues = jest.fn().mockResolvedValue({
-          successCount: 1,
-          failedIds: ['cue-2']
+          deletedCount: 1,
+          deletedIds: ['cue-1']
         });
 
         const result = await cueTools.bulkDeleteCues({
@@ -1641,8 +1641,8 @@ describe('CueTools', () => {
 
         expect(result.success).toBe(true);
         expect(result.deletedCount).toBe(1);
-        expect(result.failedIds).toContain('cue-2');
-        expect(result.message).toContain('1 failed');
+        expect(result.notDeletedIds).toContain('cue-2');
+        expect(result.message).toContain('1 not deleted');
       });
 
       it('should require confirmDelete to be true', async () => {
@@ -1754,8 +1754,8 @@ describe('CueTools', () => {
     describe('bulkDeleteCueLists', () => {
       it('should delete multiple cue lists successfully', async () => {
         mockGraphQLClient.bulkDeleteCueLists = jest.fn().mockResolvedValue({
-          successCount: 2,
-          failedIds: []
+          deletedCount: 2,
+          deletedIds: ['cuelist-1', 'cuelist-2']
         });
 
         const result = await cueTools.bulkDeleteCueLists({
@@ -1766,15 +1766,15 @@ describe('CueTools', () => {
         expect(mockGraphQLClient.bulkDeleteCueLists).toHaveBeenCalledWith(['cuelist-1', 'cuelist-2']);
         expect(result.success).toBe(true);
         expect(result.deletedCount).toBe(2);
-        expect(result.failedIds).toHaveLength(0);
+        expect(result.notDeletedIds).toHaveLength(0);
         expect(result.summary.totalRequested).toBe(2);
         expect(result.message).toContain('Successfully deleted 2 cue lists');
       });
 
       it('should handle partial deletion failures', async () => {
         mockGraphQLClient.bulkDeleteCueLists = jest.fn().mockResolvedValue({
-          successCount: 1,
-          failedIds: ['cuelist-2']
+          deletedCount: 1,
+          deletedIds: ['cuelist-1']
         });
 
         const result = await cueTools.bulkDeleteCueLists({
@@ -1784,8 +1784,8 @@ describe('CueTools', () => {
 
         expect(result.success).toBe(true);
         expect(result.deletedCount).toBe(1);
-        expect(result.failedIds).toContain('cuelist-2');
-        expect(result.message).toContain('1 failed');
+        expect(result.notDeletedIds).toContain('cuelist-2');
+        expect(result.message).toContain('1 not deleted');
       });
 
       it('should require confirmDelete to be true', async () => {

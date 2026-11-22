@@ -3,6 +3,7 @@ import { LacyLightsGraphQLClient } from "../services/graphql-client-simple";
 import { FixtureDefinition, FixtureInstance, Look, FixtureValue, FixtureType } from "../types/lighting";
 import { logger } from "../utils/logger";
 import { normalizePaginationParams } from "../utils/pagination";
+import { buildBulkDeleteResult } from '../utils/bulk-delete';
 
 /**
  * All channel types that are considered color channels.
@@ -1824,26 +1825,14 @@ export class FixtureTools {
       // Use the GraphQL client's bulk delete method
       const result = await this.graphqlClient.bulkDeleteFixtures(fixtureIds);
 
+      const output = buildBulkDeleteResult(fixtureIds, result, 'fixtures');
+
       logger.info('Bulk delete completed', {
-        successCount: result.successCount,
-        failureCount: result.failedIds.length
+        deletedCount: output.deletedCount,
+        notDeletedCount: output.summary.notDeletedCount
       });
 
-      // Note: 'success' is true if at least one deletion succeeded, even if some deletions failed.
-      // Partial successes are possible; see 'deletedCount' and 'failedIds' for details.
-      return {
-        success: result.successCount > 0,
-        deletedCount: result.successCount,
-        failedIds: result.failedIds,
-        summary: {
-          totalRequested: fixtureIds.length,
-          successCount: result.successCount,
-          failureCount: result.failedIds.length,
-        },
-        message: result.failedIds.length === 0
-          ? `Successfully deleted ${result.successCount} fixtures`
-          : `Deleted ${result.successCount} fixtures, ${result.failedIds.length} failed`,
-      };
+      return output;
     } catch (error) {
       logger.error('Failed to bulk delete fixtures', {
         error: error instanceof Error ? error.message : String(error),

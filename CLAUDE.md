@@ -209,6 +209,14 @@ mockFetch.mockResolvedValue({
 - `start_cue_list`, `next_cue`, `previous_cue`, `go_to_cue`
 - `optimize_cue_timing`, `analyze_cue_structure`
 
+### Bulk Delete Tools
+- `bulk_delete_fixtures`, `bulk_delete_looks`, `bulk_delete_cues`, `bulk_delete_cue_lists`, `bulk_delete_projects`, `bulk_delete_look_boards`, `bulk_delete_look_board_buttons`
+- Output built by `buildBulkDeleteResult` (`src/utils/bulk-delete.ts`): `success`, `deletedCount`, `deletedIds`, `notDeletedIds` (requested minus deleted, request order, duplicates kept), `summary` (`totalRequested`, `deletedCount`, `notDeletedCount`), and a "not deleted" message. Requires lacylights-go v0.1.3+ (`BulkDeleteResult`).
+
+### Settings Tools
+- `get_fade_update_rate` (`systemInfo.fadeUpdateRateHz`; `isDefault` = no saved setting), `set_fade_update_rate` (`updateFadeUpdateRate`)
+- Range 1-240 Hz is enforced by the backend only (no local zod bounds) so its error surfaces. Requires lacylights-go v0.2.3+.
+
 ### Undo/Redo Tools
 - `undo`, `redo` - Undo/redo the last operation in a project
 - `get_undo_redo_status` - Get current undo/redo status (canUndo, canRedo, descriptions)
