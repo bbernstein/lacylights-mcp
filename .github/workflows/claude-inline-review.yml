@@ -41,7 +41,7 @@ jobs:
           (github.actor == 'dependabot[bot]' || github.actor == 'claude[bot]' ||
            (!endsWith(github.actor, '[bot]') && github.actor != 'Copilot')) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: read
       pull-requests: read
@@ -90,8 +90,10 @@ jobs:
           if ! gh pr diff "$PR" --repo "$REPO" > "$out/pr.diff"; then
             echo "::notice::gh pr diff failed (very large PR?); building the diff from per-file patches."
             gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] |
-                "diff --git a/\(.filename) b/\(.filename)\n# status: \(.status)  +\(.additions) -\(.deletions)\n" +
-                (.patch // "# (no patch: binary or too large; Read the file directly)") + "\n"' \
+                "diff --git a/\(.previous_filename // .filename) b/\(.filename)\n# status: \(.status)  +\(.additions) -\(.deletions)" +
+                (if .previous_filename then "  (renamed from \(.previous_filename))" else "" end) + "\n" +
+                (.patch // (if .status == "renamed" then "# (renamed without content changes)"
+                            else "# (no patch: binary or too large; Read the file directly)" end)) + "\n"' \
               > "$out/pr.diff" || {
                 echo "::warning::Could not fetch the PR diff; the reviewer will have no diff."
                 : > "$out/pr.diff"
@@ -101,15 +103,17 @@ jobs:
 
           # 2. Title, description, commits and changed files. (A general `gh pr view` would also
           #    print comments from any user, which is why the reviewer doesn't get it.)
-          gh pr view "$PR" --repo "$REPO" --json title,body,commits,files --jq '
-              "# \(.title)\n\n## Description\n\n\(.body // "")\n\n## Commits\n" +
-              ([.commits[] | "- \(.oid[0:7]) \(.messageHeadline)"] | join("\n")) +
-              "\n\n## Files\n" +
-              ([.files[] | "- \(.path) (+\(.additions) -\(.deletions))"] | join("\n")) + "\n"' \
-            > "$out/pr-meta.md" || {
-              echo "::warning::Could not fetch PR metadata."
-              : > "$out/pr-meta.md"
-            }
+          #    Commits and files come from the paginated REST endpoints, so lists over 100 aren't cut short.
+          {
+            gh api "repos/$REPO/pulls/$PR" --jq '"# \(.title)\n\n## Description\n\n\(.body // "")\n"'
+            echo "## Commits"
+            gh api --paginate "repos/$REPO/pulls/$PR/commits" --jq '.[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"'
+            echo
+            echo "## Files"
+            gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] |
+                "- \(.filename) (\(.status), +\(.additions) -\(.deletions))" +
+                (if .previous_filename then " renamed from \(.previous_filename)" else "" end)'
+          } > "$out/pr-meta.md" || echo "::warning::Could not fetch all PR metadata; pr-meta.md may be incomplete."
 
           # 3. Earlier inline comments, only from trusted authors (owner, members, collaborators,
           #    Claude, Copilot), so a drive-by comment on a public repo can't make the reviewer think
@@ -121,7 +125,8 @@ jobs:
                      or .user.login == "Copilot" or .user.login == "copilot-pull-request-reviewer[bot]") |
               "## comment \(.id) by \(.user.login) on \(.path):\(.line // .original_line // "?")" +
               (if .in_reply_to_id then " (reply to \(.in_reply_to_id))" else "" end) +
-              (if .line == null then " [outdated]" else "" end) + "\n\n\(.body)\n"' \
+              (if .subject_type == "file" then " [file-level]" elif .line == null then " [outdated]" else "" end) +
+              "\n\n\(.body)\n"' \
             > "$out/prior-comments.md" || {
               echo "::warning::Could not fetch earlier inline comments; the reviewer may repeat findings already on this PR."
               : > "$out/prior-comments.md"
@@ -139,8 +144,8 @@ jobs:
             Base: ${{ github.event.pull_request.base.sha }}  Head: ${{ github.event.pull_request.head.sha }}
             The working tree is the PR head commit (not a merge with the base branch), with one
             exception: before you start, the action restores these root paths from the base branch, so
-            reading them shows the base version: CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/, .husky/,
-            .mcp.json, .gitmodules, .ripgreprc. When the PR changes one of them, the PR's version is
+            reading them shows the base version: CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/, .claude.json,
+            .husky/, .mcp.json, .gitmodules, .ripgreprc. When the PR changes one of them, the PR's version is
             at `.claude-pr/<path>`. Review that copy and use its line numbers, but post the comment
             on the original path (for example `CLAUDE.md`, not `.claude-pr/CLAUDE.md`).
 
@@ -216,6 +221,6 @@ jobs:
           claude_args: >-
             --model claude-opus-5-5
             --effort medium
-            --max-turns 60
+            --max-turns 150
             --allowed-tools "Read(./**),Glob(./**),Grep(./**),mcp__github_inline_comment__create_inline_comment"
             --disallowed-tools "Read(//proc/**),Read(//sys/**),Read(//home/runner/work/_temp/**),Read(~/.claude/**),Read(~/.config/**),Read(./.git/config)"
