@@ -19,13 +19,21 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
 
+# A new push cancels the review still running for the PR. Runs the job-level `if` will skip (drafts,
+# unlisted bots) get a group of their own, so they can't cancel a real review.
+# Keep this condition in sync with the job's `if:`.
 concurrency:
-  group: claude-inline-review-${{ github.event.pull_request.number }}
+  group: >-
+    claude-inline-review-${{ github.event.pull_request.number }}-${{
+      (!github.event.pull_request.draft &&
+       (github.actor == 'dependabot[bot]' || github.actor == 'claude[bot]' ||
+        (!endsWith(github.actor, '[bot]') && github.actor != 'Copilot')))
+      && 'review' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   claude-inline-review:
-    # Skip drafts, and skip pushes by bots other than Dependabot and claude[bot]: the action throws
+    # Keep in sync with the concurrency group above. Skip drafts, and skip pushes by bots other than Dependabot and claude[bot]: the action throws
     # (red check) for any bot not listed in allowed_bots. A skipped job counts as passing.
     if: >-
       ${{ !github.event.pull_request.draft &&
@@ -54,7 +62,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.token.outputs.present == 'true'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Review the PR head itself, not the refs/pull/N/merge commit pull_request checks out by
           # default; inline comments are anchored to head line numbers.
