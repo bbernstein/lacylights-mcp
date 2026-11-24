@@ -96,7 +96,9 @@ jobs:
           # reviewer needs no shell at all and can Read large files in chunks.
           out=.git/review
           mkdir -p "$out"
-          cmp="repos/$REPO/compare/$BASE_REF...$HEAD_SHA"
+          # URL-encode the branch name: git allows characters such as # and % that would break the path.
+          base_enc=$(jq -rn --arg r "$BASE_REF" '$r|@uri')
+          cmp="repos/$REPO/compare/$base_enc...$HEAD_SHA"
           # fd 3 = the job log; inside the pr-meta block below, stdout goes to the file.
           exec 3>&1
 
@@ -173,18 +175,21 @@ jobs:
             [ -z "${files_failed:-}" ] || echo "(could not fetch the file list)"
             jq -r '"- \(.filename) (\(.status), +\(.additions) -\(.deletions))" +
                 (if .previous_filename then " renamed from \(.previous_filename)" else "" end)' "$files_json"
-            # Flag lists GitHub truncated. Skipped when a fetch failed (already reported above), so a
-            # failure isn't misreported as truncation.
+            # Flag lists GitHub truncated. Each check is skipped only when its own fetch failed (already
+            # reported above), so a failure isn't misreported as truncation and one failed call doesn't
+            # suppress the other check. $(( )) drops the padding some wc implementations add.
             want_c=$(gh api "$cmp" --jq '.total_commits' 2>/dev/null || true)
             [[ "$want_c" =~ ^[0-9]+$ ]] || want_c=""
-            if [ -n "$want_c" ] && [ -z "${commits_failed:-}" ] && [ -z "${files_failed:-}" ]; then
-              # $(( )) drops the padding some wc implementations add.
-              got_c=$(( $(wc -l < "$out/commits.txt") )); got_f=$(( $(wc -l < "$files_json") ))
+            if [ -n "$want_c" ] && [ -z "${commits_failed:-}" ]; then
+              got_c=$(( $(wc -l < "$out/commits.txt") ))
               if [ "$got_c" -lt "$want_c" ]; then
                 echo "::warning::GitHub returned only $got_c of $want_c commits; the commit list is incomplete." >&3
                 echo
                 echo "NOTE: GitHub returned only $got_c of $want_c commits; the commit list above is incomplete."
               fi
+            fi
+            if [ -z "${files_failed:-}" ]; then
+              got_f=$(( $(wc -l < "$files_json") ))
               if [ "$got_f" -ge "$files_cap" ]; then
                 echo "::warning::GitHub returned $got_f changed files, the most it returns here; the file list may be truncated." >&3
                 echo
