@@ -9,11 +9,12 @@ name: Claude Inline Review
 #   unless this file matches the default branch, so a PR cannot rewrite its own reviewer's
 #   instructions. The same rule means a PR that edits this file is not reviewed by it.
 # - The reviewer gets only Read/Glob/Grep scoped to the checkout (./**) and the inline-comment tool.
-#   A setup step collects the diff, PR metadata and earlier comments into .git/review/. There is no shell,
-#   no git, no gh and no web fetch.
-#   With allowed_bots set the action uses the default permission mode, so anything no allow
-#   rule covers is denied: files outside the checkout, such as /proc/self/environ (secrets) or
-#   the runner temp dir, can't be read. Explicit deny rules repeat that for the riskiest paths.
+#   A setup step collects the diff, PR metadata and earlier comments into .git/review/. Bash, WebFetch
+#   and WebSearch are explicitly denied: in the default permission mode Claude Code would otherwise
+#   run commands it considers read-only (such as `git remote -v`, which can print a token in the remote
+#   URL) without any allow rule. --permission-mode default is set explicitly, so the mode doesn't
+#   depend on allowed_bots being non-empty. Anything no allow rule covers is denied, and deny rules
+#   also cover /proc (secrets), the runner temp dir, ~/.claude, ~/.config and .git/config.
 # - Kept identical across all LacyLights repos; change it everywhere at once.
 
 on:
@@ -329,4 +330,5 @@ jobs:
             --effort medium
             --max-turns 150
             --allowed-tools "Read(./**),Glob(./**),Grep(./**),mcp__github_inline_comment__create_inline_comment"
-            --disallowed-tools "Read(//proc/**),Read(//sys/**),Read(//home/runner/work/_temp/**),Read(~/.claude/**),Read(~/.config/**),Read(./.git/config)"
+            --permission-mode default
+            --disallowed-tools "Bash,WebFetch,WebSearch,Read(//proc/**),Read(//sys/**),Read(//home/runner/work/_temp/**),Read(~/.claude/**),Read(~/.config/**),Read(./.git/config)"
