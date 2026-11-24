@@ -104,16 +104,38 @@ jobs:
           # 2. Title, description, commits and changed files. (A general `gh pr view` would also
           #    print comments from any user, which is why the reviewer doesn't get it.)
           #    Commits and files come from the paginated REST endpoints, so lists over 100 aren't cut short.
+          #    GitHub still caps them at 250 commits and 3000 files; a note is added when a list is short.
+          # fd 3 = the job log; inside the block below, stdout goes to pr-meta.md.
+          exec 3>&1
+          meta_fail() { echo "::warning::Could not fetch $1; pr-meta.md is incomplete." >&3; echo "(could not fetch $1)"; }
           {
-            gh api "repos/$REPO/pulls/$PR" --jq '"# \(.title)\n\n## Description\n\n\(.body // "")\n"'
+            gh api "repos/$REPO/pulls/$PR" --jq '"# \(.title)\n\n## Description\n\n\(.body // "")\n"' \
+              || meta_fail "title and description"
             echo "## Commits"
-            gh api --paginate "repos/$REPO/pulls/$PR/commits" --jq '.[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"'
+            gh api --paginate "repos/$REPO/pulls/$PR/commits" --jq '.[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"' \
+              > "$out/commits.txt" || meta_fail "the commit list"
+            cat "$out/commits.txt" 2>/dev/null
             echo
             echo "## Files"
             gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] |
                 "- \(.filename) (\(.status), +\(.additions) -\(.deletions))" +
-                (if .previous_filename then " renamed from \(.previous_filename)" else "" end)'
-          } > "$out/pr-meta.md" || echo "::warning::Could not fetch all PR metadata; pr-meta.md may be incomplete."
+                (if .previous_filename then " renamed from \(.previous_filename)" else "" end)' \
+              > "$out/files.txt" || meta_fail "the file list"
+            cat "$out/files.txt" 2>/dev/null
+            # Flag lists the API truncated (over 250 commits or 3000 files).
+            counts=$(gh api "repos/$REPO/pulls/$PR" --jq '"\(.commits) \(.changed_files)"' 2>/dev/null || echo "")
+            if [ -n "$counts" ]; then
+              read -r want_c want_f <<< "$counts"
+              got_c=$(wc -l < "$out/commits.txt" 2>/dev/null || echo 0); got_f=$(wc -l < "$out/files.txt" 2>/dev/null || echo 0)
+              if [ "$got_c" -lt "$want_c" ] || [ "$got_f" -lt "$want_f" ]; then
+                echo "::warning::GitHub returned only $got_c/$want_c commits and $got_f/$want_f files; the review covers a partial list." >&3
+                echo
+                echo "NOTE: GitHub returned only $got_c of $want_c commits and $got_f of $want_f changed files. These lists"
+                echo "(and pr.diff, if it was rebuilt from per-file patches) are incomplete. Say so in any comment."
+              fi
+            fi
+          } > "$out/pr-meta.md"
+          rm -f "$out/commits.txt" "$out/files.txt"
 
           # 3. Earlier inline comments, only from trusted authors (owner, members, collaborators,
           #    Claude, Copilot), so a drive-by comment on a public repo can't make the reviewer think
