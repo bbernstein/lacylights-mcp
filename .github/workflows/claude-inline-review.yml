@@ -52,6 +52,8 @@ jobs:
       contents: read
       pull-requests: read
       issues: read
+      # Needed by claude-code-action to exchange an OIDC token for its GitHub App token, which is what
+      # posts the inline comments. It grants no repository write access by itself.
       id-token: write
 
     steps:
@@ -172,7 +174,7 @@ jobs:
             echo
             echo "## Commits"
             if c=$(gh api --paginate "$cmp" --jq '.commits[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"'); then
-              printf '%s\n' "$c" > "$out/commits.txt"
+              if [ -n "$c" ]; then printf '%s\n' "$c" > "$out/commits.txt"; else : > "$out/commits.txt"; fi
             else
               meta_fail "the commit list"; commits_failed=1; : > "$out/commits.txt"
             fi
