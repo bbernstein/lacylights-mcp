@@ -15,6 +15,7 @@ name: Claude Inline Review
 #   URL) without any allow rule. --permission-mode default is set explicitly, so the mode doesn't
 #   depend on allowed_bots being non-empty. Anything no allow rule covers is denied, and deny rules
 #   also cover /proc (secrets), the runner temp dir, ~/.claude, ~/.config and .git/config.
+# - Fork PRs are always skipped: GitHub gives them no secrets, so the token check below skips the job.
 # - Kept identical across all LacyLights repos; change it everywhere at once.
 
 on:
@@ -245,7 +246,8 @@ jobs:
           allowed_bots: 'dependabot[bot],claude[bot]'
           prompt: |
             You are the line-level code reviewer for ${{ github.repository }} pull request #${{ github.event.pull_request.number }}.
-            Base branch: ${{ github.event.pull_request.base.ref }} (current tip)  Head: ${{ github.event.pull_request.head.sha }}
+            Head commit: ${{ github.event.pull_request.head.sha }}. The base branch (its current tip) is named on the
+            "Reviewing <base>...<head>" line of `.git/review/pr-meta.md`.
             The working tree is the PR head commit (not a merge with the base branch), with one
             exception: before you start, the action restores these root paths from the base branch, so
             reading them shows the base version: CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/, .claude.json,
