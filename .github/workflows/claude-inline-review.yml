@@ -262,12 +262,17 @@ jobs:
             Head commit: ${{ github.event.pull_request.head.sha }}. The base branch (its current tip) is named on the
             first line of `.git/review/pr-meta.md` ("Reviewing <base>...<head>"), which the workflow writes before
             any PR-author text.
-            The working tree is the PR head commit (not a merge with the base branch), with one
-            exception: before you start, the action restores these root paths from the base branch, so
-            reading them shows the base version: CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/, .claude.json,
-            .husky/, .mcp.json, .gitmodules, .ripgreprc. When the PR changes one of them, the PR's version is
-            at `.claude-pr/<path>`. Review that copy and use its line numbers, but post the comment
-            on the original path (for example `CLAUDE.md`, not `.claude-pr/CLAUDE.md`).
+            The working tree is the PR head commit (not a merge with the base branch), with these exceptions,
+            all made by the action before you start, from a trusted branch (normally the base branch; for
+            authors without confirmed write access, such as Dependabot, possibly the default branch):
+            - These root paths show the trusted version: CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/,
+              .claude.json, .husky/, .mcp.json, .gitmodules, .ripgreprc. When the PR changes one of them,
+              the PR's version is at `.claude-pr/<path>`. Review that copy and use its line numbers, but
+              post the comment on the original path (for example `CLAUDE.md`, not `.claude-pr/CLAUDE.md`).
+            - For authors without confirmed write access, also .npmrc, bunfig.toml and node_modules, and
+              the name, bin, directories and workspaces fields of the root package.json (which is
+              rewritten). Review changes to these from pr.diff, and take line numbers from pr.diff, not
+              from the working tree.
 
             Your only output is inline review comments on specific changed lines, like a careful senior
             reviewer. Another workflow posts the overview, so never write a summary comment.
