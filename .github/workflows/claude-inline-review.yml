@@ -23,7 +23,12 @@ concurrency:
 
 jobs:
   claude-inline-review:
-    if: ${{ !github.event.pull_request.draft }}
+    # Skip drafts, and skip pushes by bots other than Dependabot and claude[bot]: the action throws
+    # (red check) for any bot not listed in allowed_bots. A skipped job counts as passing.
+    if: >-
+      ${{ !github.event.pull_request.draft &&
+          (github.actor == 'dependabot[bot]' || github.actor == 'claude[bot]' ||
+           (!endsWith(github.actor, '[bot]') && github.actor != 'Copilot')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -53,6 +58,8 @@ jobs:
           # default; inline comments are anchored to head line numbers.
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
+          # Don't leave the token in .git/config, where the reviewer's Read tool could reach it.
+          persist-credentials: false
 
       - name: Collect earlier inline review comments
         if: steps.token.outputs.present == 'true'
@@ -64,7 +71,10 @@ jobs:
           # Saved inside .git so it is never part of the working tree or the diff.
           gh api --paginate "repos/$REPO/pulls/$PR/comments" \
             --jq '.[] | {id, path, line, original_line, commit_id, in_reply_to_id, user: .user.login, body}' \
-            > .git/prior-inline-comments.jsonl || : > .git/prior-inline-comments.jsonl
+            > .git/prior-inline-comments.jsonl || {
+              echo "::warning::Could not fetch earlier inline comments; the reviewer may repeat findings already on this PR."
+              : > .git/prior-inline-comments.jsonl
+            }
           wc -l < .git/prior-inline-comments.jsonl
 
       - name: Run Claude inline review
@@ -72,7 +82,7 @@ jobs:
         uses: anthropics/claude-code-action@eb56b6666facdbd501035f4a0269d8caee2e7a8b # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          allowed_bots: 'dependabot[bot]'
+          allowed_bots: 'dependabot[bot],claude[bot]'
           prompt: |
             You are the line-level code reviewer for ${{ github.repository }} pull request #${{ github.event.pull_request.number }}.
             Base: ${{ github.event.pull_request.base.sha }}  Head: ${{ github.event.pull_request.head.sha }}
