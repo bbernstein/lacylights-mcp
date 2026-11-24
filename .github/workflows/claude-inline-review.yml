@@ -96,42 +96,64 @@ jobs:
           out=.git/review
           mkdir -p "$out"
           cmp="repos/$REPO/compare/$BASE_REF...$HEAD_SHA"
-          # File lists: GitHub's compare API returns at most 300 files, and pulls/N/files up to 3000 but for
-          # the PR's *current* head. Use pulls/N/files while the PR head is still HEAD_SHA (the usual case);
-          # if a newer commit landed mid-run, fall back to compare and flag a possibly partial list.
-          if [ "$(gh api "repos/$REPO/pulls/$PR" --jq '.head.sha' 2>/dev/null)" = "$HEAD_SHA" ]; then
-            files_api=(--paginate "repos/$REPO/pulls/$PR/files"); files_jq='.[]'; files_cap=3000
-          else
-            echo "::notice::The PR head moved past $HEAD_SHA during this run; the file list comes from compare (300-file cap)."
-            files_api=("$cmp"); files_jq='.files[]'; files_cap=300
-          fi
           # fd 3 = the job log; inside the pr-meta block below, stdout goes to the file.
           exec 3>&1
 
+          # 0. Changed files, fetched once into files.jsonl; the file list and the fallback diff both
+          #    read from it. GitHub's compare API returns at most 300 files; pulls/N/files returns up to
+          #    3000 but for the PR's *current* head. So use pulls/N/files only if the PR head equals
+          #    HEAD_SHA both before and after the fetch; otherwise use compare and flag a 300 cap.
+          files_json="$out/files.jsonl"; files_src=pulls; files_cap=3000
+          # Prints the PR's current head SHA, or nothing if the lookup fails (gh prints error JSON to
+          # stdout, so only a 40-hex SHA counts).
+          head_now() {
+            local h
+            h=$(gh api "repos/$REPO/pulls/$PR" --jq '.head.sha' 2>/dev/null) || return 0
+            if [[ "$h" =~ ^[0-9a-f]{40}$ ]]; then echo "$h"; fi
+          }
+          h1=$(head_now)
+          if [ -z "$h1" ]; then
+            echo "::warning::Could not read the PR head; using the compare API for the file list (300-file cap)."
+            files_src=compare
+          elif [ "$h1" != "$HEAD_SHA" ]; then
+            echo "::notice::The PR head ($h1) is newer than the reviewed commit; using the compare API for the file list (300-file cap)."
+            files_src=compare
+          elif ! gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[]' > "$files_json"; then
+            echo "::warning::Could not fetch pulls/$PR/files; using the compare API for the file list (300-file cap)."
+            files_src=compare
+          elif [ "$(head_now)" != "$HEAD_SHA" ]; then
+            echo "::notice::The PR head changed while fetching files; using the compare API for the file list (300-file cap)."
+            files_src=compare
+          fi
+          if [ "$files_src" = compare ]; then
+            files_cap=300
+            gh api "$cmp" --jq '.files[]' > "$files_json" || {
+              echo "::warning::Could not fetch the changed-file list."
+              : > "$files_json"; files_failed=1
+            }
+          fi
+
           # 1. The diff (three-dot compare = what the PR shows). If GitHub won't produce a diff this
-          #    large, rebuild it from per-file patches.
+          #    large, rebuild it from the per-file patches in files.jsonl.
           if ! gh api "$cmp" -H "Accept: application/vnd.github.diff" > "$out/pr.diff"; then
             echo "::notice::compare diff failed (very large PR?); building the diff from per-file patches."
-            gh api "${files_api[@]}" --jq "$files_jq"' |
-                "diff --git a/\(.previous_filename // .filename) b/\(.filename)\n# status: \(.status)  +\(.additions) -\(.deletions)" +
+            jq -r '"diff --git a/\(.previous_filename // .filename) b/\(.filename)\n# status: \(.status)  +\(.additions) -\(.deletions)" +
                 (if .previous_filename then "  (renamed from \(.previous_filename))" else "" end) + "\n" +
                 (.patch // (if .status == "renamed" then "# (renamed without content changes)"
                             elif .status == "removed" then "# (file deleted; it is not in the checkout)"
                             else "# (no patch: binary or too large; Read the file directly)" end)) + "\n"' \
-              > "$out/pr.diff" || {
-                echo "::warning::Could not fetch the PR diff; the reviewer will have no diff."
-                : > "$out/pr.diff"
-              }
+              "$files_json" > "$out/pr.diff"
+            [ -s "$out/pr.diff" ] || echo "::warning::Could not build the PR diff; the reviewer will have no diff."
           fi
           echo "pr.diff: $(wc -l < "$out/pr.diff") lines"
 
-          # 2. Title and description (pulls/N), plus the commits and changed files of BASE...HEAD.
+          # 2. Title and description (pulls/N), plus commits (compare) and changed files (files.jsonl).
           #    GitHub caps the lists (250 commits; 300 or 3000 files, see above); a NOTE is added when one is short.
           meta_fail() { echo "::warning::Could not fetch $1; pr-meta.md is incomplete." >&3; echo "(could not fetch $1)"; }
           {
             gh api "repos/$REPO/pulls/$PR" --jq '"# \(.title)\n\n## Description\n\n\(.body // "")\n"' \
               || meta_fail "title and description"
-            echo "Reviewing $BASE_REF...$HEAD_SHA"
+            echo "Reviewing $BASE_REF...$HEAD_SHA (file list from: $files_src)"
             echo
             echo "## Commits"
             gh api --paginate "$cmp" --jq '.commits[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"' \
@@ -139,16 +161,14 @@ jobs:
             cat "$out/commits.txt" 2>/dev/null
             echo
             echo "## Files"
-            gh api "${files_api[@]}" --jq "$files_jq"' |
-                "- \(.filename) (\(.status), +\(.additions) -\(.deletions))" +
-                (if .previous_filename then " renamed from \(.previous_filename)" else "" end)' \
-              > "$out/files.txt" || { meta_fail "the file list"; files_failed=1; }
-            cat "$out/files.txt" 2>/dev/null
+            [ -z "${files_failed:-}" ] || echo "(could not fetch the file list)"
+            jq -r '"- \(.filename) (\(.status), +\(.additions) -\(.deletions))" +
+                (if .previous_filename then " renamed from \(.previous_filename)" else "" end)' "$files_json"
             # Flag lists GitHub truncated. Skipped when a fetch failed (already reported above), so a
             # failure isn't misreported as truncation.
             want_c=$(gh api "$cmp" --jq '.total_commits' 2>/dev/null || echo "")
             if [ -n "$want_c" ] && [ -z "${commits_failed:-}" ] && [ -z "${files_failed:-}" ]; then
-              got_c=$(wc -l < "$out/commits.txt"); got_f=$(wc -l < "$out/files.txt")
+              got_c=$(wc -l < "$out/commits.txt"); got_f=$(wc -l < "$files_json")
               if [ "$got_c" -lt "$want_c" ] || [ "$got_f" -ge "$files_cap" ]; then
                 echo "::warning::GitHub returned $got_c/$want_c commits and $got_f files ($files_cap max); the review covers a partial list." >&3
                 echo
@@ -157,7 +177,7 @@ jobs:
               fi
             fi
           } > "$out/pr-meta.md"
-          rm -f "$out/commits.txt" "$out/files.txt"
+          rm -f "$out/commits.txt" "$files_json"
 
           # 3. Earlier inline comments, only from trusted authors (owner, members, collaborators,
           #    Claude, Copilot), so a drive-by comment on a public repo can't make the reviewer think
@@ -185,7 +205,7 @@ jobs:
           allowed_bots: 'dependabot[bot],claude[bot]'
           prompt: |
             You are the line-level code reviewer for ${{ github.repository }} pull request #${{ github.event.pull_request.number }}.
-            Base: ${{ github.event.pull_request.base.sha }}  Head: ${{ github.event.pull_request.head.sha }}
+            Base branch: ${{ github.event.pull_request.base.ref }} (current tip)  Head: ${{ github.event.pull_request.head.sha }}
             The working tree is the PR head commit (not a merge with the base branch), with one
             exception: before you start, the action restores these root paths from the base branch, so
             reading them shows the base version: CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude/, .claude.json,
