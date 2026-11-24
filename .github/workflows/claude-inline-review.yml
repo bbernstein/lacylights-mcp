@@ -8,9 +8,11 @@ name: Claude Inline Review
 # - The prompt lives inline (not in a repo file) on purpose. claude-code-action refuses to run
 #   unless this file matches the default branch, so a PR cannot rewrite its own reviewer's
 #   instructions. The same rule means a PR that edits this file is not reviewed by it.
-# - The reviewer gets only read tools (Read/Grep/Glob, gh pr view/diff) plus the inline-comment tool:
-#   no general shell, no git commands, no gh writes and no web fetches. Instructions hidden in PR
-#   content can at most produce a bad comment; they cannot change files or settings.
+# - The reviewer gets only read tools plus the inline-comment tool: Read/Glob/Grep scoped to the
+#   checkout (./**), and gh pr view/diff. There is no general shell, no git, no gh writes and no web fetch.
+#   With allowed_bots set the action uses the default permission mode, so anything no allow
+#   rule covers is denied: files outside the checkout, such as /proc/self/environ (secrets) or
+#   the runner temp dir, can't be read. Explicit deny rules repeat that for the riskiest paths.
 # - Kept identical across all LacyLights repos; change it everywhere at once.
 
 on:
@@ -98,7 +100,8 @@ jobs:
             1. Read the changes: `gh pr diff ${{ github.event.pull_request.number }}` and
                `gh pr view ${{ github.event.pull_request.number }} --json title,body,commits,files`.
             2. Read the project rules: every CLAUDE.md at the repo root and in each ancestor directory of
-               a changed file, plus .claude/RULES.md if present (use Glob to find them).
+               a changed file (use Glob to find them). The shared LacyLights rules live outside this
+               repo, so the ones that matter for review are listed under "Shared rules" below.
             3. Read `.git/prior-inline-comments.jsonl`. These are inline comments already on this PR, one
                JSON object per line. Do not post a finding that is already raised there, unless the new
                code still has the problem and the old comment is on a line that no longer exists.
@@ -126,6 +129,15 @@ jobs:
                a linter or formatter enforces; pure preferences; speculative "might be slow" remarks
                without a concrete cause.
 
+            ## Shared rules (LacyLights, apply to every repo; cite as "LacyLights shared rules")
+            - Never lower coverage thresholds (CI config, coverage scripts, jest/vitest config) without
+              explicit owner approval. Flag as [blocking].
+            - Never commit credentials, API keys, secrets, production passwords, Terraform state files,
+              or personal information (names, phone numbers, addresses). Flag as [blocking].
+            - New or changed code needs unit tests. Go tests are table-driven. New lacylights-go backend
+              behaviour also needs integration tests under test/integration/ (real SQLite, no mocks).
+            - TypeScript exports get JSDoc; Swift public API gets doc comments. Flag as [suggestion].
+
             ## Posting
             - Post each finding as soon as you have verified it, rather than saving them all for the
               end, so a long review that hits its turn limit still delivers what it found.
@@ -144,4 +156,5 @@ jobs:
             --model claude-opus-5-5
             --effort medium
             --max-turns 60
-            --allowed-tools "Read,Glob,Grep,Bash(gh pr view:*),Bash(gh pr diff:*),mcp__github_inline_comment__create_inline_comment"
+            --allowed-tools "Read(./**),Glob(./**),Grep(./**),Bash(gh pr view:*),Bash(gh pr diff:*),mcp__github_inline_comment__create_inline_comment"
+            --disallowed-tools "Read(//proc/**),Read(//sys/**),Read(//home/runner/work/_temp/**),Read(~/.claude/**),Read(~/.config/**),Read(./.git/config)"
