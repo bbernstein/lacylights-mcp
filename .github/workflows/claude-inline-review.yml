@@ -347,7 +347,8 @@ jobs:
             - Never commit credentials, API keys, secrets, production passwords, Terraform state files,
               or personal information (names, phone numbers, addresses). Flag as [blocking].
             - New or changed code needs unit tests. Go tests are table-driven. New lacylights-go backend
-              behaviour also needs integration tests under test/integration/ (real SQLite, no mocks).
+              behaviour also needs integration tests under test/integration/ that use a real SQLite
+              database rather than a mocked one (mocking Art-Net, time and other external dependencies is fine).
             - TypeScript exports get JSDoc; Swift public API gets doc comments. Flag as [suggestion].
 
             ## Posting
