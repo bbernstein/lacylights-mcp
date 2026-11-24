@@ -18,7 +18,8 @@ name: Claude Inline Review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened, converted_to_draft]
+    # `edited` only matters when the base branch changed (see the conditions below).
+    types: [opened, synchronize, ready_for_review, reopened, converted_to_draft, edited]
 
 # A new push cancels the review still running for the PR. Runs the job-level `if` will skip (drafts,
 # unlisted bots) get a group of their own, so they can't cancel a real review. Converting a PR to draft
@@ -29,6 +30,7 @@ concurrency:
     claude-inline-review-${{ github.event.pull_request.number }}-${{
       (github.event.action == 'converted_to_draft' ||
        (!github.event.pull_request.draft &&
+        (github.event.action != 'edited' || github.event.changes.base) &&
         (github.actor == 'dependabot[bot]' || github.actor == 'claude[bot]' ||
          (!endsWith(github.actor, '[bot]') && github.actor != 'Copilot'))))
       && 'review' || github.run_id }}
@@ -40,6 +42,7 @@ jobs:
     # (red check) for any bot not listed in allowed_bots. A skipped job counts as passing.
     if: >-
       ${{ !github.event.pull_request.draft &&
+          (github.event.action != 'edited' || github.event.changes.base) &&
           (github.actor == 'dependabot[bot]' || github.actor == 'claude[bot]' ||
            (!endsWith(github.actor, '[bot]') && github.actor != 'Copilot')) }}
     runs-on: ubuntu-latest
@@ -80,10 +83,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-          # The exact commits this run reviews. The diff and lists come from compare BASE...HEAD, not the
-          # PR's current state, so a push that lands mid-run can't make the diff disagree with the
-          # checkout or with the commit_id comments are pinned to.
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # The head commit this run reviews (the checkout, and the commit_id comments are pinned to). The
+          # diff is compare <base branch>...HEAD_SHA: the base is the branch's current tip, because the
+          # event's base.sha can be stale, and a stale base would pull already-merged base-branch commits
+          # into the diff.
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           # Everything the reviewer needs is collected here with the read-only GITHUB_TOKEN and
@@ -91,7 +95,16 @@ jobs:
           # reviewer needs no shell at all and can Read large files in chunks.
           out=.git/review
           mkdir -p "$out"
-          cmp="repos/$REPO/compare/$BASE_SHA...$HEAD_SHA"
+          cmp="repos/$REPO/compare/$BASE_REF...$HEAD_SHA"
+          # File lists: GitHub's compare API returns at most 300 files, and pulls/N/files up to 3000 but for
+          # the PR's *current* head. Use pulls/N/files while the PR head is still HEAD_SHA (the usual case);
+          # if a newer commit landed mid-run, fall back to compare and flag a possibly partial list.
+          if [ "$(gh api "repos/$REPO/pulls/$PR" --jq '.head.sha' 2>/dev/null)" = "$HEAD_SHA" ]; then
+            files_api=(--paginate "repos/$REPO/pulls/$PR/files"); files_jq='.[]'; files_cap=3000
+          else
+            echo "::notice::The PR head moved past $HEAD_SHA during this run; the file list comes from compare (300-file cap)."
+            files_api=("$cmp"); files_jq='.files[]'; files_cap=300
+          fi
           # fd 3 = the job log; inside the pr-meta block below, stdout goes to the file.
           exec 3>&1
 
@@ -99,7 +112,7 @@ jobs:
           #    large, rebuild it from per-file patches.
           if ! gh api "$cmp" -H "Accept: application/vnd.github.diff" > "$out/pr.diff"; then
             echo "::notice::compare diff failed (very large PR?); building the diff from per-file patches."
-            gh api --paginate "$cmp" --jq '.files[] |
+            gh api "${files_api[@]}" --jq "$files_jq"' |
                 "diff --git a/\(.previous_filename // .filename) b/\(.filename)\n# status: \(.status)  +\(.additions) -\(.deletions)" +
                 (if .previous_filename then "  (renamed from \(.previous_filename))" else "" end) + "\n" +
                 (.patch // (if .status == "renamed" then "# (renamed without content changes)"
@@ -113,12 +126,12 @@ jobs:
           echo "pr.diff: $(wc -l < "$out/pr.diff") lines"
 
           # 2. Title and description (pulls/N), plus the commits and changed files of BASE...HEAD.
-          #    GitHub caps compare at 250 commits and 3000 files; a NOTE is added when a list is short.
+          #    GitHub caps the lists (250 commits; 300 or 3000 files, see above); a NOTE is added when one is short.
           meta_fail() { echo "::warning::Could not fetch $1; pr-meta.md is incomplete." >&3; echo "(could not fetch $1)"; }
           {
             gh api "repos/$REPO/pulls/$PR" --jq '"# \(.title)\n\n## Description\n\n\(.body // "")\n"' \
               || meta_fail "title and description"
-            echo "Reviewing $BASE_SHA...$HEAD_SHA"
+            echo "Reviewing $BASE_REF...$HEAD_SHA"
             echo
             echo "## Commits"
             gh api --paginate "$cmp" --jq '.commits[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"' \
@@ -126,7 +139,7 @@ jobs:
             cat "$out/commits.txt" 2>/dev/null
             echo
             echo "## Files"
-            gh api --paginate "$cmp" --jq '.files[] |
+            gh api "${files_api[@]}" --jq "$files_jq"' |
                 "- \(.filename) (\(.status), +\(.additions) -\(.deletions))" +
                 (if .previous_filename then " renamed from \(.previous_filename)" else "" end)' \
               > "$out/files.txt" || { meta_fail "the file list"; files_failed=1; }
@@ -136,10 +149,10 @@ jobs:
             want_c=$(gh api "$cmp" --jq '.total_commits' 2>/dev/null || echo "")
             if [ -n "$want_c" ] && [ -z "${commits_failed:-}" ] && [ -z "${files_failed:-}" ]; then
               got_c=$(wc -l < "$out/commits.txt"); got_f=$(wc -l < "$out/files.txt")
-              if [ "$got_c" -lt "$want_c" ] || [ "$got_f" -ge 3000 ]; then
-                echo "::warning::GitHub returned $got_c/$want_c commits and $got_f files (3000 max); the review covers a partial list." >&3
+              if [ "$got_c" -lt "$want_c" ] || [ "$got_f" -ge "$files_cap" ]; then
+                echo "::warning::GitHub returned $got_c/$want_c commits and $got_f files ($files_cap max); the review covers a partial list." >&3
                 echo
-                echo "NOTE: GitHub returned $got_c of $want_c commits and $got_f changed files (3000 is its maximum)."
+                echo "NOTE: GitHub returned $got_c of $want_c commits and $got_f changed files ($files_cap is its maximum here)."
                 echo "These lists (and pr.diff, if it was rebuilt from per-file patches) may be incomplete. Say so in any comment."
               fi
             fi
