@@ -113,18 +113,19 @@ jobs:
               || meta_fail "title and description"
             echo "## Commits"
             gh api --paginate "repos/$REPO/pulls/$PR/commits" --jq '.[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"' \
-              > "$out/commits.txt" || meta_fail "the commit list"
+              > "$out/commits.txt" || { meta_fail "the commit list"; commits_failed=1; }
             cat "$out/commits.txt" 2>/dev/null
             echo
             echo "## Files"
             gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] |
                 "- \(.filename) (\(.status), +\(.additions) -\(.deletions))" +
                 (if .previous_filename then " renamed from \(.previous_filename)" else "" end)' \
-              > "$out/files.txt" || meta_fail "the file list"
+              > "$out/files.txt" || { meta_fail "the file list"; files_failed=1; }
             cat "$out/files.txt" 2>/dev/null
-            # Flag lists the API truncated (over 250 commits or 3000 files).
+            # Flag lists the API truncated (over 250 commits or 3000 files). Skipped when a fetch failed,
+            # which meta_fail has already reported, so a failure isn't misreported as truncation.
             counts=$(gh api "repos/$REPO/pulls/$PR" --jq '"\(.commits) \(.changed_files)"' 2>/dev/null || echo "")
-            if [ -n "$counts" ]; then
+            if [ -n "$counts" ] && [ -z "${commits_failed:-}" ] && [ -z "${files_failed:-}" ]; then
               read -r want_c want_f <<< "$counts"
               got_c=$(wc -l < "$out/commits.txt" 2>/dev/null || echo 0); got_f=$(wc -l < "$out/files.txt" 2>/dev/null || echo 0)
               if [ "$got_c" -lt "$want_c" ] || [ "$got_f" -lt "$want_f" ]; then
