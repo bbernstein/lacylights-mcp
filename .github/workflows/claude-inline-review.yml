@@ -178,13 +178,19 @@ jobs:
             want_c=$(gh api "$cmp" --jq '.total_commits' 2>/dev/null || true)
             [[ "$want_c" =~ ^[0-9]+$ ]] || want_c=""
             if [ -n "$want_c" ] && [ -z "${commits_failed:-}" ] && [ -z "${files_failed:-}" ]; then
-              got_c=$(wc -l < "$out/commits.txt"); got_f=$(wc -l < "$files_json")
-              if [ "$got_c" -lt "$want_c" ] || [ "$got_f" -ge "$files_cap" ]; then
-                echo "::warning::GitHub returned $got_c/$want_c commits and $got_f files ($files_cap max); the lists may be partial." >&3
+              # $(( )) drops the padding some wc implementations add.
+              got_c=$(( $(wc -l < "$out/commits.txt") )); got_f=$(( $(wc -l < "$files_json") ))
+              if [ "$got_c" -lt "$want_c" ]; then
+                echo "::warning::GitHub returned only $got_c of $want_c commits; the commit list is incomplete." >&3
                 echo
-                echo "NOTE: GitHub returned $got_c of $want_c commits and $got_f changed files; $files_cap is the most it"
-                echo "returns here, so the file list may be truncated (or the PR has exactly that many files). These"
-                echo "lists, and pr.diff if it was rebuilt from per-file patches, may be incomplete. Say so in any comment."
+                echo "NOTE: GitHub returned only $got_c of $want_c commits; the commit list above is incomplete."
+              fi
+              if [ "$got_f" -ge "$files_cap" ]; then
+                echo "::warning::GitHub returned $got_f changed files, the most it returns here; the file list may be truncated." >&3
+                echo
+                echo "NOTE: GitHub returned $got_f changed files, the most it returns here, so the file list (and"
+                echo "pr.diff, if it was rebuilt from per-file patches) may be truncated, unless the PR has exactly"
+                echo "that many files. Say so in any comment about missing coverage."
               fi
             fi
           } > "$out/pr-meta.md"
