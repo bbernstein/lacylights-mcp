@@ -19,16 +19,17 @@ name: Claude Inline Review
 on:
   pull_request:
     # `edited` only matters when the base branch changed (see the conditions below).
-    types: [opened, synchronize, ready_for_review, reopened, converted_to_draft, edited]
+    types: [opened, synchronize, ready_for_review, reopened, converted_to_draft, edited, closed]
 
 # A new push cancels the review still running for the PR. Runs the job-level `if` will skip (drafts,
 # unlisted bots) get a group of their own, so they can't cancel a real review. Converting a PR to draft
-# joins the review group on purpose: it cancels the running review, and the job itself then skips.
+# or closing/merging it joins the review group on purpose: it cancels the running review, and the job
+# itself then skips.
 # Keep this condition in sync with the job's `if:`.
 concurrency:
   group: >-
     claude-inline-review-${{ github.event.pull_request.number }}-${{
-      (github.event.action == 'converted_to_draft' ||
+      (github.event.action == 'converted_to_draft' || github.event.action == 'closed' ||
        (!github.event.pull_request.draft &&
         (github.event.action != 'edited' || github.event.changes.base) &&
         (github.actor == 'dependabot[bot]' || github.actor == 'claude[bot]' ||
@@ -41,7 +42,7 @@ jobs:
     # Keep in sync with the concurrency group above. Skip drafts, and skip pushes by bots other than Dependabot and claude[bot]: the action throws
     # (red check) for any bot not listed in allowed_bots. A skipped job counts as passing.
     if: >-
-      ${{ !github.event.pull_request.draft &&
+      ${{ !github.event.pull_request.draft && github.event.action != 'closed' &&
           (github.event.action != 'edited' || github.event.changes.base) &&
           (github.actor == 'dependabot[bot]' || github.actor == 'claude[bot]' ||
            (!endsWith(github.actor, '[bot]') && github.actor != 'Copilot')) }}
@@ -148,16 +149,24 @@ jobs:
           echo "pr.diff: $(wc -l < "$out/pr.diff") lines"
 
           # 2. Title and description (pulls/N), plus commits (compare) and changed files (files.jsonl).
-          #    GitHub caps the lists (250 commits; 300 or 3000 files, see above); a NOTE is added when one is short.
+          #    --paginate returns every commit; the file list is capped at 300 or 3000 (see above), and a NOTE
+          #    is added when a list is short or reaches that cap.
           meta_fail() { echo "::warning::Could not fetch $1; pr-meta.md is incomplete." >&3; echo "(could not fetch $1)"; }
           {
-            gh api "repos/$REPO/pulls/$PR" --jq '"# \(.title)\n\n## Description\n\n\(.body // "")\n"' \
-              || meta_fail "title and description"
+            # (On failure gh prints error JSON to stdout, so output is kept only when a call succeeds.)
+            if t=$(gh api "repos/$REPO/pulls/$PR" --jq '"# \(.title)\n\n## Description\n\n\(.body // "")\n"'); then
+              printf '%s\n' "$t"
+            else
+              meta_fail "title and description"
+            fi
             echo "Reviewing $BASE_REF...$HEAD_SHA (file list from: $files_src)"
             echo
             echo "## Commits"
-            gh api --paginate "$cmp" --jq '.commits[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"' \
-              > "$out/commits.txt" || { meta_fail "the commit list"; commits_failed=1; }
+            if c=$(gh api --paginate "$cmp" --jq '.commits[] | "- \(.sha[0:7]) \(.commit.message | split("\n")[0])"'); then
+              printf '%s\n' "$c" > "$out/commits.txt"
+            else
+              meta_fail "the commit list"; commits_failed=1; : > "$out/commits.txt"
+            fi
             cat "$out/commits.txt" 2>/dev/null
             echo
             echo "## Files"
@@ -166,14 +175,16 @@ jobs:
                 (if .previous_filename then " renamed from \(.previous_filename)" else "" end)' "$files_json"
             # Flag lists GitHub truncated. Skipped when a fetch failed (already reported above), so a
             # failure isn't misreported as truncation.
-            want_c=$(gh api "$cmp" --jq '.total_commits' 2>/dev/null || echo "")
+            want_c=$(gh api "$cmp" --jq '.total_commits' 2>/dev/null || true)
+            [[ "$want_c" =~ ^[0-9]+$ ]] || want_c=""
             if [ -n "$want_c" ] && [ -z "${commits_failed:-}" ] && [ -z "${files_failed:-}" ]; then
               got_c=$(wc -l < "$out/commits.txt"); got_f=$(wc -l < "$files_json")
               if [ "$got_c" -lt "$want_c" ] || [ "$got_f" -ge "$files_cap" ]; then
-                echo "::warning::GitHub returned $got_c/$want_c commits and $got_f files ($files_cap max); the review covers a partial list." >&3
+                echo "::warning::GitHub returned $got_c/$want_c commits and $got_f files ($files_cap max); the lists may be partial." >&3
                 echo
-                echo "NOTE: GitHub returned $got_c of $want_c commits and $got_f changed files ($files_cap is its maximum here)."
-                echo "These lists (and pr.diff, if it was rebuilt from per-file patches) may be incomplete. Say so in any comment."
+                echo "NOTE: GitHub returned $got_c of $want_c commits and $got_f changed files; $files_cap is the most it"
+                echo "returns here, so the file list may be truncated (or the PR has exactly that many files). These"
+                echo "lists, and pr.diff if it was rebuilt from per-file patches, may be incomplete. Say so in any comment."
               fi
             fi
           } > "$out/pr-meta.md"
