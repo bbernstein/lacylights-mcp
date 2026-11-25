@@ -25,7 +25,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@apollo/client": "^4.2.2",
+    "@apollo/client": "^4.3.8",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "cross-fetch": "^4.1.0",
     "fflate": "^0.8.3",
